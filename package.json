@@ -7,6 +7,7 @@
     "test": "mocha --require test/setup.js",
     "dev": "nodemon src/server.js",
     "migrate": "postgrator --config postgrator-config.js",
+    "migrate:test": "env NODE_ENV=test npm run migrate",
     "start": "node src/server.js",
     "predeploy": "npm audit",
     "deploy": "git push heroku master"
@@ -16,10 +17,13 @@
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
+    "countries-list": "^2.5.6",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "helmet": "^3.22.0",
     "helmut": "^1.0.1",
+    "knex": "^0.21.5",
+    "money": "^0.2.0",
     "morgan": "^1.10.0",
     "pg": "^8.3.3"
   },
