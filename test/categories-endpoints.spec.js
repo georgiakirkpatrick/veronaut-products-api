@@ -1,10 +1,8 @@
-const { expect } = require('chai')
 const knex = require('knex')
 const app = require('../src/app')
-const supertest = require('supertest')
 const { makeCategoriesArray } = require('./categories.fixtures')
 
-describe('GET /categories', function() {
+describe('Categories Endpoints', function() {
     let db
 
     before('make knex instance', () => {
