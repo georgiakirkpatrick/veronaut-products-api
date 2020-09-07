@@ -6,7 +6,8 @@ CREATE TABLE products (
     product_url TEXT NOT NULL,
     home_currency TEXT NOT NULL,
     cost_in_home_currency MONEY NOT NULL,
-    cmt_country TEXT NOT NULL,
-    cmt_factory_notes TEXT NOT NULL,
-    approved_by_admin BOOLEAN NOT NULL
+    cmt_country TEXT,
+    cmt_factory_notes TEXT,
+    approved_by_admin BOOLEAN NOT NULL,
+    date_published TIMESTAMPTZ DEFAULT now() NOT NULL
 );

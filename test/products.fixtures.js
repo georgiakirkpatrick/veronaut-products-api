@@ -1,3 +1,5 @@
+const productsRouter = require("../src/products/products-router")
+
 function makeProductsArray() {
     return [
         {
@@ -51,6 +53,31 @@ function makeProductsArray() {
     ]
 }
 
+function makeMaliciousProduct() {
+    const maliciousProduct = {
+        english_name: 'Malicious product <script>alert("xss");</script>',
+        brand_id: 1,
+        category_id: 10,
+        product_url: '<a href="https://google.com">google</a>',
+        home_currency: 'USD',
+        cost_in_home_currency: 666,
+        cmt_country: 'US',
+        cmt_factory_notes: 'This is a bad image for testing purposes <img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);">.',
+        approved_by_admin: true
+    }
+    const expectedProduct = {
+        ...maliciousProduct,
+        english_name: 'Malicious product &lt;script&gt;alert(\"xss\");&lt;/script&gt;',
+        product_url: '&lt;a href="https://google.com"&gt;google&lt;/a&gt;',
+        cmt_factory_notes: 'This is a bad image for testing purposes <img src="https://url.to.file.which/does-not.exist">.',
+    }
+    return {
+        maliciousProduct,
+        expectedProduct
+    }
+
+}
+
 module.exports = {
-    makeProductsArray
+    makeProductsArray, makeMaliciousProduct
 }
