@@ -1,6 +1,7 @@
 const express = require('express')
 const xss = require('xss')
 const ProductsService = require('./products-service')
+const CategoriesService = require('../categories/categories-service')
 
 const productsRouter = express.Router()
 const jsonParser = express.json()
@@ -76,17 +77,46 @@ productsRouter
 
 productsRouter
     .route('/:product_id')
+    .all((req, res, next) => {
+        ProductsService.getById(
+            req.app.get('db'),
+            req.params.product_id
+        )
+        .then(product => {
+            if (!product) {
+                return res.status(404).json({
+                    error: { message: `Product does not exist` }
+                })
+            }
+            res.product = product
+            next()
+        })
+        .catch(next)
+    })
     .get((req, res, next) => {
-        ProductsService.getById(req.app.get('db'), req.params.product_id)
-            .then(product => {
-                if (!product) {
-                    return res.status(404).json({
-                        error: { message: `Product doesn't exist`}
-                    })
-                }
-                res.json(serializeProduct(product))
+        res.json({
+            id: res.product.id,
+            english_name: xss(res.product.english_name),
+            brand_id: res.product.brand_id,
+            category_id: res.product.category_id,
+            product_url: xss(res.product.product_url),
+            home_currency: res.product.home_currency,
+            cost_in_home_currency: res.product.cost_in_home_currency,
+            cmt_country: res.product.cmt_country,
+            cmt_factory_notes: xss(res.product.cmt_factory_notes),
+            approved_by_admin: res.product.approved_by_admin,
+            date_published: res.product.date_published
+        })
+    })
+    .delete((req, res, next) => {
+        ProductsService.deleteProduct(
+            req.app.get('db'),
+            req.params.product_id
+        )
+            .then(() => {
+                res.status(204).end()
             })
-            .catch(next) 
+            .catch(next)
     })
 
 module.exports = productsRouter

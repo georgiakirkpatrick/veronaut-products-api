@@ -68,7 +68,7 @@ describe('Products Endpoints', () => {
         })
     })
 
-    describe('GET /products/:product_id', function() {
+    describe('GET /products/:product_id', () => {
         context('Given there are products in the database', () => {
             const testProducts = makeProductsArray()
 
@@ -207,6 +207,40 @@ describe('Products Endpoints', () => {
                     expect(res.body.product_url).to.eql(expectedProduct.product_url)
                     expect(res.body.cmt_factory_notes).to.eql(expectedProduct.cmt_factory_notes)
                 })
+        })
+    })
+
+    describe('DELETE /products/:product_id', () => {
+        context('Given there are products in the database', () => {
+            const testProducts = makeProductsArray()
+
+            beforeEach('insert products', () => {
+                return db
+                    .into('products')
+                    .insert(testProducts)
+            })
+
+            it('responds with 204 and removes the product', () => {
+                const idToRemove = 1
+                const expectedProducts = testProducts.filter(product => product.id !== idToRemove)
+                return supertest(app)
+                    .delete(`/products/${idToRemove}`)
+                    .expect(204)
+                    .then(res => 
+                        supertest(app)
+                            .get('/products')
+                            .expect(expectedProducts)
+                    )
+            })
+        })
+
+        context('Given no products', () => {
+            it(`responds with 404`, () => {
+                const productId = 234567
+                return supertest(app)
+                    .delete(`/products/${productId}`)
+                    .expect(404, { error: { message: `Product does not exist` } })
+            })
         })
     })
 })
