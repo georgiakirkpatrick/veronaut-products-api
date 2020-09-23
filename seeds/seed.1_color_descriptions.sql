@@ -1,0 +1,19 @@
+-- insert into color_descriptions
+-- (english_name)
+-- values
+--     ('Black'),
+--     ('Grey'),
+--     ('White'),
+--     ('Off-white'),
+--     ('Beige'),
+--     ('Brown'),
+--     ('Purple'),
+--     ('Blue'),
+--     ('Green'),
+--     ('Yellow'),
+--     ('Orange'),
+--     ('Pink'),
+--     ('Red'),
+--     ('Pastel colors'),
+--     ('Bright colors'),
+--     ('Dark colors');

@@ -1,10 +1,13 @@
 const knex = require('knex')
 const app = require('../src/app')
-const { makeProductsArray, makeMaliciousProduct } = require('./products.fixtures')
+const { makeProductsArray, makeMaliciousProduct, makeBrandsArray, makeProductsArrayWithBrand } = require('./products.fixtures')
 const supertest = require('supertest')
 const { expect } = require('chai')
 
-describe('Products Endpoints', () => {
+// /api/products
+    // GET
+
+describe.only('Products Endpoints', () => {
     let db
 
     before('make knex instance', () => {
@@ -17,13 +20,19 @@ describe('Products Endpoints', () => {
 
     after('disconnect from db', () => db.destroy())
 
-    before('clean the table', () => db('products').truncate())
+    before('clean products table', () => db.raw(`TRUNCATE table products RESTART IDENTITY CASCADE`))
+    
+    before('clean brands table', () => db.raw(`TRUNCATE table brands RESTART IDENTITY CASCADE`))
 
-    afterEach('cleanup', () => db('products').truncate())
+    afterEach('cleanup products', () => db.raw('TRUNCATE table products RESTART IDENTITY CASCADE'))
+    
+    afterEach('cleanup brands', () => db.raw('TRUNCATE table brands RESTART IDENTITY CASCADE'))
 
-    describe('GET /products', () => {
+    describe('GET /api/products', () => {
         context('Given there are products in the database', () => {
             const testProducts = makeProductsArray()
+            const testBrands = makeBrandsArray()
+            const testProductsWithBrand = makeProductsArrayWithBrand()
 
             beforeEach('insert products', () => {
                 return db
@@ -31,33 +40,52 @@ describe('Products Endpoints', () => {
                     .insert(testProducts)
             })
 
-            it('GET /products responds with 200 and all of the products'), () => {
+            beforeEach('insert brands', () => {
+                return db
+                    .into('brands')
+                    .insert(testBrands)
+            })
+
+            it('GET /api/products responds with 200 and all of the products'), () => {
                 return supertest(app)
-                    .get('/products')
-                    .expect(200, testProducts)
+                    .get('/api/products')
+                    .expect(200, testProductsWithBrand)
             }
         })
 
         context('Given no products', () => {
             it('responds with 200 and an empty list', () => {
                 return supertest(app)
-                    .get('/products')
+                    .get('/api/products')
                     .expect(200, [])
             })
         })
 
         context('Given an XSS attack product', () => {
             const { maliciousProduct, expectedProduct } = makeMaliciousProduct()
+            const testBrands = makeBrandsArray()
 
-            beforeEach('insert malicious products', () => {
-                return db
-                    .into('products')
-                    .insert([ maliciousProduct ])
-            })
+            // beforeEach('insert brands', () => {
+            //     return db
+            //         .into('brands')
+            //         .insert([ testBrands ])
+            // })
+
+            // beforeEach('insert malicious products', () => {
+            //     return db
+            //         .into('products')
+            //         .insert([ maliciousProduct ])
+            // })
+
+            beforeEach('..', () => {
+                return db.into('brands').insert([testBrands]).then(
+                  () => db.into('products').insert([maliciousProduct])
+                );
+              });
 
             it('removes XSS attack content', () => {
                 return supertest(app)
-                    .get('/products')
+                    .get('/api/products')
                     .expect(200)
                     .expect(res => {
                         expect(res.body[0].english_name).to.eql(expectedProduct.english_name)
@@ -68,9 +96,16 @@ describe('Products Endpoints', () => {
         })
     })
 
-    describe('GET /products/:product_id', () => {
+    describe('GET /api/products/:product_id', () => {
         context('Given there are products in the database', () => {
             const testProducts = makeProductsArray()
+            const testBrands = makeBrandsArray()
+
+            beforeEach('insert brands', () => {
+                return db
+                    .into('brands')
+                    .insert([ testBrands ])
+            })
 
             beforeEach('insert products', () => {
                 return db
@@ -78,11 +113,12 @@ describe('Products Endpoints', () => {
                     .insert(testProducts)
             })
 
-            it('GET /products/:product_id responds with 200 and the specified product', () => {
+            it('GET /api/products/:product_id responds with 200 and the specified product', () => {
                 const productId = 2
-                const expectedProduct = testProducts[productId - 1]
+                const testProductsWithBrand = makeProductsArrayWithBrand()
+                const expectedProduct = testProductsWithBrand[productId - 1]
                 return supertest(app)
-                    .get(`/products/${productId}`)
+                    .get(`/api/products/${productId}`)
                     .expect(200, expectedProduct)
             })
         })
@@ -97,8 +133,9 @@ describe('Products Endpoints', () => {
             })
 
             it(`Removes XSS attack content`, () => {
+                console.log('maliciousProduct', maliciousProduct)
                 return supertest(app)
-                    .get(`/products/${maliciousProduct.id}`)
+                    .get(`/api/products/${maliciousProduct.id}`)
                     .expect(200)
                     .expect(res => {
                         expect(res.body.english_name).to.eql(expectedProduct.english_name)
@@ -110,23 +147,28 @@ describe('Products Endpoints', () => {
 
         context('Given no products', () => {
             it(`responds with 404`, () => {
-                const categoryId = 123456
+                const productId = 123456
                 return supertest(app)
-                    .get(`products/${productId}`)
-                    .expect(404, { error: { message: `Product doesn't exist` } })
+                    .get(`/api/products/${productId}`)
+                    .expect(404, { error: { message: `Product does not exist` } })
             })
         })
     })
 
-    describe('POST /products', () => {
+    describe('POST /api/products', () => {
         it(`Creates a product, responding with 201 and the new product`, () => {
-            this.retries(3)
+            // this.retries(3)
             const newProduct = {
                 english_name: 'Yellow Shirt',
                 brand_id: 1,
                 category_id: 10,
                 product_url: 'https://canopyandunderstory.com',
-                home_currency: 'USD',
+                feature_image_url: "<a src='http://test-url-feature-image'>",
+                multiple_color_options: true,
+                wash_id: 2,
+                dry_id: 1,
+                home_currency: "EUR",
+                cost_in_home_currency: "$100.00",
                 cost_in_home_currency: 60,
                 cmt_country: 'US',
                 cmt_factory_notes: '100 employees',
@@ -136,11 +178,15 @@ describe('Products Endpoints', () => {
             return supertest(app)
                 .post('products')
                 .send(newProduct)
-                .expect(res => {
+                .then(res => {
                     expext(res.body.english_name).to.eql(newProduct.english_name)
                     expext(res.body.brand_id).to.eql(newProduct.brand_id)
                     expext(res.body.category_id).to.eql(newProduct.category_id)
                     expext(res.body.product_url).to.eql(newProduct.product_url)
+                    expect(res.body.feature_image_url).to.eql(newProduct.feature_image_url)
+                    expect(res.body.multiple_color_options).to.eql(newProduct.multiple_color_options)
+                    expect(res.body.wash_id).to.eql(newProduct.wash_id)
+                    expect(res.body.dry_id).to.eql(newProduct.dry_id)
                     expext(res.body.home_currency).to.eql(newProduct.home_currency)
                     expext(res.body.cost_in_home_currency).to.eql(newProduct.cost_in_home_currency)
                     expext(res.body.cmt_country).to.eql(newProduct.cmt_country)
@@ -151,10 +197,12 @@ describe('Products Endpoints', () => {
                     const expected = new Date().toLocaleString()
                     const actual = new Date(res.body.date_published).toLocaleString()
                     expect(actual).to.eql(expected)
+                    console.log('res', res)
+                   return res
                 })
                 .then(postRes => 
                     supertest(app))
-                    .get(`/products/${postRes.body.id}`)
+                    .get(`/api/products/${postRes.body.id}`)
                     .expect(postRes.body)
                 
         })
@@ -164,8 +212,12 @@ describe('Products Endpoints', () => {
             'brand_id',
             'category_id',
             'product_url',
+            'feature_image_url',
+            'multiple_color_options',
             'home_currency',
             'cost_in_home_currency',
+            'wash_id',
+            'dry_id',
             'cmt_country',
             'cmt_factory_notes',
             'approved_by_admin'
@@ -177,8 +229,12 @@ describe('Products Endpoints', () => {
                 brand_id: 1,
                 category_id: 10,
                 product_url: 'https://canopyandunderstory.com',
+                feature_image_url: 'https://canopyandunderstory.com',
+                multiple_color_options: false,
                 home_currency: 'USD',
                 cost_in_home_currency: 60,
+                wash_id: 1,
+                dry_id: 1,
                 cmt_country: 'US',
                 cmt_factory_notes: '100 employees',
                 approved_by_admin: true
@@ -188,7 +244,7 @@ describe('Products Endpoints', () => {
                 delete newProduct[field]
 
                 return supertest(app)
-                    .post('/products')
+                    .post('/api/products')
                     .send(newProduct)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -199,7 +255,7 @@ describe('Products Endpoints', () => {
         it(`Removes XSS attack content from response`, () => {
             const { maliciousProduct, expectedProduct } = makeMaliciousProduct()
             return supertest(app)
-                .post('/products')
+                .post('/api/products')
                 .send(maliciousProduct)
                 .expect(201)
                 .expect(res => {
@@ -210,7 +266,94 @@ describe('Products Endpoints', () => {
         })
     })
 
-    describe('DELETE /products/:product_id', () => {
+    describe('PATCH /api/products/:product_id', () => {
+        context('Given there are products in the database', () => {
+            const testProducts  = makeProductsArray()
+
+            beforeEach('insert products', () => {
+                return db
+                    .into('products')
+                    .insert(testProducts)
+            })
+
+            it('responds with 204 and updates the product', () => {
+                const idToUpdate = 1
+                const updateProduct = {
+                    english_name: 'Updated Product Name',
+                    brand_id: 1,
+                    category_id: 10,
+                    product_url: 'https://canopyandunderstory.com',
+                    feature_image_url: 'https://canopyandunderstory.com',
+                    multiple_color_options: false,
+                    home_currency: 'USD',
+                    cost_in_home_currency: 60,
+                    wash_id: 1,
+                    dry_id: 1,
+                    cmt_country: 'US',
+                    cmt_factory_notes: 'Updated Notes',
+                    approved_by_admin: true
+                }
+                const expectedProduct = {
+                    ...testProducts[idToUpdate - 1],
+                    ...updateProduct
+                }
+
+                return supertest(app)
+                    .patch(`/api/products/${idToUpdate}`)
+                    .send(updateProduct)
+                    .expect(204)
+                    .then(res => {
+                        supertest(app)
+                            .get(`/api/products/${idToUpdate}`)
+                            .expect(expectedProduct)
+                    })
+            })
+
+            it('responds with 400 when no required fields supplied', () => {
+                const idToUpdate = 1
+                return supertest(app)
+                    .patch(`/api/products/${idToUpdate}`)
+                    .send({ irrelevantField: 'foo' })
+                    .expect(400, {
+                        error: { message: `Request body must contain 'english_name', 'brand_id', 'category_id', 'product_url', 'home_currency', 'cost_in_home_currency', 'cmt_country', 'cmt_factory_notes', 'approved_by_admin'`}
+                    })
+            })
+
+            it(`responds with 204 when updating only a subset of fields`, () => {
+                const idToUpdate = 1
+                const updateProduct = {
+                    english_name: 'Updated Product Name'
+                }
+                const expectedProduct = {
+                    ...testProducts[idToUpdate - 1],
+                    ...updateProduct
+                }
+
+                return supertest(app)
+                    .patch(`/api/products/${idToUpdate}`)
+                    .send({
+                        ...updateProduct,
+                        fieldToIgnore: 'should not be in the GET response'})
+                .expect(204)
+                .then(res => {
+                    supertest(app)
+                        .get(`/api/products/${idToUpdate}`)
+                        .expect(expectedProduct)
+                })
+            })
+        })
+        
+        context(`Given no products`, () => {
+            it(`responds with 404`, () => {
+                const productId = 123456
+                return supertest(app)
+                    .patch(`/api/products${productId}`)
+                    .expect(404, { error: { message: `Product does not exist`}})
+            })
+        })
+    })
+
+    describe('DELETE /api/products/:product_id', () => {
         context('Given there are products in the database', () => {
             const testProducts = makeProductsArray()
 
@@ -224,11 +367,11 @@ describe('Products Endpoints', () => {
                 const idToRemove = 1
                 const expectedProducts = testProducts.filter(product => product.id !== idToRemove)
                 return supertest(app)
-                    .delete(`/products/${idToRemove}`)
+                    .delete(`/api/products/${idToRemove}`)
                     .expect(204)
                     .then(res => 
                         supertest(app)
-                            .get('/products')
+                            .get('/api/products')
                             .expect(expectedProducts)
                     )
             })
@@ -238,7 +381,7 @@ describe('Products Endpoints', () => {
             it(`responds with 404`, () => {
                 const productId = 234567
                 return supertest(app)
-                    .delete(`/products/${productId}`)
+                    .delete(`/api/products/${productId}`)
                     .expect(404, { error: { message: `Product does not exist` } })
             })
         })

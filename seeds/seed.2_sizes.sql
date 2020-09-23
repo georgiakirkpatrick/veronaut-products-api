@@ -1,4 +1,4 @@
 insert into sizes
-(size_type_id, us_size)
+(size_type_id, size_class_id, us_size)
 values
-    (1, '6, S');
+    (1, 2, '6, S');

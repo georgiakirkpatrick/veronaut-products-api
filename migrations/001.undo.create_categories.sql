@@ -1,2 +1,2 @@
-DROP TABLE IF EXISTS categories;
-DROP TYPE IF EXISTS category_class;
+DROP TABLE IF EXISTS categories CASCADE;
+DROP TYPE IF EXISTS category_class CASCADE;

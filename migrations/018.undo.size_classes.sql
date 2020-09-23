@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS size_classes CASCADE;
+DROP TABLE IF EXISTS factories CASCADE;
+DROP TABLE IF EXISTS notions_to_factories CASCADE;

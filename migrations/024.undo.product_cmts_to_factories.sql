@@ -1,1 +1,0 @@
-DROP TABLE IF EXISTS product_cmts_to_factories;

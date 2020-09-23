@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS size_types CASCADE;

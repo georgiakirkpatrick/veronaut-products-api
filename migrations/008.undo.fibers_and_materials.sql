@@ -1,1 +1,0 @@
-DROP TABLE IF EXISTS fibers_and_materials;

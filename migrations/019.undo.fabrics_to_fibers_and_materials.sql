@@ -1,1 +1,0 @@
-DROP TABLE IF EXISTS fabrics_to_fibers_and_materials;

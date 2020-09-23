@@ -15,9 +15,9 @@ describe('Categories Endpoints', function() {
 
     after('disconnect from db', () => db.destroy())
 
-    before('clean the table', () => db('categories').truncate())
-
-    afterEach('cleanup', () => db('categories').truncate())
+    before('clean the table', () => db.raw('TRUNCATE table categories RESTART IDENTITY CASCADE'))
+    
+    afterEach('cleanup', () => db.raw('TRUNCATE table categories RESTART IDENTITY CASCADE'))
 
     context('Given there are categories in the database', () => {
         const testCategories = makeCategoriesArray()
@@ -28,9 +28,9 @@ describe('Categories Endpoints', function() {
                 .insert(testCategories)
         })
 
-        it('GET /categories responds with 200 and all of the categories'), () => {
+        it('GET /api/categories responds with 200 and all of the categories'), () => {
             return supertest(app)
-                .get('/categories')
+                .get('/api/categories')
                 .expect(200, testCategories)
         }
     })
@@ -38,7 +38,7 @@ describe('Categories Endpoints', function() {
     context('Given no categories', () => {
         it('responds with 200 and an empty list', () => {
             return supertest(app)
-                .get('/categories')
+                .get('/api/categories')
                 .expect(200, [])
         })
     })
