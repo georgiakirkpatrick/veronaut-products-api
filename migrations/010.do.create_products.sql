@@ -6,7 +6,6 @@ CREATE TABLE products (
     product_url TEXT NOT NULL,
     feature_image_url TEXT NOT NULL,
     multiple_color_options BOOLEAN NOT NULL,
-    home_currency TEXT NOT NULL,
     cost_in_home_currency MONEY NOT NULL,
     wash_id INTEGER REFERENCES wash_instructions(id) ON DELETE CASCADE,
     dry_id INTEGER REFERENCES dry_instructions(id) ON DELETE CASCADE,

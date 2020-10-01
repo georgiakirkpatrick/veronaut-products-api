@@ -1,6 +1,6 @@
 const knex = require('knex')
 const app = require('../src/app')
-const { makeProductsArray, makeMaliciousProduct, makeBrandsArray, makeProductsArrayWithBrand } = require('./products.fixtures')
+const { makeProductsArray, makeMaliciousProduct, makeBrand, makeProductsArrayWithBrand } = require('./products.fixtures')
 const supertest = require('supertest')
 const { expect } = require('chai')
 
@@ -31,7 +31,7 @@ describe.only('Products Endpoints', () => {
     describe('GET /api/products', () => {
         context('Given there are products in the database', () => {
             const testProducts = makeProductsArray()
-            const testBrands = makeBrandsArray()
+            const testBrands = makeBrand()
             const testProductsWithBrand = makeProductsArrayWithBrand()
 
             beforeEach('insert products', () => {
@@ -63,7 +63,7 @@ describe.only('Products Endpoints', () => {
 
         context('Given an XSS attack product', () => {
             const { maliciousProduct, expectedProduct } = makeMaliciousProduct()
-            const testBrands = makeBrandsArray()
+            const testBrands = makeBrand()
 
             // beforeEach('insert brands', () => {
             //     return db
@@ -99,7 +99,7 @@ describe.only('Products Endpoints', () => {
     describe('GET /api/products/:product_id', () => {
         context('Given there are products in the database', () => {
             const testProducts = makeProductsArray()
-            const testBrands = makeBrandsArray()
+            const testBrands = makeBrand()
 
             beforeEach('insert brands', () => {
                 return db

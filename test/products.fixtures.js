@@ -8,7 +8,6 @@ function makeProductsArray() {
             product_url: 'https://silvaniaperu.com/silvania-dress',
             feature_image_url: 'https://silvaniaperu.com/silvania-dress',
             multiple_color_options: true,
-            home_currency: 'USD',
             cost_in_home_currency: '$148.00',
             wash_id: 1,
             dry_id: 1,
@@ -25,7 +24,6 @@ function makeProductsArray() {
             product_url: 'https://silvaniaperu.com/silvania-dress',
             feature_image_url: 'https://silvaniaperu.com/silvania-dress',
             multiple_color_options: true,
-            home_currency: 'USD',
             cost_in_home_currency: '$148.00',
             wash_id: 1,
             dry_id: 1,
@@ -42,7 +40,6 @@ function makeProductsArray() {
             product_url: 'https://silvaniaperu.com/silvania-dress',
             feature_image_url: 'https://silvaniaperu.com/silvania-dress',
             multiple_color_options: true,
-            home_currency: 'USD',
             cost_in_home_currency: '$148.00',
             wash_id: 1,
             dry_id: 1,
@@ -59,7 +56,6 @@ function makeProductsArray() {
             product_url: 'https://silvaniaperu.com/silvania-dress',
             feature_image_url: 'https://silvaniaperu.com/silvania-dress',
             multiple_color_options: true,
-            home_currency: 'USD',
             cost_in_home_currency: '$148.00',
             wash_id: 1,
             dry_id: 1,
@@ -71,11 +67,13 @@ function makeProductsArray() {
     ]
 }
 
-function makeBrandsArray() {
+function makeBrand() {
     return {
         id: 1,
         english_name: 'Sezane',
         website: 'https://silvaniaprints.com',
+        home_currency: 'USD',
+        size_system: 'US',
         approved_by_admin: true,
         date_published: "2020-09-13T07:30:51.564Z"
     }
@@ -193,7 +191,7 @@ function makeMaliciousProduct() {
 
 module.exports = {
     makeProductsArray, 
-    makeBrandsArray,
+    makeBrand,
     makeProductsArrayWithBrand,
     makeMaliciousProduct
 }
