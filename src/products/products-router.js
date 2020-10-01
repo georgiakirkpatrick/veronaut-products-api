@@ -133,7 +133,6 @@ productsRouter
             product_url,
             feature_image_url,
             multiple_color_options,
-            home_currency,
             cost_in_home_currency,
             wash_id,
             dry_id,
@@ -149,7 +148,6 @@ productsRouter
             product_url,
             feature_image_url,
             multiple_color_options,
-            home_currency,
             cost_in_home_currency,
             wash_id,
             dry_id,
@@ -159,7 +157,7 @@ productsRouter
         }
 
         for (const [key, value] of Object.entries(newProduct)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
                 })
@@ -194,7 +192,6 @@ productsRouter
                 })
             }
             res.product = product
-            console.log('product', product)
 
             next()
         })
@@ -206,11 +203,11 @@ productsRouter
             english_name: xss(res.product.english_name),
             brand_id: res.product.brand_id,
             brand_name: xss(res.product.brand_name),
+            home_currency: res.product.home_currency,
             category_id: res.product.category_id,
             product_url: xss(res.product.product_url),
             feature_image_url: xss(res.product.feature_image_url),
             multiple_color_options: res.product.multiple_color_options,
-            home_currency: res.product.home_currency,
             cost_in_home_currency: res.product.cost_in_home_currency,
             wash_id: res.product.wash_id,
             dry_id: res.product.dry_id,
@@ -219,7 +216,6 @@ productsRouter
             approved_by_admin: res.product.approved_by_admin,
             date_published: res.product.date_published
         })
-        .catch(next)
     })
     .patch(jsonParser, (req, res, next) => {
         const {
@@ -229,7 +225,6 @@ productsRouter
             product_url,
             feature_image_url,
             multiple_color_options,
-            home_currency,
             cost_in_home_currency,
             wash_id,
             dry_id,
@@ -245,7 +240,6 @@ productsRouter
             product_url,
             feature_image_url,
             multiple_color_options,
-            home_currency,
             cost_in_home_currency,
             wash_id,
             dry_id,
@@ -258,7 +252,7 @@ productsRouter
         if (numberOfValues === 0) {
             return res.status(400).json({
                 error: { 
-                    message: `Request body must contain 'english_name', 'brand_id', 'category_id', 'product_url', 'feature_image_url', 'multiple_color_options', 'home_currency', 'cost_in_home_currency', 'wash_id', 'dry_id', 'cmt_country', 'cmt_factory_notes', or 'approved_by_admin'`
+                    message: `Request body must contain 'english_name', 'brand_id', 'category_id', 'product_url', 'feature_image_url', 'multiple_color_options', 'cost_in_home_currency', 'wash_id', 'dry_id', 'cmt_country', 'cmt_factory_notes', or 'approved_by_admin'`
                 }
             })
         }

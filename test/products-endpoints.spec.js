@@ -1,14 +1,31 @@
 const knex = require('knex')
 const app = require('../src/app')
-const { makeProductsArray, makeMaliciousProduct, makeBrand, makeProductsArrayWithBrand } = require('./products.fixtures')
+const { makeProductsArray, makeMaliciousProduct, makeBrand, makeCategory, makeWash, makeDry, makeProductsArrayWithBrand } = require('./products.fixtures')
 const supertest = require('supertest')
 const { expect } = require('chai')
 
 // /api/products
     // GET
 
-describe.only('Products Endpoints', () => {
+describe('Products Endpoints', () => {
     let db
+
+    function insertFixtures(
+        products=makeProductsArray(),
+        brands=[makeBrand()],
+        categories=[makeCategory()],
+        washInstructions=[makeWash()],
+        dryInstructions=[makeDry()]
+      ) {
+        return Promise.all([
+          db.into('brands').insert(brands),
+          db.into('wash_instructions').insert(washInstructions),
+          db.into('dry_instructions').insert(dryInstructions),
+          db.into('categories').insert(categories)
+        ]).then(
+          () => db.into('products').insert(products)
+        )
+    }
 
     before('make knex instance', () => {
         db = knex({
@@ -20,31 +37,19 @@ describe.only('Products Endpoints', () => {
 
     after('disconnect from db', () => db.destroy())
 
-    before('clean products table', () => db.raw(`TRUNCATE table products RESTART IDENTITY CASCADE`))
-    
-    before('clean brands table', () => db.raw(`TRUNCATE table brands RESTART IDENTITY CASCADE`))
-
-    afterEach('cleanup products', () => db.raw('TRUNCATE table products RESTART IDENTITY CASCADE'))
-    
-    afterEach('cleanup brands', () => db.raw('TRUNCATE table brands RESTART IDENTITY CASCADE'))
+    const cleanUpTables = () => db.raw(
+        `TRUNCATE table products, brands, categories, wash_instructions, dry_instructions RESTART IDENTITY CASCADE`
+      );
+  
+    before('clean tables', cleanUpTables)
+  
+    afterEach('cleanup tables', cleanUpTables)
 
     describe('GET /api/products', () => {
         context('Given there are products in the database', () => {
-            const testProducts = makeProductsArray()
-            const testBrands = makeBrand()
             const testProductsWithBrand = makeProductsArrayWithBrand()
 
-            beforeEach('insert products', () => {
-                return db
-                    .into('products')
-                    .insert(testProducts)
-            })
-
-            beforeEach('insert brands', () => {
-                return db
-                    .into('brands')
-                    .insert(testBrands)
-            })
+            beforeEach(insertFixtures)
 
             it('GET /api/products responds with 200 and all of the products'), () => {
                 return supertest(app)
@@ -65,23 +70,7 @@ describe.only('Products Endpoints', () => {
             const { maliciousProduct, expectedProduct } = makeMaliciousProduct()
             const testBrands = makeBrand()
 
-            // beforeEach('insert brands', () => {
-            //     return db
-            //         .into('brands')
-            //         .insert([ testBrands ])
-            // })
-
-            // beforeEach('insert malicious products', () => {
-            //     return db
-            //         .into('products')
-            //         .insert([ maliciousProduct ])
-            // })
-
-            beforeEach('..', () => {
-                return db.into('brands').insert([testBrands]).then(
-                  () => db.into('products').insert([maliciousProduct])
-                );
-              });
+            beforeEach(() => insertFixtures([ maliciousProduct ]))
 
             it('removes XSS attack content', () => {
                 return supertest(app)
@@ -101,19 +90,9 @@ describe.only('Products Endpoints', () => {
             const testProducts = makeProductsArray()
             const testBrands = makeBrand()
 
-            beforeEach('insert brands', () => {
-                return db
-                    .into('brands')
-                    .insert([ testBrands ])
-            })
+            beforeEach(insertFixtures)
 
-            beforeEach('insert products', () => {
-                return db
-                    .into('products')
-                    .insert(testProducts)
-            })
-
-            it.only('GET /api/products/:product_id responds with 200 and the specified product', () => {
+            it('GET /api/products/:product_id responds with 200 and the specified product', () => {
                 const productId = 2
                 const testProductsWithBrand = makeProductsArrayWithBrand()
                 const expectedProduct = testProductsWithBrand[productId - 1]
@@ -126,11 +105,7 @@ describe.only('Products Endpoints', () => {
         context(`Given an XSS attack product`, () => {
             const { maliciousProduct, expectedProduct } = makeMaliciousProduct()
 
-            beforeEach('Insert malicious product', () => {
-                return db
-                    .into('products')
-                    .insert([ maliciousProduct ])
-            })
+            beforeEach(() => insertFixtures([ maliciousProduct ]));
 
             it(`Removes XSS attack content`, () => {
                 console.log('maliciousProduct', maliciousProduct)
@@ -156,19 +131,18 @@ describe.only('Products Endpoints', () => {
     })
 
     describe('POST /api/products', () => {
+        beforeEach(() => insertFixtures([]))
         it(`Creates a product, responding with 201 and the new product`, () => {
             // this.retries(3)
             const newProduct = {
                 english_name: 'Yellow Shirt',
                 brand_id: 1,
-                category_id: 10,
+                category_id: 1,
                 product_url: 'https://canopyandunderstory.com',
-                feature_image_url: "<a src='http://test-url-feature-image'>",
+                feature_image_url: "http://test-url-feature-image.com",
                 multiple_color_options: true,
-                wash_id: 2,
+                wash_id: 1,
                 dry_id: 1,
-                home_currency: "EUR",
-                cost_in_home_currency: "$100.00",
                 cost_in_home_currency: 60,
                 cmt_country: 'US',
                 cmt_factory_notes: '100 employees',
@@ -176,24 +150,23 @@ describe.only('Products Endpoints', () => {
             }
             
             return supertest(app)
-                .post('products')
+                .post('/api/products')
                 .send(newProduct)
                 .then(res => {
-                    expext(res.body.english_name).to.eql(newProduct.english_name)
-                    expext(res.body.brand_id).to.eql(newProduct.brand_id)
-                    expext(res.body.category_id).to.eql(newProduct.category_id)
-                    expext(res.body.product_url).to.eql(newProduct.product_url)
+                    expect(res.body.english_name).to.eql(newProduct.english_name)
+                    expect(res.body.brand_id).to.eql(newProduct.brand_id)
+                    expect(res.body.category_id).to.eql(newProduct.category_id)
+                    expect(res.body.product_url).to.eql(newProduct.product_url)
                     expect(res.body.feature_image_url).to.eql(newProduct.feature_image_url)
                     expect(res.body.multiple_color_options).to.eql(newProduct.multiple_color_options)
                     expect(res.body.wash_id).to.eql(newProduct.wash_id)
                     expect(res.body.dry_id).to.eql(newProduct.dry_id)
-                    expext(res.body.home_currency).to.eql(newProduct.home_currency)
-                    expext(res.body.cost_in_home_currency).to.eql(newProduct.cost_in_home_currency)
-                    expext(res.body.cmt_country).to.eql(newProduct.cmt_country)
-                    expext(res.body.cmt_factory_notes).to.eql(newProduct.cmt_factory_notes)
-                    expext(res.body.approved_by_admin).to.eql(newProduct.approved_by_admin)
+                    expect(res.body.cost_in_home_currency).to.eql(newProduct.cost_in_home_currency)
+                    expect(res.body.cmt_country).to.eql(newProduct.cmt_country)
+                    expect(res.body.cmt_factory_notes).to.eql(newProduct.cmt_factory_notes)
+                    expect(res.body.approved_by_admin).to.eql(newProduct.approved_by_admin)
                     expect(res.body).to.have.property('id')
-                    expect(res.headers.location).to.have.eql(`/product/${res.body.id}`)
+                    expect(res.headers.location).to.have.eql(`/api/products/${res.body.id}`)
                     const expected = new Date().toLocaleString()
                     const actual = new Date(res.body.date_published).toLocaleString()
                     expect(actual).to.eql(expected)
@@ -215,7 +188,6 @@ describe.only('Products Endpoints', () => {
             'product_url',
             'feature_image_url',
             'multiple_color_options',
-            'home_currency',
             'cost_in_home_currency',
             'wash_id',
             'dry_id',
@@ -228,7 +200,7 @@ describe.only('Products Endpoints', () => {
             const newProduct = {
                 english_name: 'Yellow Shirt',
                 brand_id: 1,
-                category_id: 10,
+                category_id: 1,
                 product_url: 'https://canopyandunderstory.com',
                 feature_image_url: 'https://canopyandunderstory.com',
                 multiple_color_options: false,
@@ -269,20 +241,16 @@ describe.only('Products Endpoints', () => {
 
     describe('PATCH /api/products/:product_id', () => {
         context('Given there are products in the database', () => {
-            const testProducts  = makeProductsArray()
-
-            beforeEach('insert products', () => {
-                return db
-                    .into('products')
-                    .insert(testProducts)
-            })
+            const testProducts=makeProductsArray()
+           
+            beforeEach(insertFixtures)
 
             it('responds with 204 and updates the product', () => {
                 const idToUpdate = 1
                 const updateProduct = {
                     english_name: 'Updated Product Name',
                     brand_id: 1,
-                    category_id: 10,
+                    category_id: 1,
                     product_url: 'https://canopyandunderstory.com',
                     feature_image_url: 'https://canopyandunderstory.com',
                     multiple_color_options: false,
@@ -316,7 +284,7 @@ describe.only('Products Endpoints', () => {
                     .patch(`/api/products/${idToUpdate}`)
                     .send({ irrelevantField: 'foo' })
                     .expect(400, {
-                        error: { message: `Request body must contain 'english_name', 'brand_id', 'category_id', 'product_url', 'home_currency', 'cost_in_home_currency', 'cmt_country', 'cmt_factory_notes', 'approved_by_admin'`}
+                        error: { message: `Request body must contain 'english_name', 'brand_id', 'category_id', 'product_url', 'feature_image_url', 'multiple_color_options', 'cost_in_home_currency', 'wash_id', 'dry_id', 'cmt_country', 'cmt_factory_notes', or 'approved_by_admin'`}
                     })
             })
 
@@ -348,7 +316,7 @@ describe.only('Products Endpoints', () => {
             it(`responds with 404`, () => {
                 const productId = 123456
                 return supertest(app)
-                    .patch(`/api/products${productId}`)
+                    .patch(`/api/products/${productId}`)
                     .expect(404, { error: { message: `Product does not exist`}})
             })
         })
@@ -358,15 +326,12 @@ describe.only('Products Endpoints', () => {
         context('Given there are products in the database', () => {
             const testProducts = makeProductsArray()
 
-            beforeEach('insert products', () => {
-                return db
-                    .into('products')
-                    .insert(testProducts)
-            })
+            beforeEach(insertFixtures)
 
             it('responds with 204 and removes the product', () => {
                 const idToRemove = 1
-                const expectedProducts = testProducts.filter(product => product.id !== idToRemove)
+                const expectedProducts = makeProductsArrayWithBrand().filter(product => product.id !== idToRemove)
+
                 return supertest(app)
                     .delete(`/api/products/${idToRemove}`)
                     .expect(204)
