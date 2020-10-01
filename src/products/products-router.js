@@ -194,6 +194,8 @@ productsRouter
                 })
             }
             res.product = product
+            console.log('product', product)
+
             next()
         })
         .catch(next)

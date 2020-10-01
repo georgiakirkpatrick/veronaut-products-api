@@ -75,16 +75,17 @@ certificationsRouter
                 })
             }
             res.certification = certification
+            console.log('certification', certification)
             next()
         })
         .catch(next)
     })
     .get((req, res, next) => {
         res.json({
-            id: certification.id,
-            english_name: xss(certification.english_name),
-            website: xss(certification.website),
-            approved_by_admin: certification.approved_by_admin
+            id: res.certification.id,
+            english_name: xss(res.certification.english_name),
+            website: xss(res.certification.website),
+            approved_by_admin: res.certification.approved_by_admin
         })
         .catch(next)
     })

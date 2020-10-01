@@ -113,7 +113,7 @@ describe.only('Products Endpoints', () => {
                     .insert(testProducts)
             })
 
-            it('GET /api/products/:product_id responds with 200 and the specified product', () => {
+            it.only('GET /api/products/:product_id responds with 200 and the specified product', () => {
                 const productId = 2
                 const testProductsWithBrand = makeProductsArrayWithBrand()
                 const expectedProduct = testProductsWithBrand[productId - 1]
@@ -200,10 +200,11 @@ describe.only('Products Endpoints', () => {
                     console.log('res', res)
                    return res
                 })
-                .then(postRes => 
-                    supertest(app))
+                .then(postRes => {
+                    supertest(app)
                     .get(`/api/products/${postRes.body.id}`)
                     .expect(postRes.body)
+                })
                 
         })
 

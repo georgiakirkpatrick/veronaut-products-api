@@ -87,12 +87,12 @@ factoriesRouter
     })
     .get((req, res, next) => {
         res.json({
-            id: factory.id,
-            english_name: xss(factory.english_name),
-            country: factory.country,
-            website: xss(factory.website),
-            notes: xss(factory.notes),
-            approved_by_admin: factory.approved_by_admin
+            id: res.factory.id,
+            english_name: xss(res.factory.english_name),
+            country: res.factory.country,
+            website: xss(res.factory.website),
+            notes: xss(res.factory.notes),
+            approved_by_admin: res.factory.approved_by_admin
         })
         .catch(next)
     })
@@ -106,7 +106,7 @@ factoriesRouter
             approved_by_admin
         } = req.body
 
-        const newfactory = {
+        const factoryToUpdate = {
             english_name,
             country,
             website,

@@ -7,7 +7,7 @@ const FactoriesService = {
     insertFactory(knex, newFactory) {
         return knex
         .into('factories')
-        .insert(newCertification)
+        .insert(newFactory)
         .returning('*')
         .then(response => response[0])
     },
@@ -19,10 +19,11 @@ const FactoriesService = {
             .first()
     },
 
-    updatefactory(knex, id, factoryToUpdate) {
+    updatefactory(knex, id, fieldsToUpdate) {
         return knex('factories')
         .where({ id })
         .update(fieldsToUpdate)
+        .then(response => response[0])
     },
 
     deleteFactory(knex, id) {

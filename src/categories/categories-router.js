@@ -1,8 +1,9 @@
+const path = require('path')
 const express = require('express')
 const CategoriesService = require('./categories-service')
 const categoriesRouter = express.Router()
 const xss = require('xss')
-// const jsonParser = express.json()
+const jsonParser = express.json()
 
 const serializeCategories = category => ({
     id: category.id,
@@ -43,45 +44,44 @@ categoriesRouter
             })
             .catch(next)
     })
-    // .post(jsonParser, (req, res, next) => {
-    //     const {
-    //         english_name,
-    //         class
-    //     } = req.body
+    .post(jsonParser, (req, res, next) => {
+        const {
+            english_name,
+            category_class
+        } = req.body
 
-    //     const newCateogory = {
-    //         english_name,
-    //         class
-    //     }
+        const newCategory = {
+            english_name,
+            category_class
+        }
     
-    //     for (const [key, value] of Object.entries(newCategory)) {
-    //         if (value === null) {
-    //             return res.status(400).json({
-    //                 error: { message: `Missing ${key} in request body.`}
-    //             })
-    //         }
-    //     }
+        for (const [key, value] of Object.entries(newCategory)) {
+            if (value === null) {
+                return res.status(400).json({
+                    error: { message: `Missing ${key} in request body.`}
+                })
+            }
+        }
     
-    //     CategoriesService
-    //         .insertCategory(
-    //             req.app.get('db'),
-    //             newCategory
-    //         )
-    //         .then(category => {
-    //             res
-    //                 .status(201)
-    //                 .location(path.posix.join(req.originalUrl + `/${category.id}`))
-    //                 .json(serializeCategories)
+        CategoriesService
+            .insertCategory(
+                req.app.get('db'),
+                newCategory
+            )
+            .then(category => {
+                res
+                    .status(201)
+                    .location(path.posix.join(req.originalUrl + `/${category.id}`))
+                    .json((category))
                     
-    //         })
-    //         .catch(next)
-    // })
+            })
+            .catch(next)
+    })
 
 categoriesRouter
     .route('/:category_id/products')
     .all((req, res, next) => {
-        CategoriesService
-            .getCategoryById(
+        CategoriesService.getCategoryById(
                 req.app.get('db'),
                 req.params.category_id
             )
@@ -97,14 +97,17 @@ categoriesRouter
             .catch(next)
     })
     .get((req, res, next) => {
-        const categoryId = category.id
-
+        // res.json({
+        //     id: res.category.id
+        // })
+        const categoryId = res.category.id
         CategoriesService
             .getProductsForCategory(
                 req.app.get('db'), 
                 categoryId
             ) 
             .then(products => {
+                console.log('products', products)
                 res.json(products.map(serializeProducts))
             })
             .catch(next)
