@@ -7,5 +7,4 @@ CREATE TABLE fabrics (
     dye_print_finish_country TEXT,
     dye_print_finish_notes TEXT,
     approved_by_admin BOOLEAN DEFAULT false NOT NULL,
-    date_published TIMESTAMPTZ DEFAULT now() NOT NULL
-);
+    date_published TIMESTAMPTZ DEFAULT now() NOT NULL 

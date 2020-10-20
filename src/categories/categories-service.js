@@ -19,7 +19,6 @@ const CategoriesService = {
 
 // Products
     getProductsForCategory(knex, categoryId) {
-        console.log('getProductsForCategory ran and categoryId is', categoryId)
         return knex('products')
             .join('brands', {'products.brand_id': 'brands.id'})
             .select(
@@ -31,7 +30,6 @@ const CategoriesService = {
                 'products.product_url',
                 'products.feature_image_url',
                 'products.multiple_color_options',
-                'products.home_currency',
                 'products.cost_in_home_currency',
                 'products.wash_id',
                 'products.dry_id',

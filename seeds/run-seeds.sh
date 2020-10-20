@@ -5,8 +5,8 @@
 \i seed.1_factories.sql
 \i seed.1_fibers_and_material_types.sql
 \i seed.1_notion_types.sql
-\i seed.1_size_classes.sql
-\i seed.1_size_types.sql
+# \i seed.1_size_classes.sql
+# \i seed.1_size_types.sql
 \i seed.1_wash_instructions.sql
 \i seed.2_categories_to_sp_filters.sql
 \i seed.2_fabrics.sql

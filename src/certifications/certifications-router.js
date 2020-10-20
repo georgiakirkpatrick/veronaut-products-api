@@ -1,14 +1,14 @@
 const path = require('path')
 const express = require('express')
-const xss = require('xss')
+const xss = require('xss').escapeHtml
 const CertificationsService = require('./certifications-service')
 const certificationsRouter = express.Router()
 const jsonParser = express.json()
 
 const serializeCertifications = certification => ({
     id: certification.id,
-    english_name: certification.english_name,
-    website: certification.website,
+    english_name: xss(certification.english_name),
+    website: xss(certification.website),
     approved_by_admin: certification.approved_by_admin,
     date_published: certification.date_published
 })
@@ -39,9 +39,9 @@ certificationsRouter
         }
 
         for (const [key, value] of Object.entries(newCertification)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
-                    error: { message: `Missing ${key} in request body.`}
+                    error: { message: `Missing '${key}' in request body`}
                 })
             }
         }
@@ -75,18 +75,12 @@ certificationsRouter
                 })
             }
             res.certification = certification
-            console.log('certification', certification)
             next()
         })
         .catch(next)
     })
     .get((req, res, next) => {
-        res.json({
-            id: res.certification.id,
-            english_name: xss(res.certification.english_name),
-            website: xss(res.certification.website),
-            approved_by_admin: res.certification.approved_by_admin
-        })
+        res.json(serializeCertifications(res.certification))
         .catch(next)
     })
     .patch(jsonParser, (req, res, next) => {
@@ -96,7 +90,7 @@ certificationsRouter
             approved_by_admin
         } = req.body
 
-        const newCertification = {
+        const certificationToUpdate = {
             english_name,
             website,
             approved_by_admin

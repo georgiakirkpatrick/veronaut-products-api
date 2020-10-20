@@ -1,16 +1,16 @@
 const path = require('path')
 const express = require('express')
-const xss = require('xss')
+const xss = require('xss').escapeHtml
 const FactoriesService = require('./factories-service')
 const factoriesRouter = express.Router()
 const jsonParser = express.json()
 
 const serializeFactories = factory => ({
     id: factory.id,
-    english_name: factory.english_name,
+    english_name: xss(factory.english_name),
     country: factory.country,
-    website: factory.website,
-    notes: factory.notes,
+    website: xss(factory.website),
+    notes: xss(factory.notes),
     approved_by_admin: factory.approved_by_admin,
     date_published: factory.date_published
 })
@@ -45,9 +45,9 @@ factoriesRouter
         }
 
         for (const [key, value] of Object.entries(newFactory)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
-                    error: { message: `Missing ${key} in request body.`}
+                    error: { message: `Missing '${key}' in request body`}
                 })
             }
         }
@@ -92,7 +92,8 @@ factoriesRouter
             country: res.factory.country,
             website: xss(res.factory.website),
             notes: xss(res.factory.notes),
-            approved_by_admin: res.factory.approved_by_admin
+            approved_by_admin: res.factory.approved_by_admin,
+            date_published: res.factory.date_published
         })
         .catch(next)
     })
@@ -117,8 +118,8 @@ factoriesRouter
         const numberOfValues = Object.values(factoryToUpdate).filter(Boolean).length
         if (numberOfValues === 0) {
             return res.status(400).json({
-                error: { 
-                    message: `Request body must contain 'english_name', 'website', 'approved_by_admin'`
+                error: {
+                    message: `Request body must contain 'english_name', 'country', 'website', 'notes', 'approved_by_admin'`
                 }
             })
         }

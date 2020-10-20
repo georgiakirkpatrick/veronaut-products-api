@@ -2,13 +2,14 @@ const path = require('path')
 const express = require('express')
 const BrandsService = require('./brands-service')
 const brandsRouter = express.Router()
-const xss = require('xss')
+const xss = require('xss').escapeHtml
 const jsonParser = express.json()
 
 const serializeBrands = brand => ({
     id: brand.id,
     english_name: xss(brand.english_name),
     website: xss(brand.website),
+    home_currency: brand.home_currency,
     size_system: brand.size_system,
     approved_by_admin: brand.approved_by_admin,
     date_published: brand.date_published
@@ -17,6 +18,7 @@ const serializeBrands = brand => ({
 const serializeFibers = fiber => ({
     id: fiber.id,
     fiber_or_material_type_id: fiber.fiber_or_material_type_id,
+    fiber_type: fiber.fiber_type,
     fiber_type_class: fiber.fiber_type_class,
     brand_id: fiber.brand_id,
     producer_country: fiber.producer_country,
@@ -29,6 +31,7 @@ const serializeFibers = fiber => ({
 const serializeNotions = notion => ({
     id: notion.id,
     notion_type_id: notion.notion_type_id,
+    notion_type: notion.notion_type,
     brand_id: notion.brand_id,
     notion_factory_country: notion.notion_factory_country,
     notion_factory_id: notion.notion_factory_id,
@@ -53,6 +56,7 @@ brandsRouter
         const {
             english_name,
             website,
+            home_currency,
             size_system,
             approved_by_admin
         } = req.body
@@ -60,14 +64,15 @@ brandsRouter
         const newBrand = {
             english_name,
             website,
+            home_currency,
             size_system,
             approved_by_admin
         }
 
         for (const [key, value] of Object.entries(newBrand)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
-                    error: { message: `Missing ${key} in request body.`}
+                    error: { message: `Missing '${key}' in request body`}
                 })
             }
         }
@@ -81,7 +86,7 @@ brandsRouter
                 res
                     .status(201)
                     .location(path.posix.join(req.originalUrl + `/${brand.id}`))
-                    .json(brand)
+                    .json(serializeBrands(brand))
             })
             .catch(next)
     })
@@ -96,7 +101,7 @@ brandsRouter
         .then(brand => {
             if (!brand) {
                 return res.status(404).json({
-                    error: { message: `Brand does not exist.`}
+                    error: { message: `Brand does not exist.` }
                 })
             }
             res.brand = brand
@@ -105,24 +110,17 @@ brandsRouter
         .catch(next)
     })
     .get((req, res, next) => {
-        res.json({
-            id: res.brand.id,
-            english_name: res.brand.english_name,
-            website: res.brand.website,
-            size_system: res.brand.size_system,
-            approved_by_admin: res.brand.approved_by_admin,
-            date_published: res.brand.date_published
-        })
-        .catch(next)
+        res.json(serializeBrands(res.brand)) 
     })
     .patch(jsonParser, (req, res, next) => {
-        const {english_name, website, size_system, approved_by_admin} = req.body
-        const brandToUpdate = {english_name, website, size_system, approved_by_admin}
+        const {english_name, website, size_system, home_currency, approved_by_admin} = req.body
+        
+        const brandToUpdate = {english_name, website, size_system, home_currency, approved_by_admin}
 
-        const numberOfValues = Object.values(brandToUpdate).filter(Boolean.length)
+        const numberOfValues = Object.values(brandToUpdate).filter(Boolean).length
         if (numberOfValues === 0) {
             return res.status(400).json({
-                error: { message: `Request body must include english_name, website, size_system, approved_by_admin`}
+                error: { message: `Request body must include 'english_name', 'website', 'home_currency', 'size_system', 'approved_by_admin'`}
             })
         }
 
@@ -135,7 +133,10 @@ brandsRouter
     })
     .delete((req, res, next) => {
         BrandsService
-            .deleteBrand(req.app.get('db'), req.params.brand_id)
+            .deleteBrand(
+                req.app.get('db'), 
+                req.params.brand_id
+            )
             .then(() => {
                 res.status(204).end()
             })
@@ -190,19 +191,18 @@ brandsRouter
         }
 
         for (const [key, value] of Object.entries(newFiber)) {
-            if (value === null) {
-                return res.status(400).json({
-                    error: { message: `Missing '${key}' in request body`}
-                })
+            if (value === undefined) {
+                return res.status(400).json({ error: { message: `Missing '${key}' in request body` } })
             }
         }
 
-        BrandsService.insertFabricFiber(req.app.get('db'), newFiber)
+        BrandsService.insertFiber(req.app.get('db'), newFiber)
             .then(fiber => {
                 res
                     .status(201)
                     .location(path.posix.join(req.originalUrl + `/${fiber.id}` ))
-                    .json(fiber)
+                    .json(serializeFibers(fiber))
+                    // .json(serializeBrands(brand))
             })
     })
 
@@ -231,6 +231,7 @@ brandsRouter
                 req.params.brand_id
             )
             .then(notions => {
+                console.log('notions', notions)
                 res.status(200).json(notions.map(serializeNotions))
             })
             .catch(next)
@@ -239,39 +240,35 @@ brandsRouter
     .post(jsonParser, (req, res, next) => {
         const {
             notion_type_id,
-            english_name,
             brand_id,
             notion_factory_country,
             notion_factory_id,
             notion_factory_notes,
-            approved_by_admin,
-            date_published
+            approved_by_admin
         } = req.body
 
         const newNotion = {
             notion_type_id,
-            english_name,
             brand_id,
             notion_factory_country,
             notion_factory_id,
             notion_factory_notes,
-            approved_by_admin,
-            date_published
+            approved_by_admin
         }
 
         for (const [key, value] of Object.entries(newNotion)) {
-            if (value === null) {
+            if (value === undefined) {
                 res.status(400).json({ error: { message: `Missing '${key}' in request body` } })
             }
         }
 
         BrandsService
             .insertNotion(req.app.get('db'), newNotion)
-            .then(notion => { 
+            .then(notion => {
                 res
                     .status(201)
                     .location(path.posix.join(req.originalUrl + `/${notion.id}`))
-                    .json(notion)
+                    .json(serializeNotions(notion))
             })
     })
 

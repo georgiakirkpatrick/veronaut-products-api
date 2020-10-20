@@ -2,27 +2,26 @@ const path = require('path')
 const express = require('express')
 const CategoriesService = require('./categories-service')
 const categoriesRouter = express.Router()
-const xss = require('xss')
+const xss = require('xss').escapeHtml
+const productsRouter = require('../products/products-router')
 const jsonParser = express.json()
 
 const serializeCategories = category => ({
     id: category.id,
     english_name: xss(category.english_name),
-    class: category.class,
-    approved_by_admin: category.approved_by_admin,
-    date_published: category.date_published
+    category_class: category.category_class,
+
 })
 
 const serializeProducts = product => ({
     id : product.id,
     english_name : xss(product.english_name),
     brand_id : product.brand_id,
-    brand_name : product. brand_name,
+    brand_name : product.brand_name,
     category_id : product.category_id,
     product_url : xss(product.product_url),
     feature_image_url : xss(product.feature_image_url),
     multiple_color_options : product.multiple_color_options,
-    home_currency : product.home_currency,
     cost_in_home_currency : product.cost_in_home_currency,
     wash_id : product.wash_id,
     dry_id : product.dry_id,
@@ -97,17 +96,13 @@ categoriesRouter
             .catch(next)
     })
     .get((req, res, next) => {
-        // res.json({
-        //     id: res.category.id
-        // })
         const categoryId = res.category.id
         CategoriesService
             .getProductsForCategory(
                 req.app.get('db'), 
                 categoryId
-            ) 
+            )
             .then(products => {
-                console.log('products', products)
                 res.json(products.map(serializeProducts))
             })
             .catch(next)

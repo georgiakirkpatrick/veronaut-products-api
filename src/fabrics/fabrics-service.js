@@ -7,6 +7,7 @@ const FabricsService = {
                     'fabrics.id',
                     'fabrics.fabric_type_id',
                     'fabric_types.english_name as fabric_type',
+                    'fabrics.brand_id',
                     'fabrics.fabric_mill_country',
                     'fabrics.fabric_mill_notes',
                     'fabrics.dye_print_finish_country',
@@ -17,7 +18,21 @@ const FabricsService = {
         },
 
         getFabricById(knex, fabricId) {
-            return knex('fabrics').select('*').where('id', fabricId).first()
+            return knex('fabrics')
+                .join('fabric_types', {'fabrics.fabric_type_id': 'fabric_types.id'})
+                .select(
+                    'fabrics.id',
+                    'fabrics.fabric_type_id',
+                    'fabric_types.english_name as fabric_type',
+                    'fabrics.brand_id',
+                    'fabrics.fabric_mill_country',
+                    'fabrics.fabric_mill_notes',
+                    'fabrics.dye_print_finish_country',
+                    'fabrics.dye_print_finish_notes',
+                    'fabrics.approved_by_admin',
+                    'fabrics.date_published'
+                )
+                .where('fabrics.id', fabricId).first()
         },
 
         insertFabric(knex, newFabric) {
@@ -55,15 +70,16 @@ const FabricsService = {
 
     // Factories
         getFactoriesForFabric(knex, fabricId) {
-            console.log('getFactoriesForFabric ran')
             return knex('fabrics_to_factories')
                 .join('factories', {'fabrics_to_factories.factory_id': 'factories.id'})
                 .select(
                     'factories.id',
-                    'factories.english_name as factory_name',
+                    'factories.english_name',
                     'factories.country',
                     'factories.website',
                     'factories.notes',
+                    'factories.approved_by_admin',
+                    'factories.date_published'
                 )
                 .where('fabric_id', fabricId)
         },
@@ -84,21 +100,19 @@ const FabricsService = {
                 .join('fibers_to_factories', {'fibers_and_materials.producer_id': 'fibers_to_factories.factory_id'})
                 .join('factories', {'fibers_to_factories.factory_id': 'factories.id'})
                 .select(
-                    'fibers_and_materials.id',
+                    'fibers_and_materials.id as id',
                     'fibers_and_materials.fiber_or_material_type_id',
                     'fiber_and_material_types.english_name as fiber_type',
-                    'fiber_and_material_types.fiber_type_class',
                     'fibers_and_materials.producer_country',
                     'fibers_and_materials.producer_id',
                     'factories.english_name as factory',
                     'factories.country as factory_country',
                     'factories.website as factory_website',
-                    'factories.notes as factory_notes',
                     'fibers_and_materials.producer_notes',
                     'fibers_and_materials.approved_by_admin',
                     'fibers_and_materials.date_published'
                 )
-                .where('fabric_id', fabricId)
+                .where('fabrics_to_fibers_and_materials.fabric_id', fabricId)
         },
         
         insertFabricFiber(knex, newPair) {
@@ -128,16 +142,18 @@ const FabricsService = {
                 .join('certifications', {'fabrics_to_certifications.certification_id': 'certifications.id'})
                 .select(
                     'certifications.id',
-                    'certifications.english_name as certification_name',
+                    'certifications.english_name',
                     'certifications.website',
+                    'approved_by_admin',
+                    'date_published'
                 )
                 .where('fabric_id', fabricId)
         },
 
-        insertFabricFactory(knex, newPair) {
+        insertFabricCertification(knex, newPair) {
             return knex
                 .insert(newPair)
-                .into('fabrics_to_factories')
+                .into('fabrics_to_certifications')
                 .returning('*')
                 .then(response => response[0])
         },

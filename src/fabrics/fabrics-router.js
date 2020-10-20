@@ -1,23 +1,28 @@
 const path = require('path')
 const express = require('express')
-const xss = require('xss')
+const xss = require('xss').escapeHtml
 const FabricsService = require('./fabrics-service')
 const fabricsRouter = express.Router()
 const jsonParser = express.json()
 
-const serializeCertifications = certifiction => ({
-    id: certifiction.id,
-    certifiction_name: xss(certification.certifiction_name),
-    website: xss(certifiction.website)
+const serializeCertifications = certification => ({
+    id: certification.id,
+    english_name: xss(certification.english_name),
+    website: xss(certification.website),
+    approved_by_admin: certification.approved_by_admin,
+    date_published: certification.date_published
 })
 
 const serializeFabricGet = fabric => ({
     id: fabric.id,
-    fabric_type: fabric.fabric_type,
+    fabric_type_id: fabric.fabric_type_id,
+    fabric_type: xss(fabric.fabric_type),
+    brand_id: fabric.brand_id,
     fabric_mill_country: fabric.fabric_mill_country,
     fabric_mill_notes: xss(fabric.fabric_mill_notes),
     dye_print_finish_country: fabric.dye_print_finish_country,
     dye_print_finish_notes: xss(fabric.dye_print_finish_notes),
+    approved_by_admin: fabric.approved_by_admin,
     date_published: fabric.date_published
 })
 
@@ -29,6 +34,9 @@ const serializeFabricPost = fabric => ({
     fabric_mill_notes: xss(fabric.fabric_mill_notes),
     dye_print_finish_country: fabric.dye_print_finish_country,
     dye_print_finish_notes: xss(fabric.dye_print_finish_notes),
+    approved_by_admin: fabric.approved_by_admin,
+    date_published: fabric.date_published
+
 })
 
 const serializeFabricTypes = fabricType => ({
@@ -41,10 +49,12 @@ const serializeFabricTypes = fabricType => ({
 
 const serializeFactories = factory => ({
     id: factory.id,
-    factory_name: xss(factory.factory_name),
+    english_name: xss(factory.english_name),
     country: factory.country,
     website: xss(factory.website),
     notes: xss(factory.notes),
+    approved_by_admin: factory.approved_by_admin,
+    date_published: factory.date_published
 })
 
 const serializeFiberTypes = fiberType => ({
@@ -58,8 +68,8 @@ const serializeFiberTypes = fiberType => ({
 const serializeFibers = fiber => ({
     id: fiber.id,
     fiber_or_material_type_id: fiber.fiber_or_material_type_id,
-    fiber_type: fiber.fiber_type,
-    class: fiber.class,
+    fiber_type: xss(fiber.fiber_type),
+    // class: fiber.class,
     producer_country: fiber.producer_country,
     producer_id: fiber.producer_id,
     factory: xss(fiber.factory),
@@ -111,9 +121,9 @@ fabricsRouter
         }
 
         for (const [key, value] of Object.entries(newFabric)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
-                    error: { message: `Missing ${key} in request body.`}
+                    error: { message: `Missing '${key}' in request body`}
                 })
             }
         }
@@ -150,9 +160,9 @@ fabricsRouter
         const newFabricType = { english_name, fabric_type_class, approved_by_admin }
 
         for (const [key, value] of Object.entries(newFabricType)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
-                    error: { message: `Missing ${key} in request body.`}
+                    error: { message: `Missing '${key}' in request body`}
                 })
             }
         }
@@ -166,7 +176,7 @@ fabricsRouter
                 res
                     .status(201)
                     .location(path.posix.join(req.originalUrl + `/${fabricType.id}`))
-                    .json(serializeFabricypes(fabricType))
+                    .json(serializeFabricTypes(fabricType))
                     
             })
             .catch(next)
@@ -189,9 +199,9 @@ fabricsRouter
         const newFiberType = { english_name, fiber_type_class, approved_by_admin }
 
         for (const [key, value] of Object.entries(newFiberType)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
-                    error: { message: `Missing ${key} in request body.`}
+                    error: { message: `Missing '${key}' in request body`}
                 })
             }
         }
@@ -228,9 +238,9 @@ fabricsRouter
         const newNotionType = { english_name, approved_by_admin }
 
         for (const [key, value] of Object.entries(newNotionType)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
-                    error: { message: `Missing ${key} in request body.`}
+                    error: { message: `Missing '${key}' in request body`}
                 })
             }
         }
@@ -272,11 +282,12 @@ fabricsRouter
         res.json({
             id: res.fabric.id,
             fabric_type_id: res.fabric.fabric_type_id,
+            fabric_type: xss(res.fabric.fabric_type),
             brand_id: res.fabric.brand_id,
             fabric_mill_country: res.fabric.fabric_mill_country,
-            fabric_mill_notes: res.fabric.fabric_mill_notes,
+            fabric_mill_notes: xss(res.fabric.fabric_mill_notes),
             dye_print_finish_country: res.fabric.dye_print_finish_country,
-            dye_print_finish_notes: res.fabric.dye_print_finish_notes,
+            dye_print_finish_notes: xss(res.fabric.dye_print_finish_notes),
             approved_by_admin: res.fabric.approved_by_admin,
             date_published: res.fabric.date_published
         })
@@ -306,10 +317,10 @@ fabricsRouter
         const numberOfValues = Object.values(fabricToUpdate).filter(Boolean).length
         if (numberOfValues === 0) {
             return res.status(400).json({
-                error: { message: `Request body must include fabric_type_id,brand_id, fabric_mill_country, fabric_mill_notes, dye_print_finish_country, dye_print_finish_notes, or approved_by_admin`}
+                error: { message: `Request body must include 'fabric_type_id', 'brand_id', 'fabric_mill_country', 'fabric_mill_notes', 'dye_print_finish_country', 'dye_print_finish_notes', or 'approved_by_admin'`}
             })
         }
-        
+
         FabricsService
             .updateFabric(
                 req.app.get('db'),
@@ -320,7 +331,6 @@ fabricsRouter
                 res.status(204).end()
             })
             .catch(next)
-
     })
     .delete((req, res, next) => {
         FabricsService
@@ -368,7 +378,7 @@ fabricsRouter
         const newFabricFiber = {fabric_id, fiber_or_material_id}
 
         for (const [key, value] of Object.entries(newFabricFiber)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
                 })
@@ -390,7 +400,7 @@ fabricsRouter
     })
 
 fabricsRouter
-    .route(':fabric_id/certifications')
+    .route('/:fabric_id/certifications')
     .all((req, res, next) => {
         FabricsService.getFabricById(
             req.app.get('db'),
@@ -417,13 +427,14 @@ fabricsRouter
             .then(certifications => {
                 res.json(certifications.map(serializeCertifications))
             })
+            .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
         const {fabric_id, certification_id} = req.body
         const newFabricCertification = {fabric_id, certification_id}
         
         for (const [key, value] of Object.entries(newFabricCertification)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
                 })
@@ -446,15 +457,13 @@ fabricsRouter
     })
 
 fabricsRouter
-    .route(':fabric_id/factories')
+    .route('/:fabric_id/factories')
     .all((req, res, next) => {
-        console.log('.route(:fabric_id/factories)')
         FabricsService.getFabricById(
             req.app.get('db'),
             req.params.fabric_id
         )
         .then(fabric => {
-            console.log('fabric', fabric)
             if (!fabric) {
                 return res.status(404).json({
                     error: { message: `Product does not exist` }
@@ -480,7 +489,7 @@ fabricsRouter
         const newFabricFactory = {fabric_id, factory_id}
         
         for (const [key, value] of Object.entries(newFabricFactory)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
                 })

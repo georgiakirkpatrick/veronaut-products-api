@@ -1,7 +1,6 @@
 const CertificationsService = {
     getAllCertifications(knex) {
-        return knex('certifications')
-            .select('*')
+        return knex('certifications').select('*')
     },
 
     insertCertification(knex, newCertification) {
@@ -25,7 +24,7 @@ const CertificationsService = {
             .update(fieldsToUpdate)
     },
 
-    deleteCertification(knex) {
+    deleteCertification(knex, id) {
         return knex('certifications')
             .where({ id })
             .delete()

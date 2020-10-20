@@ -1,6 +1,6 @@
 const path = require('path')
 const express = require('express')
-const xss = require('xss')
+const xss = require('xss').escapeHtml
 const ProductsService = require('./products-service')
 const productsRouter = express.Router()
 const jsonParser = express.json()
@@ -9,12 +9,10 @@ const serializeProductGet = product => ({
     id: product.id,
     english_name: xss(product.english_name),
     brand_id: product.brand_id,
-    brand_name: xss(product.brand_name),
     category_id: product.category_id,
     product_url: xss(product.product_url),
     feature_image_url: xss(product.feature_image_url),
     multiple_color_options: product.multiple_color_options,
-    home_currency: product.home_currency,
     cost_in_home_currency: product.cost_in_home_currency,
     wash_id: product.wash_id,
     dry_id: product.dry_id,
@@ -45,7 +43,9 @@ const serializeProductPost = product => ({
 const serializeCertification = certification => ({
     id: certification.id,
     english_name: xss(certification.english_name),
-    website: xss(certification.website)
+    website: xss(certification.website),
+    approved_by_admin: certification.approved_by_admin,
+    date_published: certification.date_published
 })
 
 const serializeFabric = fabric => ({
@@ -59,25 +59,30 @@ const serializeFabric = fabric => ({
 
 const serializeFactories = factory => ({
     id: factory.id,
-    fabric_type: factory.fabric_type,
+    english_name: xss(factory.english_name),
     country: factory.country,
-    website: factory.website,
+    website: xss(factory.website),
     notes: xss(factory.notes),
-    stage: factory.stage
+    stage: factory.stage,
+    approved_by_admin: factory.approved_by_admin,
+    date_published: factory.date_published
 })
 
-const serializeFibers = fibers => ({
-    id: fibers.id,
-    fiber_type_id: fibers.fiber_type_id,
-    fiber_type: fibers.fiber_type,
-    class: fibers.class,
-    producer_country: fibers.producer_country,
-    producer_id: fibers.producer_id,
-    producer: fibers.producer,
-    producer_country: fibers.producer_country,
-    producer_website: fibers.producer_website,
-    factory_notes: xss(fibers.factory_notes),
-    producer_notes: xss(fibers.producer_notes)
+const serializeFibers = fiber => ({
+    id: fiber.id,
+    fiber_type_id: fiber.fiber_type_id,
+    fiber_type: xss(fiber.fiber_type),
+    class: fiber.class,
+    brand_id: fiber.brand_id,
+    producer_country: fiber.producer_country,
+    producer_id: fiber.producer_id,
+    producer: xss(fiber.producer),
+    producer_country: fiber.producer_country,
+    producer_website: xss(fiber.producer_website),
+    factory_notes: xss(fiber.factory_notes),
+    producer_notes: xss(fiber.producer_notes),
+    approved_by_admin: fiber.approved_by_admin,
+    date_published: fiber.date_published
 })
 
 const serializeImages = image => ({
@@ -93,14 +98,15 @@ const serializeImages = image => ({
 const serializeNotions = notion => ({
     id: notion.id,
     notion_type_id: notion.notion_type_id,
-    notion_type: notion.notion_type,
+    notion_type: xss(notion.notion_type),
+    brand_id: notion.brand_id,
     notion_factory_country: notion.notion_factory_country,
     notion_factory_id: notion.notion_factory_id,
-    factory: notion.factory,
+    factory: xss(notion.factory),
     notion_factory_notes: xss(notion.notion_factory_notes),
     material_id: notion.material_id,
     fiber_or_material_type_id: notion.fiber_or_material_type_id,
-    material: notion.material,
+    material: xss(notion.material),
     class: notion.class,
     producer_country: notion.notion_country,
     material_producer: notion.material_producer
@@ -164,7 +170,6 @@ productsRouter
             }
         }
 
-        // insert into 'products'
         ProductsService.insertProduct(
             req.app.get('db'),
             newProduct
@@ -192,7 +197,6 @@ productsRouter
                 })
             }
             res.product = product
-
             next()
         })
         .catch(next)
@@ -314,7 +318,7 @@ productsRouter
         const newProductCertification = {product_id, certification_id}
         
         for (const [key, value] of Object.entries(newProductCertification)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
                 })
@@ -369,7 +373,7 @@ productsRouter
         const newProductFabric = {product_id, fabric_id}
         
         for (const [key, value] of Object.entries(newProductFabric)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
                 })
@@ -424,7 +428,7 @@ productsRouter
         const newProductFactory = { product_id, factory_id, stage }
 
         for (const [ key, value ] of Object.entries(newProductFactory)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
                 })
@@ -479,7 +483,7 @@ productsRouter
         const newProductFiber = { product_id, fiber_or_material_id }
 
         for (const [ key, value ] of Object.entries(newProductFiber)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
                 })
@@ -549,12 +553,13 @@ productsRouter
         }
 
         for (const [key, value] of Object.entries(newImage)) {
-            if (value === null) {
+            if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
                 })
             }
         }
+
         ProductsService.insertProduct(
             req.app.get('db'),
             newImage
@@ -587,7 +592,7 @@ productsRouter
         .catch(next)
     })
     .get((req, res, next) => {
-        const productId = product.id
+        const productId = res.product.id
         ProductsService
             .getNotionsForProduct(
                 req.app.get('db'),
@@ -600,8 +605,16 @@ productsRouter
         })
     .post(jsonParser, (req, res, next) => {
         const { notion_id, product_id } = req.body
-
         const newPair = { notion_id, product_id}
+
+        for (const [key, value] of Object.entries(newPair)) {
+            if (value === undefined) {
+                return res.status(400).json({
+                    error: { message: `Missing '${key}' in request body`}
+                })
+            }
+        }
+
         ProductsService
             .insertProductNotion(
                 req.app.get('db'),
@@ -614,7 +627,6 @@ productsRouter
             })
             .catch(next)
     })
-
 
 productsRouter
     .route('/:product_id/sizes')
@@ -635,7 +647,7 @@ productsRouter
         .catch(next)
     })
     .get((req, res, next) => {
-        const productId = product.id
+        const productId = res.product.id
         ProductsService
             .getSizesForProduct(
                 req.app.get('db'), 
@@ -649,6 +661,14 @@ productsRouter
     .post(jsonParser, (req, res, next) => {
         const { size_id, product_id } = req.body
         const newPair = { size_id, product_id }
+
+        for (const [key, value] of Object.entries(newPair)) {
+            if (value === undefined) {
+                return res.status(400).json({
+                    error: { message: `Missing '${key}' in request body`}
+                })
+            }
+        }
 
         ProductsService
             .insertProductSizes(

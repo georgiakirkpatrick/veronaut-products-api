@@ -2,13 +2,10 @@ const ProductsService = {
 // Products
     getAllProducts(knex) {
         return knex('products')
-            .join('brands', {'products.brand_id': 'brands.id'})
             .select(
                 'products.id',
                 'products.english_name',
                 'products.brand_id',
-                'brands.english_name as brand_name',
-                'brands.home_currency',
                 'products.category_id',
                 'products.product_url',
                 'products.feature_image_url',
@@ -54,8 +51,6 @@ const ProductsService = {
             .into('products')
             .returning('*')
             .then(response => {
-                console.log('response', response)
-                console.log('response[0]', response[0])
                 return response[0]
             })
     },
@@ -76,7 +71,7 @@ const ProductsService = {
     getCertificationsForProduct(knex, productId) {
         return knex('product_cmts_to_certifications')
             .join('certifications', {'product_cmts_to_certifications.certification_id': 'certifications.id'})
-            .select('certifications.id', 'certifications.english_name', 'certifications.website')
+            .select('*')
             .where('product_cmts_to_certifications.product_id', productId)
     },
 
@@ -119,16 +114,18 @@ const ProductsService = {
 // Factories
     getFactoriesForProduct(knex, productId) {
         return knex('factories')
-            .join('factories_to_products', {'factories.id': 'product_cmts_to_factories'})
+            .join('product_cmts_to_factories', {'factories.id': 'product_cmts_to_factories.factory_id'})
             .select(
                 'factories.id',
-                'factories.english_name as factory',
+                'factories.english_name',
                 'factories.country',
                 'factories.website',
                 'factories.notes',
-                'factories_to_products.stage'
+                'product_cmts_to_factories.stage',
+                'factories.approved_by_admin',
+                'factories.date_published'
             )
-            .where('productId', productId)
+            .where('product_id', productId)
     },
 
     insertProductFactory(knex, newGroup) {
@@ -148,18 +145,24 @@ const ProductsService = {
             .select(
                 'fibers_and_materials.id',
                 'fibers_and_materials.fiber_or_material_type_id as fiber_type_id',
-                'fiber_and_materials_types.english_name as fiber_type',
-                'fibers_and_materials.class',
+                'fiber_and_material_types.english_name as fiber_type',
+                'fiber_and_material_types.fiber_type_class as class',
+                'fibers_and_materials.brand_id',
                 'fibers_and_materials.producer_country',
                 'fibers_and_materials.producer_id',
                 'factories.english_name as producer',
-                'factories.country as producer_country',
                 'factories.website as producer_website',
-                'factories.notes as producer_notes',
-                'fibers_and_materials.producer_notes'
+                'fibers_and_materials.producer_notes',
+                'factories.notes as factory_notes',
+                'fibers_and_materials.approved_by_admin',
+                'fibers_and_materials.date_published'
             )
             .where('product_id', productId)
     },
+
+    producer: 'The Orange Concept',
+            producer_website: 'www.orange.com',
+            factory_notes: 'family-owned',
 
     insertProductFiber(knex, newPair) {
         return knex
@@ -190,13 +193,14 @@ const ProductsService = {
         return knex('notions')
             .join('notion_types', {'notions.notion_type_id': 'notion_types.id'})
             .join('notions_to_products', {'notions.id': 'notions_to_products.notion_id'})
-            .join('factories', {'notions_to_factories.factory_id': 'factories.id'})
+            .join('factories', {'notions.notion_factory_id': 'factories.id'})
             .join('notions_to_fibers_and_materials', {'notions.id': 'notions_to_fibers_and_materials.notion_id'})
             .join('fibers_and_materials', {'notions_to_fibers_and_materials.fiber_or_material_id': 'fibers_and_materials.id'})
-            .join('fiber_or_material_types', {'fibers_and_materials.fiber_or_material_type_id': 'fiber_and_material_types.id'})
+            .join('fiber_and_material_types', {'fibers_and_materials.fiber_or_material_type_id': 'fiber_and_material_types.id'})
             .select(
                 'notions.id',
                 'notions.notion_type_id',
+                'notions.brand_id',
                 'notion_types.english_name as notion_type',
                 'notions.notion_factory_country',
                 'notions.notion_factory_id',
@@ -205,11 +209,12 @@ const ProductsService = {
                 'fibers_and_materials.id as material_id',
                 'fibers_and_materials.fiber_or_material_type_id',
                 'fiber_and_material_types.english_name as material',
-                'fiber_and_material_types.class',
                 'fibers_and_materials.producer_country',
-                'fibers_and_materials.producer_id as material_producer'
+                'fibers_and_materials.producer_id as material_producer_id',
+                'notions.approved_by_admin',
+                'notions.date_published'
             )
-            .where('product_id', productId)
+            .where('notions_to_products.product_id', productId)
     },
 
     insertProductNotion(knex, newPair) {
