@@ -10,7 +10,8 @@
     "migrate:test": "export NODE_ENV=test && npm run migrate",
     "start": "node src/server.js",
     "predeploy": "npm audit",
-    "deploy": "git push heroku master"
+    "deploy": "git push heroku master",
+    "seed": "psql -U Georgia -d veronaut-products -f './seed.sh'"
   },
   "keywords": [],
   "engines": {
@@ -25,6 +26,7 @@
     "express": "^4.17.1",
     "helmet": "^3.22.0",
     "helmut": "^1.0.1",
+    "heroku": "^7.46.1",
     "knex": "^0.21.5",
     "money": "^0.2.0",
     "morgan": "^1.10.0",
