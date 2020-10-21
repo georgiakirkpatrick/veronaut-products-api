@@ -150,7 +150,7 @@ describe('Brands Endpoints', function() {
             beforeEach(insertFixtures)
             const fiberArrayGet = makeFiberArrayGet()
 
-            it.only('GET /api/brands/:brand_id/fibers responds with 200 and all of the fibers for the brand', () => {
+            it('GET /api/brands/:brand_id/fibers responds with 200 and all of the fibers for the brand', () => {
                 const brandId = 1
 
                 return supertest(app)
@@ -165,9 +165,6 @@ describe('Brands Endpoints', function() {
                         expect(res.body[0].producer_id).to.eql(fiberArrayGet[0].producer_id)
                         expect(res.body[0].producer_notes).to.eql(fiberArrayGet[0].producer_notes)
                         expect(res.body[0].approved_by_admin).to.eql(fiberArrayGet[0].approved_by_admin)
-                        // const expected = new Date().toLocaleString()
-                        // const actual = new Date(res.body.date_published).toLocaleString()
-                        // expect(actual).to.eql(expected)
                     })
             })
         })

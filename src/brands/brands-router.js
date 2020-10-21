@@ -231,7 +231,6 @@ brandsRouter
                 req.params.brand_id
             )
             .then(notions => {
-                console.log('notions', notions)
                 res.status(200).json(notions.map(serializeNotions))
             })
             .catch(next)
