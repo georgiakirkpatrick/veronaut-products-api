@@ -31,7 +31,6 @@ describe('Fabrics Endpoints', function() {
     const { maliciousFabricType, expectedFabricType } = makeMaliciousFabricType()
     const { maliciousFiberType, expectedFiberType } = makeMaliciousFiberType()
     const { maliciousNotionType, expectedNotionType } = makeMaliciousNotionType()
-    const { maliciousNotion, expectedNotion } = makeMaliciousNotion()
     const { maliciousFactory, expectedFactory } = makeMaliciousFactoriesArray()
     const { maliciousCertification, expectedCertification } = makeMaliciousCertification()
     const maliciousFibersToFactories = makeMaliciousFibersToFactories()

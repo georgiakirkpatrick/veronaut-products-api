@@ -483,6 +483,7 @@ fabricsRouter
             .then(factories => {
                 res.json(factories.map(serializeFactories))
             })
+            .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
         const {fabric_id, factory_id} = req.body

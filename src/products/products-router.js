@@ -220,6 +220,7 @@ productsRouter
             approved_by_admin: res.product.approved_by_admin,
             date_published: res.product.date_published
         })
+        .catch(next)
     })
     .patch(jsonParser, (req, res, next) => {
         const {

@@ -4,6 +4,10 @@ const xss = require('xss').escapeHtml
 const CertificationsService = require('./certifications-service')
 const certificationsRouter = express.Router()
 const jsonParser = express.json()
+const AuthHelper = require('../authorization/auth-helper')
+
+// Add back to :
+// AuthHelper.requireLogin, 
 
 const serializeCertifications = certification => ({
     id: certification.id,
@@ -26,6 +30,8 @@ certificationsRouter
             .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
+        console.log('res.user', res.user)
+
         const { 
             english_name,
             website,

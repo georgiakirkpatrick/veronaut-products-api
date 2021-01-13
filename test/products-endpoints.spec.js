@@ -25,7 +25,7 @@ const { expect } = require('chai')
 describe('Products Endpoints', () => {
     let db
 
-    const { maliciousBrand, expectedBrand } = makeMaliciousBrand()
+    // const { maliciousBrand, expectedBrand } = makeMaliciousBrand()
 
     const certifications = makeCertificationsArray()
     const { maliciousCertification, expectedCertification } = makeMaliciousCertification()

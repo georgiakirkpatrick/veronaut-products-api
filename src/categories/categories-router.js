@@ -10,7 +10,6 @@ const serializeCategories = category => ({
     id: category.id,
     english_name: xss(category.english_name),
     category_class: category.category_class,
-
 })
 
 const serializeProducts = product => ({
@@ -107,6 +106,5 @@ categoriesRouter
             })
             .catch(next)
     })
-  
 
 module.exports = categoriesRouter

@@ -3,7 +3,6 @@ const app = require('../src/app')
 const { expect } = require('chai')
 const { makeCategoriesArray, makeBrandsArray, makeWash, makeDry, makeProductsArray, makeMaliciousProduct } = require('./categories.fixtures')
 const supertest = require('supertest')
-const categoriesRouter = require('../src/categories/categories-router')
 
 describe('Categories Endpoints', function() {
     let db
