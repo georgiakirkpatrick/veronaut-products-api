@@ -23,7 +23,7 @@ app.use(morgan(morganOption))
 app.use(helmet())
 app.use(cors())
 
-app.use('/api/auth', authRouter)
+// app.use('/api/auth', authRouter)
 app.use('/api/brands', brandsRouter)
 app.use('/api/categories', categoriesRouter)
 app.use('/api/certifications', certificationsRouter)
@@ -41,9 +41,9 @@ app.use(function errorHandler(error, req, res, next) {
     if (process.env.NODE_ENV === 'production') {
         response = { error: { message: 'server error' } }
     } else {
-        console.error(error)
         response = { error: { message: 'server error' } }
     }
+    console.error(error)
     res.status(500).json(response)
 })
 

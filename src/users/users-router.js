@@ -7,13 +7,13 @@ const jsonParser = express.json()
 
 const serializeUser = user => ({
     id: user.id,
-    email: xss(user.username),
+    email: xss(user.email),
     password: xss(user.password),
-    handle: xss(user.handle),
-    name: xss(user.name),
-    website: xss(user.website),
-    profile_pic: xss(user.profile_pic),
-    bio: xss(user.bio),
+    handle: user.handle ? xss(user.handle) : null,
+    name: user.name ? xss(user.name) : null,
+    website: user.website ? xss(user.website) : null,
+    profile_pic: user.profile_pic ? xss(user.profile_pic) : null,
+    bio: user.bio ? xss(user.bio) : null,
     public: user.public,
     account_created: user.account_created
 })
@@ -24,9 +24,10 @@ usersRouter
         UsersService
             .getAllUsers(req.app.get('db'))
             .then(users => {
+                console.log('users', users)
                 res.json(users.map(serializeUser))
-        })
-        .catch(next)
+            })
+            .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
         const {
@@ -55,9 +56,7 @@ usersRouter
 
         const requiredFields = {
             email,
-            password,
-            public,
-            account_created
+            password
         }
 
         for (const [key, value] of Object.entries(requiredFields)) {
@@ -73,10 +72,12 @@ usersRouter
             newUser
         )
         .then(user => {
+            console.log('req.originalUrl', req.originalUrl)
+            console.log('user.id', user.id)
             res
                 .status(201)
                 .location(path.posix.join(req.originalUrl, `/${user.id}`))
-                .json(serializeUser)
+                .json(serializeUser(user))
         })
         .catch(next)
     })

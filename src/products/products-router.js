@@ -127,9 +127,10 @@ productsRouter
         ProductsService
             .getAllProducts(req.app.get('db'))
             .then(products => {
+                console.log('products', products)
                 res.json(products.map(serializeProductGet))
-        })
-        .catch(next)
+            })
+            .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
         const {
