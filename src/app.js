@@ -4,7 +4,7 @@ const morgan = require('morgan')
 const cors = require('cors')
 const helmet = require('helmet')
 const { NODE_ENV } = require('./config')
-const authRouter = require('./authorization/auth-router')
+// const authRouter = require('./authorization/auth-router')
 const brandsRouter = require('./brands/brands-router')
 const categoriesRouter = require('./categories/categories-router')
 const certificationsRouter = require('./certifications/certifications-router')
@@ -37,6 +37,7 @@ app.get('/', (req, res) => {
 })
 
 app.use(function errorHandler(error, req, res, next) {
+    console.log('errorHandler')
     let response
     if (process.env.NODE_ENV === 'production') {
         response = { error: { message: 'server error' } }

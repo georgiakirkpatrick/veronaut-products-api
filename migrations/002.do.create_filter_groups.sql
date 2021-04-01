@@ -35,5 +35,4 @@ values
     ('Wash instructions'),
     ('Dry instructions'),
     ('Price'),
-    ('Size class'),
     ('Size');

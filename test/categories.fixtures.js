@@ -62,11 +62,13 @@ function makeProductsArray() {
     const productsWithBrands = [
         {
             ...products[0],
-            brand_name: 'Sezane'
+            brand_name: 'Sezane',
+            brand_currency: 'EUR'
         },
         {
             ...products[1],
-            brand_name: 'Sezane'
+            brand_name: 'Sezane',
+            brand_currency: 'EUR'
         }
     ]
 

@@ -10,7 +10,6 @@ values
     ('Grey'),
     ('White'),
     ('Off-white'),
-    ('Beige'),
     ('Brown'),
     ('Purple'),
     ('Blue'),
@@ -22,3 +21,19 @@ values
     ('Pastel colors'),
     ('Bright colors'),
     ('Dark colors');
+
+    -- ('Black', '000'),
+    -- ('Grey', '808080'),
+    -- ('White', 'FFF'),
+    -- ('Off-white', 'FFFFF2'),
+    -- ('Brown', '845442'),
+    -- ('Purple', '800080'),
+    -- ('Blue', '0000FF'),
+    -- ('Green', '008000'),
+    -- ('Yellow', 'FFFF00'),
+    -- ('Orange', 'DC8300'),
+    -- ('Pink', 'E67499'),
+    -- ('Red', '8C0000'),
+    -- ('Pastel colors', 'dc9ae8'),
+    -- ('Bright colors', 'd333f1'),
+    -- ('Dark colors', '50015f');

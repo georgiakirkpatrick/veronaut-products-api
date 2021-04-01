@@ -26,6 +26,7 @@ const CategoriesService = {
                 'products.english_name',
                 'products.brand_id',
                 'brands.english_name as brand_name',
+                'brands.home_currency',
                 'products.category_id',
                 'products.product_url',
                 'products.feature_image_url',
@@ -39,6 +40,11 @@ const CategoriesService = {
                 'products.date_published'
             )
             .where('products.category_id', categoryId)
+            .then(response => {
+                console.log('getProductsForCategory response', response)
+
+                return response
+            })
     }
 }
 

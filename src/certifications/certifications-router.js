@@ -4,10 +4,6 @@ const xss = require('xss').escapeHtml
 const CertificationsService = require('./certifications-service')
 const certificationsRouter = express.Router()
 const jsonParser = express.json()
-const AuthHelper = require('../authorization/auth-helper')
-
-// Add back to :
-// AuthHelper.requireLogin, 
 
 const serializeCertifications = certification => ({
     id: certification.id,
@@ -34,14 +30,12 @@ certificationsRouter
 
         const { 
             english_name,
-            website,
-            approved_by_admin
+            website
         } = req.body
 
         const newCertification = {
             english_name,
-            website,
-            approved_by_admin
+            website
         }
 
         for (const [key, value] of Object.entries(newCertification)) {

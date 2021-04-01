@@ -5,6 +5,6 @@ CREATE TABLE notions (
     notion_factory_country TEXT,
     notion_factory_id INTEGER REFERENCES factories(id) ON DELETE CASCADE NOT NULL,
     notion_factory_notes TEXT,
-    approved_by_admin BOOLEAN DEFAULT false NOT NULL,
+    approved_by_admin BOOLEAN DEFAULT false,
     date_published TIMESTAMPTZ DEFAULT now() NOT NULL
 );

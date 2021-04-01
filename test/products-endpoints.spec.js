@@ -115,7 +115,7 @@ describe('Products Endpoints', () => {
 
             beforeEach(insertFixtures)
 
-            it('GET /api/products responds with 200 and all of the products', () => {
+            it.only('GET /api/products responds with 200 and all of the products', () => {
                 return supertest(app)
                     .get('/api/products')
                     .expect(200, testProducts)

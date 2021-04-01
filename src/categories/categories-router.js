@@ -17,6 +17,7 @@ const serializeProducts = product => ({
     english_name : xss(product.english_name),
     brand_id : product.brand_id,
     brand_name : product.brand_name,
+    brand_currency : product.home_currency,
     category_id : product.category_id,
     product_url : xss(product.product_url),
     feature_image_url : xss(product.feature_image_url),
@@ -79,11 +80,14 @@ categoriesRouter
 categoriesRouter
     .route('/:category_id/products')
     .all((req, res, next) => {
+        console.log('req.params.category_id', req.params.category_id)
+
         CategoriesService.getCategoryById(
                 req.app.get('db'),
                 req.params.category_id
             )
             .then(category => {
+
                 if (!category) {
                     return res.status(404).json({
                         error: { message: `Category does not exist` }

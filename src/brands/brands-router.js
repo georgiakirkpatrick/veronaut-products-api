@@ -48,6 +48,7 @@ brandsRouter
                 req.app.get('db')
             )
             .then(brands => {
+                console.log('brands', brands)
                 res.json(brands.map(serializeBrands))
             })
             .catch(next)
@@ -57,16 +58,14 @@ brandsRouter
             english_name,
             website,
             home_currency,
-            size_system,
-            approved_by_admin
+            size_system
         } = req.body
 
         const newBrand = {
             english_name,
             website,
             home_currency,
-            size_system,
-            approved_by_admin
+            size_system
         }
 
         for (const [key, value] of Object.entries(newBrand)) {
@@ -177,8 +176,7 @@ brandsRouter
             brand_id,
             producer_country,
             producer_id,
-            producer_notes,
-            approved_by_admin
+            producer_notes
         } = req.body
 
         const newFiber = {
@@ -186,8 +184,7 @@ brandsRouter
             brand_id,
             producer_country,
             producer_id,
-            producer_notes,
-            approved_by_admin
+            producer_notes
         }
 
         for (const [key, value] of Object.entries(newFiber)) {
@@ -242,8 +239,7 @@ brandsRouter
             brand_id,
             notion_factory_country,
             notion_factory_id,
-            notion_factory_notes,
-            approved_by_admin
+            notion_factory_notes
         } = req.body
 
         const newNotion = {
@@ -251,8 +247,7 @@ brandsRouter
             brand_id,
             notion_factory_country,
             notion_factory_id,
-            notion_factory_notes,
-            approved_by_admin
+            notion_factory_notes
         }
 
         for (const [key, value] of Object.entries(newNotion)) {

@@ -26,5 +26,4 @@
 \i seeds/seed.3_product_cmts_to_certifications.sql
 \i seeds/seed.3_product_cmts_to_factories.sql
 \i seeds/seed.3_product_images.sql
-\i seeds/seed.3_size_classes_to_products.sql
 \i seeds/seed.3_sizes_to_products.sql

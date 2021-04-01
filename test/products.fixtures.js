@@ -4,6 +4,7 @@ function makeProductsArray() {
             id: 1,
             english_name: 'Silvania Dress',
             brand_id: 1,
+            brand_name: 'Silvania',
             category_id: 1,
             product_url: 'https://silvaniaperu.com/silvania-dress',
             feature_image_url: 'https://silvaniaperu.com/silvania-dress',

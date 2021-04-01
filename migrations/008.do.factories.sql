@@ -4,6 +4,6 @@ CREATE TABLE factories (
     country TEXT,
     website TEXT,
     notes TEXT,
-    approved_by_admin BOOLEAN DEFAULT false NOT NULL,
+    approved_by_admin BOOLEAN DEFAULT false,
     date_published TIMESTAMPTZ DEFAULT now() NOT NULL
 );

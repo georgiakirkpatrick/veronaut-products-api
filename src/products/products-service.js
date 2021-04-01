@@ -2,19 +2,21 @@ const ProductsService = {
 // Products
     getAllProducts(knex) {
         return knex('products')
+            .join('brands', {'products.brand_id': 'brands.id'})
             .select(
                 'products.id',
                 'products.english_name',
                 'products.brand_id',
+                'brands.english_name as brand_name',
                 'products.category_id',
-                'products.product_url',
                 'products.feature_image_url',
                 'products.multiple_color_options',
                 'products.cost_in_home_currency',
+                'products.product_url',
                 'products.wash_id',
                 'products.dry_id',
                 'products.cmt_country',
-                'products.cmt_factory_notes',
+                'products.cmt_notes',
                 'products.approved_by_admin',
                 'products.date_published'
             )
@@ -22,25 +24,7 @@ const ProductsService = {
 
     getProductById(knex, id) {
         return knex('products')
-            .join('brands', {'products.brand_id': 'brands.id'} )
-            .select(
-                'products.id',
-                'products.english_name',
-                'products.brand_id',
-                'brands.english_name as brand_name',
-                'brands.home_currency',
-                'products.category_id',
-                'products.product_url',
-                'products.feature_image_url',
-                'products.multiple_color_options',
-                'products.cost_in_home_currency',
-                'products.wash_id',
-                'products.dry_id',
-                'products.cmt_country',
-                'products.cmt_factory_notes',
-                'products.approved_by_admin',
-                'products.date_published'
-            )
+            .select('*')
             .where('products.id', id)
             .first()
     },
@@ -56,6 +40,9 @@ const ProductsService = {
     },
 
     deleteProduct(knex, id) {
+        console.log(
+            'deleteProduct ran and id is', id
+        )
         return knex('products')
             .where({ id })
             .delete()
@@ -85,14 +72,53 @@ const ProductsService = {
             })
     },
 
-// Fabrics
+// Colors and Images
+    getColorsForProduct(knex, productId) {
+        return knex('product_colors')
+            .select(
+                'product_colors.id',
+                'product_colors.product_id',
+                'product_colors.color_description_id',
+                'product_colors.color_english_name',
+                'product_colors.swatch_image_url'
+            )
+            .where('product_colors.product_id', productId)
+    },
+
+    insertProductColor(knex, newProductColor) {
+        console.log('newProductColor', newProductColor)
+
+        return knex
+            .insert(newProductColor)
+            .into('product_colors')
+            .returning('*')
+            .then(response => {
+                return response[0]
+            })
+    },
+
+    // Images
+    getImagesForProduct(knex, productId) {
+        return knex('product_images')
+            .select('*').where('product_id', productId)
+    },
+
+    insertImages(knex, newImage) {
+        return knex
+            .insert(newImage)
+            .into('product_images')
+            .returning('*')
+            .then(rows => {
+                return rows[0]
+            })
+    },
+
+    // Fabrics
     getFabricsForProduct(knex, productId) {
         return knex('fabrics')
             .join('fabrics_to_products', {'fabrics.id': 'fabrics_to_products.product_id'})
-            .join('fabric_types', {'fabrics.fabric_type_id': 'fabric_types.id'})
             .select(
                 'fabrics.id',
-                'fabric_types.english_name as fabric_type',
                 'fabrics.fabric_mill_country',
                 'fabrics.fabric_mill_notes',
                 'fabrics.dye_print_finish_country',
@@ -101,9 +127,9 @@ const ProductsService = {
             .where('product_id', productId)
     },
 
-    insertProductFabric(knex, newPair) {
+    insertProductFabric(knex, newSet) {
         return knex
-            .insert(newPair)
+            .insert(newSet)
             .into('fabrics_to_products')
             .returning('*')
             .then(response => {
@@ -111,7 +137,7 @@ const ProductsService = {
             })
     },
 
-// Factories
+    // Factories
     getFactoriesForProduct(knex, productId) {
         return knex('factories')
             .join('product_cmts_to_factories', {'factories.id': 'product_cmts_to_factories.factory_id'})
@@ -152,7 +178,7 @@ const ProductsService = {
                 'fibers_and_materials.producer_id',
                 'factories.english_name as producer',
                 'factories.website as producer_website',
-                'fibers_and_materials.producer_notes',
+                'fibers_and_materials.production_notes',
                 'factories.notes as factory_notes',
                 'fibers_and_materials.approved_by_admin',
                 'fibers_and_materials.date_published'
@@ -170,22 +196,6 @@ const ProductsService = {
             .into('fibers_to_products')
             .returning('*')
             .then(response => response[0])
-    },
-
-// Images
-    getImagesForProduct(knex, productId) {
-        return knex('product_images')
-            .select('*').where('product_id', productId)
-    },
-
-    insertImages(knex, newImage) {
-        return knex
-            .insert(newImage)
-            .into('product_images')
-            .returning('*')
-            .then(rows => {
-                return rows[0]
-            })
     },
 
 // Notions
@@ -231,14 +241,12 @@ const ProductsService = {
     getSizesForProduct(knex, productId) {
         return knex('sizes')
             .join('sizes_to_products', {'sizes.id': 'sizes_to_products.size_id'})
-            .join('size_classes', {'sizes.size_class_id': 'size_classes.id'})
-            .join('size_types', {'sizes.size_type_id': 'size_types.id'})
             .select(
                 'sizes.id',
-                'sizes.size_type_id',
-                'size_types.english_name as size_type',
-                'sizes.size_class_id',
-                'size_classes.english_name as size_class',
+                'sizes.country_system',
+                'sizes.size_text',
+                'sizes.size_category',
+                'sizes.size_class',
                 'sizes.us_size'
             )
             .where('product_id', productId)

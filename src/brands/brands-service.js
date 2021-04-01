@@ -8,6 +8,7 @@ const BrandsService = {
     },
 
     insertBrand(knex, newBrand) {
+        console.log('insertBrand ran and newBrand is ', newBrand)
         return knex
             .insert(newBrand)
             .into('brands')
@@ -39,7 +40,7 @@ const BrandsService = {
                 'fibers_and_materials.brand_id',
                 'fibers_and_materials.producer_country',
                 'fibers_and_materials.producer_id',
-                'fibers_and_materials.producer_notes',
+                'fibers_and_materials.production_notes',
                 'fibers_and_materials.approved_by_admin',
                 'fibers_and_materials.date_published'
             )

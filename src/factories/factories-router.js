@@ -32,16 +32,14 @@ factoriesRouter
             english_name,
             country,
             website,
-            notes,
-            approved_by_admin
+            notes
         } = req.body
 
         const newFactory = {
             english_name,
             country,
             website,
-            notes,
-            approved_by_admin
+            notes
         }
 
         for (const [key, value] of Object.entries(newFactory)) {
