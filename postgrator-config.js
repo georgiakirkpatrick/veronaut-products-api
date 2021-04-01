@@ -9,5 +9,6 @@ module.exports = {
     // 'ssl': !!process.env.SSL,
     'ssl': {
         rejectUnauthorized: false
-      }
+    },
+    'validateChecksums': false
 }
