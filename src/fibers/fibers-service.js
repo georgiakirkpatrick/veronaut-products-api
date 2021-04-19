@@ -15,7 +15,7 @@ const FibersService = {
                     'fibers_and_materials.approved_by_admin',
                     'fibers_and_materials.date_published'
                 )
-        },        
+        },
         
         getFiberById(knex, fiberId) {
             return knex('fibers_and_materials')
@@ -38,5 +38,36 @@ const FibersService = {
                 )
                 .where('fibers_and_materials.id', fiberId)
                 .first()
+        },
+
+        insertFiber(knex, newFiber) {
+            return knex
+                .insert(newFiber)
+                .into('fibers_and_materials')
+                .returning('*')
+                .then(response => response[0])
+        },
+
+        updateFiber(knex, fiberId, fieldsToUpdate) {
+            return knex('fibers_and_materials')
+                .where({ fiberId })
+                .update(fieldsToUpdate)
+        },
+
+        deleteFiber(knex, fiberId) {
+            return knex('fibers_and_materials')
+                .where({ fiberId })
+                .delete()
+        },
+
+    // Certifications
+        insertFiberCert(knex, fibCertPair) {
+            return knex
+                .insert(fibCertPair)
+                .into('fibers_to_certifications')
+                .returning('*')
+                .then(response => response[0])
         }
-}        
+}
+
+module.exports = FibersService

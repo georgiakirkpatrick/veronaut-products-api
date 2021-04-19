@@ -65,18 +65,18 @@ function makeBrandsArray() {
         {
             id: 1,
             english_name: 'Sezane',
-            home_currency: 'EUR',
+            home_currency: 2,
             website: 'www.sezane.com',
-            size_system: 'FR',
+            size_system: 1,
             approved_by_admin: true,
             date_published: '2020-09-13T07:30:51.564Z'
         },
         {
             id: 2,
             english_name: 'Silvania',
-            home_currency: 'USD',
+            home_currency: 1,
             website: 'www.silvania.com',
-            size_system: 'US',
+            size_system: 1,
             approved_by_admin: true,
             date_published: '2020-09-13T07:30:51.564Z'
         }
@@ -87,37 +87,27 @@ function makeFabricsArray() {
     return [
         {
             id: 1,
-            fabric_type_id: 1,
+            // fabric_type_id: 1,
             brand_id: 1,
-            fabric_mill_country: 'PE',
-            fabric_mill_notes: 'This is a fabric mill in Peru',
-            dye_print_finish_country: 'US',
-            dye_print_finish_notes: 'This is a dye plant in Peru',
+            fabric_mill_country: 1,
+            fabric_mill_notes: 'This is a fabric mill',
+            dye_print_finish_country: 2,
+            dye_print_finish_notes: 'This is a dye plant',
             approved_by_admin: true,
             date_published: '2020-09-13T07:30:51.564Z'
         },
         {
             id: 2,
-            fabric_type_id: 1,
+            // fabric_type_id: 1,
             brand_id: 1,
-            fabric_mill_country: 'US',
-            fabric_mill_notes: 'This is a fabric mill in the USA',
-            dye_print_finish_country: 'US',
-            dye_print_finish_notes: 'This is a dye plant in the USA',
+            fabric_mill_country: 2,
+            fabric_mill_notes: 'This is a fabric mill',
+            dye_print_finish_country: 1,
+            dye_print_finish_notes: 'This is a dye plant',
             approved_by_admin: true,
             date_published: '2020-09-13T07:30:51.564Z'
         }
     ]
-}
-
-function makeFabricsArrayWithTypes() {
-    const fabrics = makeFabricsArray()
-    const fabricTypes = makeFabricTypesArray()
-        
-    return fabrics.map(fabric => ({
-        ...fabric,
-        fabric_type: fabricTypes[0].english_name
-    }))
 }
 
 function makeFibersArray() {
@@ -126,18 +116,18 @@ function makeFibersArray() {
             id: 1,
             fiber_or_material_type_id: 1,
             brand_id: 1,
-            producer_country: 'US',
+            producer_country: 1,
             producer_id: 1,
-            producer_notes: 'Notes',
+            production_notes: 'Notes',
             approved_by_admin: true
         },
         {
             id: 2,
             fiber_or_material_type_id: 1,
             brand_id: 1,
-            producer_country: 'US',
+            producer_country: 1,
             producer_id: 1,
-            producer_notes: 'Notes',
+            production_notes: 'Notes',
             approved_by_admin: true
         }
     ]
@@ -164,7 +154,8 @@ function makeFabricsToFibers() {
     return [
         {
             fabric_id: 1,
-            fiber_or_material_id: 1
+            fiber_or_material_id: 1,
+            percent_of_fabric: 50
         }
     ]    
 }
@@ -227,7 +218,7 @@ function makeFactoriesArray() {
         {
             id: 1,
             english_name: 'The Big Factory',
-            country: 'US',
+            country: 1,
             website: 'www.factory.com',
             notes: 'Factories',
             approved_by_admin: true,
@@ -236,7 +227,7 @@ function makeFactoriesArray() {
         {
             id: 2,
             english_name: 'The Small Factory',
-            country: 'US',
+            country: 2,
             website: 'www.factory.com',
             notes: 'Factories',
             approved_by_admin: true,
@@ -244,27 +235,6 @@ function makeFactoriesArray() {
         }
     ]
 }
-
-// function makeFibersForFabric(fabricId) {
-//     const fibersForFabrics = makeFabricsToFibers()
-    
-//     const fibers = makeFibersArray()
-
-//     const fiberIdsForFabric = []
-//     const fibersForFabric = []
-
-//     for (i = 0; i < fibersForFabrics.length; i++) {
-//         if (fibersForFabrics[i].fabric_id === fabricId) {
-//             fibersForFabric.push(fibersForFabrics[i].fiber_or_material_id)
-//         }
-//     }
-
-//     fiberIdsForFabric.map(fiberId => {
-//         if (fibers.id === fiberId) {
-//             return 'blueberry'
-//         }
-//     })
-// }
 
 function makeFabricsToMaliciousFibers() {
     return {
@@ -350,11 +320,13 @@ function makeMaliciousNotionType() {
 function makeMaliciousFabric() {
     const maliciousFabric = {
         id: 666,
-        fabric_type_id: 1,
+        // fabric_type_id: 1,
         brand_id: 1,
-        fabric_mill_country: 'US',
+        fabric_mill_country: 2,
+        fabric_mill_id: 2,
         fabric_mill_notes: '<a href="www.notes.com">Notes</a>',
-        dye_print_finish_country: 'US',
+        dye_print_finish_country: 1,
+        dye_print_finish_id: 2,
         dye_print_finish_notes: '<a href="www.notes.com">Notes</a>',
         approved_by_admin: true,
         date_published: '2020-09-13T07:30:51.564Z'
@@ -376,7 +348,7 @@ function makeMaliciousFactoriesArray() {
     const maliciousFactory = {
         id: 666,
         english_name: '<a href="www.notes.com">Notes</a>',
-        country: 'US',
+        country: 1,
         website: '<a href="www.factory.com">www.factory.com</a>',
         notes: '<a href="www.factory.com">Factories</a>',
         approved_by_admin: true,
@@ -401,9 +373,9 @@ function makeMaliciousFiber() {
         id: 666,
         fiber_or_material_type_id: 1,
         brand_id: 1,
-        producer_country: 'US',
+        producer_country: 1,
         producer_id: 1,
-        producer_notes: '<a href="www.notes.com">Notes</a>',
+        production_notes: '<a href="www.notes.com">Notes</a>',
         approved_by_admin: false,
         date_published: '2020-09-13T07:30:51.564Z'
     }
@@ -411,14 +383,15 @@ function makeMaliciousFiber() {
     const expectedFiber = {
         id: 666,
         brand_id: 1,
-        producer_country: 'US',
+        producer_country: 1,
         producer_id: 1,
-        producer_notes: '&lt;a href="www.notes.com"&gt;Notes&lt;/a&gt;',
+        production_notes: '&lt;a href="www.notes.com"&gt;Notes&lt;/a&gt;',
         fiber_type_id: 1,
         fiber_type: 'Merino wool',
         class: 'protein fiber',
-        producer: 'The Orange Concept',
-        producer_website: 'www.orange.com',
+        factory: 'The Orange Concept',
+        factory_country: 1,
+        factory_website: 'www.orange.com',
         factory_notes: 'family-owned',
         approved_by_admin: false,
         date_published: '2020-09-13T07:30:51.564Z'
@@ -437,7 +410,7 @@ function makeMaliciousCertification() {
         website: '<a href="www.certification.com">www.certification.com</a>',
         approved_by_admin: true,
         date_published: '2020-09-13T07:30:51.564Z'
-    }
+    } 
 
     const expectedCertification = {
         ...maliciousCertification,
@@ -456,7 +429,7 @@ function makeMaliciousNotion() {
         id: 666,
         notion_type_id: 1,
         brand_id: 1,
-        notion_factory_country: 'US',
+        notion_factory_country: 1,
         notion_factory_id: 1,
         notion_factory_notes: '<a href="www.notes.com">Notes</a>',
         approved_by_admin: true,
@@ -483,7 +456,6 @@ module.exports = {
     makeFabricsArray,
     makeCertificationsArray,
     makeFactoriesArray,
-    makeFabricsArrayWithTypes,
     makeFabricsToFibers,
     makeFabricsToCertifications,
     makeFibersToFactories,

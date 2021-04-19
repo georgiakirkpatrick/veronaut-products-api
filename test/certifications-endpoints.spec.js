@@ -7,7 +7,7 @@ const { expect } = require('chai')
 describe('Certifications Endpoints', function() {
     let db
 
-    const certifications=makeCertificationsArray()
+    const certifications = makeCertificationsArray()
     const { maliciousCertification, expectedCertification } = makeMaliciousCertification()
 
     before('make knex instance', () => {
@@ -124,15 +124,14 @@ describe('Certifications Endpoints', function() {
 
         const requiredFields = [
             'english_name',
-            'website',
-            'approved_by_admin'
+            'website'
+
         ]
 
         requiredFields.forEach(field => {
             const newCertification = {
                 english_name: 'Zara',
-                website: 'www.zara.com',
-                approved_by_admin: true
+                website: 'www.zara.com'
             }
 
             it(`responds with 400 and an error message when the '${field}' is missing`, () => {
@@ -192,7 +191,7 @@ describe('Certifications Endpoints', function() {
                 return supertest(app)
                     .patch(`/api/certifications/${idToUpdate}`)
                     .send({ irreleventField: 'foo' })
-                    .expect(400, { error: { message: `Request body must contain 'english_name', 'website', 'approved_by_admin'` } } )
+                    .expect(400, { error: { message: `Request body must contain 'english_name', 'website', and/or 'approved_by_admin'` } } )
             })
 
             it('responds with 204 when updating only a subset of fields', () => {

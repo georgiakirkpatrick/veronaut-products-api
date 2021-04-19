@@ -23,9 +23,9 @@ const serializeFibers = fiber => ({
     brand_id: fiber.brand_id,
     producer_country: fiber.producer_country,
     producer_id: fiber.producer_id,
-    producer_notes: xss(fiber.producer_notes),
+    production_notes: xss(fiber.production_notes),
     approved_by_admin: fiber.approved_by_admin,
-    date_published: fiber.date_published
+    date_published: fiber.date_published,
 })
 
 const serializeNotions = notion => ({
@@ -170,38 +170,6 @@ brandsRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
-        const {
-            fiber_or_material_type_id,
-            brand_id,
-            producer_country,
-            producer_id,
-            producer_notes
-        } = req.body
-
-        const newFiber = {
-            fiber_or_material_type_id,
-            brand_id,
-            producer_country,
-            producer_id,
-            producer_notes
-        }
-
-        for (const [key, value] of Object.entries(newFiber)) {
-            if (value === undefined) {
-                return res.status(400).json({ error: { message: `Missing '${key}' in request body` } })
-            }
-        }
-
-        BrandsService.insertFiber(req.app.get('db'), newFiber)
-            .then(fiber => {
-                res
-                    .status(201)
-                    .location(path.posix.join(req.originalUrl + `/${fiber.id}` ))
-                    .json(serializeFibers(fiber))
-                    // .json(serializeBrands(brand))
-            })
-    })
 
 brandsRouter
     .route('/:brand_id/notions')
@@ -232,38 +200,6 @@ brandsRouter
             })
             .catch(next)
 
-    })
-    .post(jsonParser, (req, res, next) => {
-        const {
-            notion_type_id,
-            brand_id,
-            notion_factory_country,
-            notion_factory_id,
-            notion_factory_notes
-        } = req.body
-
-        const newNotion = {
-            notion_type_id,
-            brand_id,
-            notion_factory_country,
-            notion_factory_id,
-            notion_factory_notes
-        }
-
-        for (const [key, value] of Object.entries(newNotion)) {
-            if (value === undefined) {
-                res.status(400).json({ error: { message: `Missing '${key}' in request body` } })
-            }
-        }
-
-        BrandsService
-            .insertNotion(req.app.get('db'), newNotion)
-            .then(notion => {
-                res
-                    .status(201)
-                    .location(path.posix.join(req.originalUrl + `/${notion.id}`))
-                    .json(serializeNotions(notion))
-            })
     })
 
 module.exports = brandsRouter

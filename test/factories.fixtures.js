@@ -3,7 +3,7 @@ function makeFactoriesArray() {
         {
             id: 1,
             english_name: 'The Orange Concept',
-            country: 'PE',
+            country: 1,
             website: 'www.orange.com',
             notes: 'family-owned',
             approved_by_admin: true,
@@ -12,7 +12,7 @@ function makeFactoriesArray() {
         {
             id: 2,
             english_name: 'Blue Factory',
-            country: 'US',
+            country: 1,
             website: 'www.blue.com',
             notes: 'it is blue',
             approved_by_admin: true,
@@ -25,7 +25,7 @@ function makeMaliciousFactory() {
     const maliciousFactory = {
         id: 666,
         english_name: '<a href="www.evil.com">Evil</a>',
-        country: 'CA',
+        country: 1,
         website: '<a href="www.evil.com">www.evil.com</a>',
         notes: '<a href="www.evil.com">Evil</a>',
         approved_by_admin: true,

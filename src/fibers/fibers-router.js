@@ -7,10 +7,16 @@ const jsonParser = express.json()
 
 const serializeFibers = fiber => ({
     id: fiber.id,
-    english_name: xss(fiber.english_name),
-    country: fiber.country,
-    website: xss(fiber.website),
-    notes: xss(fiber.notes),
+    fiber_type_id: fiber.fiber_type_id,
+    fiber_type: fiber.fiber_type,
+    class: fiber.class,
+    brand_id: fiber.brand_id,
+    producer_country: fiber.producer_country,
+    producer_id: fiber.producer_id,
+    production_notes: fiber.production_notes,
+    producer: fiber.producer,
+    producer_website: fiber.producer_website,
+    producer_notes: fiber.producer_notes,
     approved_by_admin: fiber.approved_by_admin,
     date_published: fiber.date_published
 })
@@ -24,6 +30,37 @@ fibersRouter
                 res.json(fibers.map(serializeFibers))
             })
             .catch(next)
+    })
+    .post(jsonParser, (req, res, next) => {
+        const {
+            fiber_or_material_type_id,
+            brand_id,
+            producer_country,
+            producer_id,
+            production_notes
+        } = req.body
+
+        const newFiber = {
+            fiber_or_material_type_id,
+            brand_id,
+            producer_country,
+            producer_id,
+            production_notes
+        }
+
+        for (const [key, value] of Object.entries(newFiber)) {
+            if (value === undefined) {
+                return res.status(400).json({ error: { message: `Missing '${key}' in request body` } })
+            }
+        }
+
+        FibersService.insertFiber(req.app.get('db'), newFiber)
+            .then(fiber => {
+                res
+                    .status(201)
+                    .location(path.posix.join(req.originalUrl + `/${fiber.id}` ))
+                    .json(serializeFibers(fiber))
+            })
     })
 
 fibersRouter
@@ -59,24 +96,26 @@ fibersRouter
             producer_website: xss(res.fiber.producer_website),
             producer_notes: xss(res.fiber.producer_notes),
             approved_by_admin: res.fiber.approved_by_admin,
-            date_published: res.fiber.date_published,
+            date_published: res.fiber.date_published
         })
         .catch(next)
     })
     .patch(jsonParser, (req, res, next) => {
         const {
-            english_name,
-            country,
-            website,
-            notes,
+            fiber_type_id,
+            brand_id,
+            producer_country,
+            producer_id,
+            production_notes,            
             approved_by_admin
         } = req.body
 
         const newFiberFields = {
-            english_name,
-            country,
-            website,
-            notes,
+            fiber_type_id,
+            brand_id,
+            producer_country,
+            producer_id,
+            production_notes,
             approved_by_admin
         }
 
@@ -84,7 +123,7 @@ fibersRouter
         if (numberOfValues === 0) {
             return res.status(400).json({
                 error: {
-                    message: `Request body must contain 'english_name', 'country', 'website', 'notes', 'approved_by_admin'`
+                    message: `Request body must contain 'fiber_type_id', 'brand_id', 'producer_country', 'producer_id', 'production_notes', 'approved_by_admin'`
                 }
             })
         }
@@ -131,9 +170,9 @@ fibersRouter
         .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
-        const { certification_id } = req.body
+        const { fiber_id, certification_id } = req.body
         const fibCertPair = {
-            fiber_id: req.params.fiber_id, 
+            fiber_id,
             certification_id
         }
         
@@ -146,16 +185,16 @@ fibersRouter
         }
 
         FibersService
-            .insertFiberCertification(
+            .insertFiberCert(
                 req.app.get('db'),
                 fibCertPair
             )
-            .then(fiberCertification => {
+            .then(fiberCert => {
 
                 res
                     .status(201)
                     .location(path.posix.join(req.originalUrl))
-                    .json(fiberCertification)
+                    .json(fiberCert)
             })
             .catch(next)
     })

@@ -3,7 +3,7 @@ CREATE TABLE brands (
   english_name TEXT NOT NULL,
   website TEXT NOT NULL,
   home_currency INTEGER DEFAULT 1,
-  size_system TEXT NOT NULL,
+  size_system INTEGER DEFAULT 1,
   approved_by_admin BOOLEAN DEFAULT false,
   date_published TIMESTAMPTZ DEFAULT now() NOT NULL
 );

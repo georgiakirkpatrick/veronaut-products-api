@@ -101,7 +101,7 @@ describe('Factories Endpoints', function() {
         it('creates a factory, responding with 201 and the new factory', () => {
             const newFactory = {
                 english_name: 'The Orange Concept',
-                country: 'PE',
+                country: 1,
                 website: 'www.orange.com',
                 notes: 'family-owned',
                 approved_by_admin: true
@@ -131,7 +131,7 @@ describe('Factories Endpoints', function() {
         requiredFields.forEach(field => {
             const newFactory = {
                 english_name: 'The Orange Concept',
-                country: 'PE',
+                country: 1,
                 website: 'www.orange.com',
                 notes: 'family-owned',
                 approved_by_admin: true
@@ -175,7 +175,7 @@ describe('Factories Endpoints', function() {
                 const idToUpdate = 1
                 const updateFactory = {
                     english_name: 'The Orange Concept',
-                    country: 'PE',
+                    country: 1,
                     website: 'www.orange.com',
                     notes: 'family-owned',
                     approved_by_admin: true
@@ -234,7 +234,7 @@ describe('Factories Endpoints', function() {
             const idToUpdate = 1
             const updateFactory = {
                 english_name: 'The Orange Concept',
-                    country: 'PE',
+                    country: 1,
                     website: 'www.orange.com',
                     notes: 'family-owned',
                     approved_by_admin: true
@@ -266,9 +266,9 @@ describe('Factories Endpoints', function() {
                             .get('/api/factories')
                             .expect(res => {
                                 expect(res.body.english_name).to.eql(expectedFactories.english_name === undefined)
-                                expect(res.body.website).to.eql(expectedFactories.english_name === website)
-                                expect(res.body.country).to.eql(expectedFactories.english_name === country)
-                                expect(res.body.notes).to.eql(expectedFactories.english_name === notes)
+                                expect(res.body.website).to.eql(expectedFactories.website === undefined)
+                                expect(res.body.country).to.eql(expectedFactories.country === undefined)
+                                expect(res.body.notes).to.eql(expectedFactories.notes === undefined)
                                 expect(res.body.approved_by_admin).to.eql(expectedFactories.approved_by_admin === undefined)
                             })
                     })    

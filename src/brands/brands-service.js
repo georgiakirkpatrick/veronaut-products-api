@@ -47,14 +47,6 @@ const BrandsService = {
             .where('brand_id', brandId)
     },
 
-    insertFiber(knex, newFiber) {
-        return knex
-            .insert(newFiber)
-            .into('fibers_and_materials')
-            .returning('*')
-            .then(response => response[0])
-    },
-
     // Notions
     getNotionsForBrands(knex, brandId) {
         return knex('notions')
@@ -63,23 +55,17 @@ const BrandsService = {
                 'notions.id',
                 'notions.notion_type_id',
                 'notion_types.english_name as notion_type',
-                'notions.brand_id',
-                'notions.notion_factory_country',
-                'notions.notion_factory_id',
-                'notions.notion_factory_notes',
+                'notions.manufacturer_country',
+                'notions.manufacturer_id',
+                'notions.manufacturer_notes',
+                'material_type_id',
+                'material_origin_id',
+                'material_notes',
                 'notions.approved_by_admin',
                 'notions.date_published'
             )
             .where('brand_id', brandId)
     },
-
-    insertNotion(knex, newNotion) {
-        return knex
-            .insert(newNotion)
-            .into('notions')
-            .returning('*')
-            .then(response => response[0])
-    }
 }
 
 module.exports = BrandsService

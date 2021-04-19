@@ -26,7 +26,7 @@ const CategoriesService = {
                 'products.english_name',
                 'products.brand_id',
                 'brands.english_name as brand_name',
-                'brands.home_currency',
+                'brands.home_currency as brand_currency',
                 'products.category_id',
                 'products.product_url',
                 'products.feature_image_url',

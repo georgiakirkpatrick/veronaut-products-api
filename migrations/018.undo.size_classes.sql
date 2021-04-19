@@ -1,3 +1,0 @@
-DROP TABLE IF EXISTS size_classes CASCADE;
-
-DROP TYPE IF EXISTS size_classes CASCADE;

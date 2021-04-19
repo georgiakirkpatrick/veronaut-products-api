@@ -15,7 +15,6 @@ const ProductsService = {
                 'products.product_url',
                 'products.wash_id',
                 'products.dry_id',
-                'products.cmt_country',
                 'products.cmt_notes',
                 'products.approved_by_admin',
                 'products.date_published'

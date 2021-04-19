@@ -13,27 +13,14 @@ const serializeCertifications = certification => ({
     date_published: certification.date_published
 })
 
-const serializeFabricGet = fabric => ({
+const serializeFabric = fabric => ({
     id: fabric.id,
     brand_id: fabric.brand_id,
     fabric_mill_country: fabric.fabric_mill_country,
-    fabric_mill_id: xss(fabric.fabric_mill_id),
+    fabric_mill_id: fabric.fabric_mill_id,
     fabric_mill_notes: xss(fabric.fabric_mill_notes),
     dye_print_finish_country: fabric.dye_print_finish_country,
-    dye_print_finish_id: (fabric.dye_print_finish_id),
-    dye_print_finish_notes: xss(fabric.dye_print_finish_notes),
-    approved_by_admin: fabric.approved_by_admin,
-    date_published: fabric.date_published
-})
-
-const serializeFabricPost = fabric => ({
-    id: fabric.id,
-    brand_id: fabric.brand_id,
-    fabric_mill_country: fabric.fabric_mill_country,
-    fabric_mill_id: xss(fabric.fabric_mill_id),
-    fabric_mill_notes: xss(fabric.fabric_mill_notes),
-    dye_print_finish_country: fabric.dye_print_finish_country,
-    dye_print_finish_id: (fabric.dye_print_finish_id),
+    dye_print_finish_id: fabric.dye_print_finish_id,
     dye_print_finish_notes: xss(fabric.dye_print_finish_notes),
     approved_by_admin: fabric.approved_by_admin,
     date_published: fabric.date_published
@@ -67,14 +54,17 @@ const serializeFiberTypes = fiberType => ({
 
 const serializeFibers = fiber => ({
     id: fiber.id,
-    fiber_or_material_type_id: fiber.fiber_or_material_type_id,
+    brand_id: fiber.brand_id,
+    fiber_type_id: fiber.fiber_type_id,
     fiber_type: xss(fiber.fiber_type),
+    class: fiber.class,
     producer_country: fiber.producer_country,
     producer_id: fiber.producer_id,
     factory: xss(fiber.factory),
     factory_country: fiber.factory_country,
+    factory_notes: fiber.factory_notes,
     factory_website: xss(fiber.factory_website),
-    producer_notes: xss(fiber.producer_notes),
+    production_notes: xss(fiber.production_notes),
     approved_by_admin: fiber.approved_by_admin,
     date_published: fiber.date_published
 })
@@ -94,7 +84,7 @@ fabricsRouter
                 req.app.get('db')
             )
             .then(fabrics => {
-                res.json(fabrics.map(serializeFabricGet))
+                res.json(fabrics.map(serializeFabric))
             })
             .catch(next)
             
@@ -137,7 +127,7 @@ fabricsRouter
                 res
                     .status(201)
                     .location(path.posix.join(req.originalUrl + `/${fabric.id}`))
-                    .json(serializeFabricPost(fabric))
+                    .json(serializeFabric(fabric))
                     
             })
             .catch(next)
@@ -283,8 +273,10 @@ fabricsRouter
             id: res.fabric.id,
             brand_id: res.fabric.brand_id,
             fabric_mill_country: res.fabric.fabric_mill_country,
+            fabric_mill_id: res.fabric.fabric_mill_id,
             fabric_mill_notes: xss(res.fabric.fabric_mill_notes),
             dye_print_finish_country: res.fabric.dye_print_finish_country,
+            dye_print_finish_id: res.fabric.dye_print_finish_id,
             dye_print_finish_notes: xss(res.fabric.dye_print_finish_notes),
             approved_by_admin: res.fabric.approved_by_admin,
             date_published: res.fabric.date_published
@@ -295,23 +287,27 @@ fabricsRouter
         const {
             brand_id,
             fabric_mill_country,
+            fabric_mill_id,
             fabric_mill_notes,
             dye_print_finish_country,
+            dye_print_finish_id,
             dye_print_finish_notes
         } = req.body
 
         const fabricToUpdate = {
             brand_id,
             fabric_mill_country,
+            fabric_mill_id,
             fabric_mill_notes,
             dye_print_finish_country,
+            dye_print_finish_id,
             dye_print_finish_notes
         }
 
         const numberOfValues = Object.values(fabricToUpdate).filter(Boolean).length
         if (numberOfValues === 0) {
             return res.status(400).json({
-                error: { message: `Request body must include 'brand_id', 'fabric_mill_country', 'fabric_mill_notes', 'dye_print_finish_country', 'dye_print_finish_notes', or 'approved_by_admin'`}
+                error: { message: `Request body must include 'brand_id', 'fabric_mill_country', 'fabric_mill_id', 'fabric_mill_notes', 'dye_print_finish_country', 'dye_print_finish_id', 'dye_print_finish_notes', or 'approved_by_admin'`}
             })
         }
 
@@ -368,8 +364,8 @@ fabricsRouter
             .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
-        const {fabric_id, fiber_or_material_id} = req.body
-        const newFabricFiber = {fabric_id, fiber_or_material_id}
+        const {fabric_id, fiber_or_material_id, percent_of_fabric} = req.body
+        const newFabricFiber = {fabric_id, fiber_or_material_id, percent_of_fabric}
 
         for (const [key, value] of Object.entries(newFabricFiber)) {
             if (value === undefined) {

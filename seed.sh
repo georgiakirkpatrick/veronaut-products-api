@@ -6,7 +6,6 @@
 \i seeds/seed.1_fibers_and_material_types.sql
 \i seeds/seed.1_notion_types.sql
 \i seeds/seed.1_wash_instructions.sql
-\i seeds/seed.2_categories_to_sp_filters.sql
 \i seeds/seed.2_fabrics.sql
 \i seeds/seed.2_fibers_and_materials.sql
 \i seeds/seed.2_fibers_to_certifications.sql
@@ -15,7 +14,7 @@
 \i seeds/seed.2_notions.sql
 \i seeds/seed.2_products.sql
 \i seeds/seed.2_sizes.sql
-\i seeds/seed.3_fabrics_to_certifications.sql
+\i seeds/seed.3_fabrics_to_certifications.sq
 \i seeds/seed.3_fabrics_to_factories.sql
 \i seeds/seed.3_fabrics_to_fibers_and_materials.sql
 \i seeds/seed.3_fabrics_to_products.sql

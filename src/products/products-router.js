@@ -3,13 +3,12 @@ const express = require('express')
 const xss = require('xss').escapeHtml
 const ProductsService = require('./products-service')
 const FabricsService = require('../fabrics/fabrics-service')
-const BrandsService = require('../brands/brands-service')
+const FibersService = require('../fibers/fibers-service')
+const NotionsService = require('../notions/notions-service')
 const productsRouter = express.Router()
 const jsonParser = express.json()
 
 const serializeProductGet = product => {
-    console.log('serializeProductGet ran and product is ', product)
-
     return {
         id: product.id,
         english_name: xss(product.english_name),
@@ -29,8 +28,6 @@ const serializeProductGet = product => {
 }
 
 const serializeProductPost = product => {
-    console.log('serializeProductPost ran and product is ', product)
-
     return {
         id: product.id,
         english_name: xss(product.english_name),
@@ -141,7 +138,6 @@ productsRouter
         ProductsService
             .getAllProducts(req.app.get('db'))
             .then(products => {
-                console.log('getAllProducts ran and products is', products)
                 res.json(products.map(serializeProductGet))
             })
             .catch(next)
@@ -184,8 +180,6 @@ productsRouter
             newProduct
         )
         .then(product => {
-            console.log('product', product)
-
             res
                 .status(201)
                 .location(path.posix.join(req.originalUrl, `/${product.id}`))
@@ -196,7 +190,7 @@ productsRouter
 
 productsRouter
     .route('/product-form')
-    .post(jsonParser, async (req, res, next) => {
+    .post(jsonParser, (req, res, next) => {
         const {
             english_name,
             brand_id,
@@ -213,7 +207,8 @@ productsRouter
             man_cert_checks,
             cmt_notes,
             selected_sizes,
-            fabrics
+            fabrics,
+            notions
         } = req.body
 
         const newProduct = {
@@ -235,284 +230,321 @@ productsRouter
         const manCertArray = man_cert_checks
         const sizeArray = selected_sizes
         const fabricArray = fabrics
+        const notionsArray = notions
 
-        console.log('newProduct', newProduct)
-        console.log('colorFieldsets', colorFieldsets)
-        console.log('sewFact', sewFact)
-        console.log('cutFact', cutFact)
+        const isObject = variable => (
+            Object.prototype.toString.call(variable) === '[object Object]'
+        )
+        
+        const formEntries = [
+            newProduct, 
+            colorFieldsets, 
+            sewFact, 
+            cutFact, 
+            manCertArray, 
+            sizeArray, 
+            fabricArray, 
+            notionsArray
+        ]
 
-        for (const [key, value] of Object.entries(newProduct)) {
-            if (value === undefined) {
+        formEntries.forEach(entry => {
+            if (entry === undefined) {
                 return res.status(400).json({
-                    error: { message: `Missing '${key}' in request body`}
+                    error: { message: `Missing '${entry}' in request body`}
                 })
             }
-        }
 
-        if (colorFieldsets === undefined) {
-            return res.status(400).json({
-                error: { message: `Missing 'color_fieldsets' in request body`}
-            })
-        }
-
-        for (const [key, value] of Object.entries(colorFieldsets)) {
-            if (value === undefined) {
-                return res.status(400).json({
-                    error: { message: `Missing '${key}' in request body`}
-                })
-            }
-        }
-
-        // INSERT PRODUCT
-            const product = await ProductsService.insertProduct(
-                req.app.get('db'),
-                newProduct
-            )
-
-            console.log('product', product)
-        // INSERT PRODUCT   
-
-        const promises = []
-        // INSERT COLORS AND IMAGES
-        if (colorFieldsets.length > 0) {
-            for (const colorFieldset of colorFieldsets) {
-                for (let i=0; i<colorFieldset.imageUrls.length; ++i) {
-                    const image = {
-                        'product_id': product.id,
-                        'product_image_url': colorFieldset.imageUrls[i],
-                        'color_description_id': colorFieldset.description,
-                        'primary_image_for_color': (i === 0)
+            if (isObject(entry)) {
+                for (const [key, value] of Object.entries(entry)) {
+                    if (value === undefined) {
+                        return res.status(400).json({
+                            error: { message: `Missing '${key}' in request body`}
+                        })
                     }
+                }
+            }
+        })
 
-                    const imgPromise = ProductsService.insertImages(
+        req.app.get('db').transaction(async function (trx) {
+            try {
+                // INSERT PRODUCT
+                    const product = await ProductsService.insertProduct(
                         req.app.get('db'),
-                        image
+                        newProduct
                     )
 
-                    promises.push(imgPromise)
+                const promises = []
+
+                // INSERT COLORS AND IMAGES
+                if (colorFieldsets.length > 0) {
+                    for (const colorFieldset of colorFieldsets) {
+                        for (let i=0; i<colorFieldset.imageUrls.length; ++i) {
+                            const imageDetails = {
+                                'product_id': product.id,
+                                'product_image_url': colorFieldset.imageUrls[i],
+                                'color_description_id': colorFieldset.descriptionId,
+                                'primary_image_for_color': (i === 0)
+                            }
+
+                            const imgPromise = ProductsService.insertImages(
+                                req.app.get('db'),
+                                imageDetails
+                            )
+
+                            promises.push(imgPromise)
+                        }
+                        
+                        const colorDetails = {
+                            'product_id': product.id,
+                            'color_description_id': colorFieldset.descriptionId,
+                            'color_english_name': colorFieldset.name,
+                            'swatch_image_url': colorFieldset.swatchUrl
+                        }
+
+                        const colorPromise = ProductsService.insertProductColor(
+                            req.app.get('db'),
+                            colorDetails
+                        )
+                        
+                        promises.push(colorPromise)
+                    }
                 }
+
+                // LINK PRODUCT SEWING INFO
+                const sewSet = {
+                    "product_id": product.id, 
+                    "factory_id": sewFact.factory, 
+                    "stage": "sew"
+                }
+
+                const sewPromise = ProductsService.insertProductFactory(
+                    req.app.get('db'),
+                    sewSet
+                )
+
+                promises.push(sewPromise)
                 
-                const newColor = {
-                    'product_id': product.id,
-                    'color_description_id': colorFieldset.description,
-                    'color_english_name': colorFieldset.name,
-                    'swatch_image_url': colorFieldset.swatchUrl
+                // LINK PRODUCT CUTTING INFO
+                const cutSet = {
+                    "product_id": product.id, 
+                    "factory_id": cutFact.factory, 
+                    "stage": "cut"
                 }
 
-                const colorPromise = ProductsService.insertProductColor(
+                const cutPromise = ProductsService.insertProductFactory(
                     req.app.get('db'),
-                    newColor
-                )
-                
-                promises.push(colorPromise)
-            }
-        }
-        // INSERT COLORS AND IMAGES
-
-        // INSERT PRODUCT MANUFACTURING INFO
-        const newSewFact = {
-            "product_id": product.id, 
-            "factory_id": sewFact.factory, 
-            "stage": "sew"
-        }
-
-        const sewFactPromise = ProductsService.insertProductFactory(
-            req.app.get('db'),
-            newSewFact
-        )
-
-        promises.push(sewFactPromise)
-
-        const newCutFact = {
-            "product_id": product.id, 
-            "factory_id": cutFact.factory, 
-            "stage": "cut"
-        }
-
-        const cutFactPromise = ProductsService.insertProductFactory(
-            req.app.get('db'),
-            newCutFact
-        )
-
-        promises.push(cutFactPromise)
-        // INSERT PRODUCT MANUFACTURING INFO
-
-        // INSERT MANUFACTURING CERTIFICATIONS and NOTES
-        manCertArray.forEach(cert => {
-            const manCertPair = {
-                "product_id": product.id,
-                "certification_id": cert
-            }
-
-            const manCertPromise = ProductsService.insertProductCertification(
-                req.app.get('db'),
-                manCertPair
-            )
-
-            promises.push(manCertPromise)
-        })
-        // INSERT MANUFACTURING CERTIFICATIONS
-
-        // INSERT PRODUCT SIZES
-        sizeArray.forEach(size => {
-            const sizePair = {
-                "product_id": product.id,
-                "size_id": size
-            }
-
-            const sizePromise = ProductsService.insertProductSizes(
-                req.app.get('db'),
-                sizePair
-            )
-
-            promises.push(sizePromise)
-        })
-        // INSERT PRODUCT SIZES
-
-        // INSERT PRODUCT FABRICS
-        sizeArray.forEach(size => {
-            const sizePair = {
-                "product_id": product.id,
-                "size_id": size
-            }
-
-            const sizePromise = ProductsService.insertProductSizes(
-                req.app.get('db'),
-                sizePair
-            )
-
-            promises.push(sizePromise)
-        })
-        // INSERT PRODUCT SIZES
-
-        // INSERT FABRICS
-        fabricArray.forEach(fabric => {
-            const fabricDetails = {
-                "fabric_mill_country": fabric.wovKnitLocation,
-                "fabric_mill_id": fabric.wovKnitId,
-                "fabric_mill_notes": fabric.wovKnitNotes, 
-                "dye_print_finish_country": fabric.dyeFinLocation,
-                "dye_print_finish_id": fabric.dyeFinId,
-                "dye_print_finish_notes": fabric.dyeFinNotes
-            }
-
-            const fabricPromise = FabricsService.insertFabric(
-                req.app.get('db'),
-                fabricDetails
-            )
-
-            promises.push(fabricPromise)
-
-            const prodFabSet = {
-                "product_id": product.id,
-                "fabric_id": fabricPromise.id,
-                "relationship": fabric.relationship
-            }
-
-            const prodFabPromise = ProductsService.insertProductFabric(
-                req.app.get('db'),
-                prodFabSet
-            )
-
-            promises.push(prodFabPromise)
-
-            const certArray = []
-
-            for (const [key, value] of Object.entries(fabric.certs)) {
-                if (value) {
-                    certArray.push(key)
-                }
-            }
-
-            certArray.forEach(cert => {
-                const certPair = {
-                    fabric_id: fabricPromise.id,
-                    certification_id: cert
-                }
-
-                const certPromise = FabricsService.insertFabricCertification(
-                    req.app.get('db'),
-                    certPair
+                    cutSet
                 )
 
-                promises.push(certPromise)
-            })
+                promises.push(cutPromise)
 
-            fabric.fiber_array.forEach(fiber => {
-
-                // fiberTypeId: 0,
-                // percentage: '',
-                // originId: 0,
-                // producerId: 0,
-                // certIds: []
-
-                const fibSet = {
-                    "fiber_or_material_type_id": fiber.fiberTypeId,
-                    "brand_id": product.brand_id,
-                    "producer_country": fiber.originId,
-                    "producer_id": fiber.producerId,
-                    "producer_notes": fiber.producerNotes
-                }    
-
-                const fibPromise = BrandsService.insertFiber(
-                    req.app.get('db'),
-                    fibSet
-                )
-
-                promises.push(fibPromise)
-
-                const prodFibPair = {
-                    "product_id": product.id,
-                    "fiber_or_material_id": fibPromise.id
-                }
-
-                const prodFibPromise = ProductsService.insertProductFiber(
-                    req.app.get('db'),
-                    prodFibPair
-                )
-            
-
-                const fabFibSet = {
-                    "fabric_id": fabricPromise.id,
-                    "fiber_or_material_id": fibPromise.id,
-                    "percent_of_fabric": fiber.percentage
-                }
-
-                const fabFibPromise = FabricsService.insertFabricFiber(
-                    req.app.get('db'),
-                    fabFibSet
-                )
-
-                promises.push(fabFibPromise)
-
-                fiber.certIds.forEach(certId => {
-                    const fibCertPair = {
-                        "fiber_or_material_id": fibPromise.id,
-                        "certification_id": certId
+                // LINK MANUFACTURING CERTIFICATIONS and NOTES
+                manCertArray.forEach(cert => {
+                    const certPair = {
+                        "product_id": product.id,
+                        "certification_id": cert
                     }
 
-                    // const fibCertPromise = 
+                    const certPromise = ProductsService.insertProductCertification(
+                        req.app.get('db'),
+                        certPair
+                    )
+
+                    promises.push(certPromise)
                 })
-                
-            })
+
+                // LINK PRODUCT SIZES
+                sizeArray.forEach(size => {
+                    const sizePair = {
+                        "product_id": product.id,
+                        "size_id": size
+                    }
+
+                    const sizePromise = ProductsService.insertProductSizes(
+                        req.app.get('db'),
+                        sizePair
+                    )
+
+                    promises.push(sizePromise)
+                })
+
+                // INSERT FABRICS
+                fabricArray.forEach(async fabric => {
+                    const fabricDetails = {
+                        "brand_id": product.brand_id,
+                        "fabric_mill_country": fabric.fabric_details.wovKnitLocation,
+                        "fabric_mill_id": fabric.fabric_details.wovKnitId,
+                        "fabric_mill_notes": fabric.fabric_details.wovKnitNotes, 
+                        "dye_print_finish_country": fabric.fabric_details.dyeFinLocation,
+                        "dye_print_finish_id": fabric.fabric_details.dyeFinId,
+                        "dye_print_finish_notes": fabric.fabric_details.dyeFinNotes
+                    }
+
+                    const fabricPromise = await FabricsService.insertFabric(
+                        req.app.get('db'),
+                        fabricDetails
+                    )
+
+                    promises.push(fabricPromise)
+                    
+                    // LINK PRODUCT AND FABRIC
+                    const prodFabricSet = {
+                        "product_id": product.id,
+                        "fabric_id": fabricPromise.id,
+                        "relationship": fabric.relationship
+                    }
+
+                    const prodFabPromise = ProductsService.insertProductFabric(
+                        req.app.get('db'),
+                        prodFabricSet
+                    )
+
+                    promises.push(prodFabPromise)
+                    
+                    // INSERT FABRIC CERTIFICATIONS
+                    fabric.certs.forEach(cert => {
+                        const certPair = {
+                            fabric_id: fabricPromise.id,
+                            certification_id: cert
+                        }
+
+                        const certPromise = FabricsService.insertFabricCertification(
+                            req.app.get('db'),
+                            certPair
+                        )
+
+                        promises.push(certPromise)
+                    })
+
+                    // INSERT FIBERS
+                    fabric.fiber_array.forEach(async fiber => {
+                        const fiberSet = {
+                            "fiber_or_material_type_id": fiber.fiberTypeId,
+                            "brand_id": product.brand_id,
+                            "producer_country": fiber.originId,
+                            "producer_id": fiber.producerId,
+                            "production_notes": fiber.producerNotes
+                        }
+
+                        const fiberPromise = await FibersService.insertFiber(
+                            req.app.get('db'),
+                            fiberSet
+                        )
+
+                        promises.push(fiberPromise)
+
+                        // LINK PRODUCT AND FIBER
+                        const prodFiberPair = {
+                            "product_id": product.id,
+                            "fiber_or_material_id": fiberPromise.id
+                        }
+
+                        const prodFiberPromise = ProductsService.insertProductFiber(
+                            req.app.get('db'),
+                            prodFiberPair
+                        )
+
+                        promises.push(prodFiberPromise)
+                    
+                        // LINK FABRIC AND FIBER
+                        const fabFibSet = {
+                            "fabric_id": fabricPromise.id,
+                            "fiber_or_material_id": fiberPromise.id,
+                            "percent_of_fabric": fiber.percentage
+                        }
+
+                        const fabFibPromise = FabricsService.insertFabricFiber(
+                            req.app.get('db'),
+                            fabFibSet
+                        )
+
+                        promises.push(fabFibPromise)
+
+                        // LINK FIBER AND CERTIFICATIONS
+                        fiber.certIds.forEach(certId => {
+                            const fibCertPair = {
+                                "fiber_or_material_id": fiberPromise.id,
+                                "certification_id": certId
+                            }
+
+                            const fibCertPromise = FibersService.insertFiberCert(
+                                req.app.get('db'),
+                                fibCertPair
+                            )
+
+                            promises.push(fibCertPromise)
+                        })
+                    })
+                })
+
+                // INSERT NOTIONS
+                notionsArray.forEach(async notion => {
+                    const notionDetails = {
+                        "notion_type_id": notion.typeId,
+                        "brand_id": product.brand_id,
+                        "manufacturer_country": notion.locationId,
+                        "manufacturer_id": notion.factoryId,
+                        "manufacturer_notes": notion.notes,
+                        "material_type_id": notion.materialTypeId,
+                        "material_origin_id": notion.materialOriginId,
+                        "material_producer_id": notion.materialProducerId
+                    }
+
+                    const notionPromise = await NotionsService.insertNotion(
+                        req.app.get('db'),
+                        notionDetails
+                    )
+
+                    promises.push(notionPromise)
+
+                    // LINK PRODUCT AND NOTION
+                    const prodNotPair = {
+                        "product_id": product.id,
+                        "notion_id": notionPromise.id
+                    }
+
+                    const prodNotPromise = ProductsService.insertProductNotion(
+                        req.app.get('db'),
+                        prodNotPair
+                    )
+
+                    promises.push(prodNotPromise)
+
+                    // LINK NOTION AND CERTIFICATIONS
+                    notion.certIds.forEach(cert => {
+                        const notCertPair = {
+                            notion_id: notionPromise.id,
+                            certification_id: cert
+                        }
+
+                        const notCertPromise = NotionsService.insertNotCert(
+                            req.app.get('db'),
+                            notCertPair
+                        )
+
+                        promises.push(notCertPromise)
+                    })
+                })
+                await Promise.all(promises)
+
+                trx.commit()
+
+                return res.json(product)
+            } catch (e) {
+                trx.rollback()
+                next(e)
+            }
         })
-        // INSERT FABRICS
-
-
-        await Promise.all(promises)
     })
 
 productsRouter
     .route('/:product_id')
     .all((req, res, next) => {
-        console.log('req.params.product_id', req.params.product_id)
-
         ProductsService.getProductById(
             req.app.get('db'),
             req.params.product_id
         )
         .then(product => {
-            console.log('product', product)
             if (!product) {
                 return res.status(404).json({
                     error: { message: `Product does not exist` }
@@ -574,7 +606,7 @@ productsRouter
         const numberOfValues = Object.values(productToUpdate).filter(Boolean).length
         if (numberOfValues === 0) {
             return res.status(400).json({
-                error: { 
+                error: {
                     message: `Request body must contain 'english_name', 'brand_id', 'category_id', 'product_url', 'feature_image_url', 'multiple_color_options', 'cost_in_home_currency', 'wash_id', 'dry_id', 'cmt_notes', or 'approved_by_admin'`
                 }
             })
@@ -683,7 +715,6 @@ productsRouter
                 productId
             ) 
             .then(colors => {
-                console.log("colors", colors)
                 res.json(colors.map(serializeColors))
             })
         .catch(next)
@@ -1022,7 +1053,6 @@ productsRouter
                     error: { message: `Product does not exist` }
                 })
             }
-            console.log('product', product)
             res.product = product
             next()
         })
@@ -1064,6 +1094,5 @@ productsRouter
             })
             .catch(next)
     })
-
 
 module.exports = productsRouter

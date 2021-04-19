@@ -17,7 +17,7 @@ const serializeProducts = product => ({
     english_name : xss(product.english_name),
     brand_id : product.brand_id,
     brand_name : product.brand_name,
-    brand_currency : product.home_currency,
+    brand_currency : product.brand_currency,
     category_id : product.category_id,
     product_url : xss(product.product_url),
     feature_image_url : xss(product.feature_image_url),

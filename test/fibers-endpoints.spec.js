@@ -1,42 +1,19 @@
 const knex = require('knex')
 const app = require('../src/app')
 const { 
-    makeFabricTypesArray, makeFiberTypesArray, makeNotionTypesArray, makeBrandsArray, makeCertificationsArray, 
-    makeMaliciousCertification, makeFabricsArray, makeMaliciousFiber, makeFibersArray, 
-    makeFactoriesArray,makeFabricsToFibers,makeFibersToFactories,makeFabricsToCertifications, makeFabricsToFactories, 
-    makeMaliciousFabricType, makeMaliciousFactoriesArray, makeMaliciousFiberType, makeMaliciousNotionType, makeMaliciousFabric, makeMaliciousFibersToFactories, makeFabricsToMaliciousFibers, 
-    makeFabricsToMaliciousCertifications, makeFabricsToMaliciousFactories 
-} = require('./fabrics.fixtures')
+    makeBrandsArray, makeFiberArrayPost
+} = require('./fibers.fixtures')
 const supertest = require('supertest')
 const { expect } = require('chai')
+const { makeFactoriesArray } = require('./factories.fixtures')
 
-describe('Fabrics Endpoints', function() {
+const brands = makeBrandsArray()
+const factories = makeFactoriesArray
+const fibers = makeFiberArrayPost()
+const fiberType = makeFiberTypeArray()
+
+describe('Fibers Endpoints', function() {
     let db
-
-    const fabricTypes = makeFabricTypesArray()
-    const fiberTypes = makeFiberTypesArray()
-    const notionTypes = makeNotionTypesArray()
-    const brands = makeBrandsArray()
-    const fabrics = makeFabricsArray()
-    const fabricsWithTypes = makeFabricsArrayWithTypes()
-    const fibers = makeFibersArray()
-    const factories = makeFactoriesArray()
-    const certifications = makeCertificationsArray()
-    const fabricsToFibers = makeFabricsToFibers()
-    const fibersToFactories = makeFibersToFactories()
-    const fabricsToFactories = makeFabricsToFactories()
-    const { maliciousFabric, expectedFabric } = makeMaliciousFabric()
-    const { maliciousFiber, expectedFiber } = makeMaliciousFiber()
-    const { maliciousFabricType, expectedFabricType } = makeMaliciousFabricType()
-    const { maliciousFiberType, expectedFiberType } = makeMaliciousFiberType()
-    const { maliciousNotionType, expectedNotionType } = makeMaliciousNotionType()
-    const { maliciousFactory, expectedFactory } = makeMaliciousFactoriesArray()
-    const { maliciousCertification, expectedCertification } = makeMaliciousCertification()
-    const maliciousFibersToFactories = makeMaliciousFibersToFactories()
-    const fabricsToMaliciousFibers = makeFabricsToMaliciousFibers()
-    const fabricsToCertifications = makeFabricsToCertifications()
-    const fabricsToMaliciousCertifications = makeFabricsToMaliciousCertifications()
-    const fabricsToMaliciousFactories = makeFabricsToMaliciousFactories()
 
     before('make knex instance', () => {
         db = knex({
@@ -48,29 +25,23 @@ describe('Fabrics Endpoints', function() {
 
     after('disconnect from db', () => db.destroy())
 
-    before('clean the table', () => db.raw('TRUNCATE table fabric_types, brands, fabrics, factories, fiber_and_material_types, fibers_to_factories, fabrics_to_fibers_and_materials, notion_types, certifications, fabrics_to_certifications RESTART IDENTITY CASCADE'))
+    before('clean the table', () => db.raw('TRUNCATE table fiber_or_material_type_id, brand_id, producer_id, fibers_and_materials RESTART IDENTITY CASCADE'))
     
-    afterEach('cleanup', () => db.raw('TRUNCATE table fabric_types, brands, fabrics, factories, fiber_and_material_types, fibers_to_factories, fabrics_to_fibers_and_materials, notion_types, certifications, fabrics_to_certifications RESTART IDENTITY CASCADE'))
+    afterEach('cleanup', () => db.raw('TRUNCATE table fiber_or_material_type_id, brand_id, producer_id, fibers_and_materials RESTART IDENTITY CASCADE'))
 
-    describe('GET /api/fabrics', () => {
-        context('when there are fabrics in the database', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
+    describe('GET /api/fibers', () => {
+        context('when there are fibers in the database', () => {
+            beforeEach(() => { return db.into('fiber_or_material_type_id').insert(fiberType) })
             beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
+            beforeEach(() => { return db.into('factories').insert(factories) })
+            beforeEach(() => { return db.into('fibers_and_materials').insert(fibers) })
             
             it('returns all the fabrics', () => {
                 return supertest(app)
-                    .get('/api/fabrics')
+                    .get('/api/fibers')
                     .expect(200)
                     .expect(res => {
-                        expect(res.body.fabric_type_id).to.eql(fabrics.fabric_type_id)
-                        expect(res.body.brand_id).to.eql(fabrics.brand_id)
-                        expect(res.body.fabric_type).to.eql(fabricTypes.english_name)
-                        expect(res.body.fabric_mill_country).to.eql(fabrics.fabric_mill_country)
-                        expect(res.body.fabric_mill_notes).to.eql(fabrics.fabric_mill_notes)
-                        expect(res.body.dye_print_finish_country).to.eql(fabrics.dye_print_finish_country)
-                        expect(res.body.dye_print_finish_notes).to.eql(fabrics.dye_print_finish_notes)
-                        expect(res.body.approved_by_admin).to.eql(fabrics.approved_by_admin)
+                        expect(res.body).to.eql(fibers)
                     })
             })
         })

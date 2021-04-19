@@ -319,30 +319,6 @@ function makeMaliciousSizeClass() {
     }
 }
 
-function makeSizeType() {
-    return {
-        id: 1,
-        english_name: 'dress size'
-    }
-}
-
-function makeMaliciousSizeType() {
-    const maliciousSizeType = {
-        id: 1,
-        english_name: '<a href="www.naughty.com">dress size</a>'
-    }
-
-    const expectedSizeType = {
-        ...maliciousSizeType,
-        english_name: '&lt;a href="www.naughty.com"&gt;dress size&lt;/a&gt;'
-    }
-
-    return {
-        maliciousSizeType,
-        expectedSizeType
-    }
-}
-
 function makeSizeToProduct() {
     return {
         size_id: 1,
@@ -366,13 +342,10 @@ module.exports = {
     makeProductToNotions,
     makeSize,
     makeSizeClass,
-    makeSizeType,
     makeSizeToProduct,
     makeWash,
-
     makeMaliciousImage,
     makeMaliciousProduct,
     makeMaliciousSize,
-    makeMaliciousSizeClass,
-    makeMaliciousSizeType
+    makeMaliciousSizeClass
 }

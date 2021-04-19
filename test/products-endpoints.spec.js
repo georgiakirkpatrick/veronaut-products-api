@@ -15,8 +15,8 @@ const { makeFactoriesArray, makeMaliciousFactory } = require('./factories.fixtur
 
 const { makeCategory, makeDry, makeImage, makeNotionsToMaterials, makeMaterials, makeMaterialTypes,
     makeProductsArray, makeProductsArrayWithBrand, makeProductToCertificationArray, makeProductToFactoriesArray,
-    makeProductToFiberArray,makeProductToNotions, makeSize, makeSizeClass, makeSizeType, makeSizeToProduct,
-    makeWash, makeMaliciousImage, makeMaliciousProduct, makeMaliciousSize, makeMaliciousSizeClass, makeMaliciousSizeType
+    makeProductToFiberArray,makeProductToNotions, makeSize, makeSizeClass, makeSizeToProduct,
+    makeWash, makeMaliciousImage, makeMaliciousProduct, makeMaliciousSize, makeMaliciousSizeClass
 } = require('./products.fixtures')
 
 const supertest = require('supertest')
@@ -65,11 +65,9 @@ describe('Products Endpoints', () => {
 
     const size = makeSize()
     const sizeClass = makeSizeClass()
-    const sizeType = makeSizeType()
     const sizeToProduct = makeSizeToProduct()
     const { maliciousSize, expectedSize } = makeMaliciousSize()
     const { maliciousSizeClass, expectedSizeClass } = makeMaliciousSizeClass()
-    const { maliciousSizeType, expectedSizeType } = makeMaliciousSizeType()
 
     function insertFixtures(
         products=makeProductsArray(),
@@ -102,7 +100,7 @@ describe('Products Endpoints', () => {
         `TRUNCATE table products, brands, categories, certifications, dry_instructions, fabric_types, fabrics, 
         factories, fibers_and_materials, fiber_and_material_types, notion_types, notions, notions_to_products, 
         notions_to_fibers_and_materials, product_cmts_to_certifications, product_cmts_to_factories, 
-        sizes, size_classes, size_types, sizes_to_products, wash_instructions RESTART IDENTITY CASCADE`
+        sizes, sizes_to_products, wash_instructions RESTART IDENTITY CASCADE`
     );
   
     before('clean tables', cleanUpTables)
@@ -508,7 +506,6 @@ describe('Products Endpoints', () => {
 
         context('when there are sizes in the database', () => {
             beforeEach(() => { return db.into('size_classes').insert([ sizeClass ]) })
-            beforeEach(() => { return db.into('size_types').insert([ sizeType ]) })
             beforeEach(() => { return db.into('sizes').insert([ size ])})
             beforeEach(() => { return db.into('sizes_to_products').insert([ sizeToProduct ]) })
             
@@ -518,9 +515,7 @@ describe('Products Endpoints', () => {
                     .expect(200)
                     .expect(res => {
                         expect(res.body[0].id).to.eql(size.id)
-                        expect(res.body[0].size_type_id).to.eql(size.size_type_id)
-                        expect(res.body[0].size_type).to.eql(sizeType.english_name)
-                        expect(res.body[0].size_class_id).to.eql(size.size_class_id)
+                        // expect(res.body[0].size_class_id).to.eql(size.size_class_id)
                         expect(res.body[0].size_class).to.eql(sizeClass.english_name)
                         expect(res.body[0].us_size).to.eql(size.us_size)
                     })
@@ -529,7 +524,6 @@ describe('Products Endpoints', () => {
 
         context('when there are no sizes in the database', () => {
             beforeEach(() => { return db.into('size_classes').insert([ sizeClass ]) })
-            beforeEach(() => { return db.into('size_types').insert([ sizeType ]) })
             beforeEach(() => { return db.into('sizes').insert([ size ])})
             beforeEach(() => { return db.into('sizes_to_products').insert() })
 
@@ -543,7 +537,6 @@ describe('Products Endpoints', () => {
 
         context('given a malicious size', () => {
             beforeEach(() => { return db.into('size_classes').insert([ maliciousSizeClass ]) })
-            beforeEach(() => { return db.into('size_types').insert([ maliciousSizeType ]) })
             beforeEach(() => { return db.into('sizes').insert([ maliciousSize ])})
             beforeEach(() => { return db.into('sizes_to_products').insert([ sizeToProduct ]) })
 
@@ -553,7 +546,6 @@ describe('Products Endpoints', () => {
                     .get(`/api/products/${productId}/sizes`)
                     .expect(200)
                     .expect( res => {
-                        expect(res.body[0].size_type).to.eql(maliciousSizeType.english_name)
                         expect(res.body[0].size_class).to.eql(maliciousSizeClass.english_name)
                         expect(res.body[0].us_size).to.eql(maliciousSize.us_size)
                     })
@@ -888,7 +880,6 @@ describe('Products Endpoints', () => {
     describe('POST /api/products/:product_id/sizes', () => {
         beforeEach(insertFixtures)
         beforeEach(() => { return db.into('size_classes').insert(sizeClass)})
-        beforeEach(() => { return db.into('size_types').insert(sizeType)})
         beforeEach(() => { return db.into('sizes').insert(size)})
 
         const productId = 1

@@ -1,10 +1,22 @@
 const knex = require('knex')
 const app = require('../src/app')
-const { makeBrandsArray, makeFiberTypesArray, makeFiberArrayGet, makeFiberArrayPost, makeFactoryArray, makeMaliciousBrand, makeMaliciousFiber, makeMaliciousNotion, makeNotionsArrayGet, makeNotionsArrayPost, makeNotionType } = require('./brands.fixtures')
+const { 
+    makeBrandsArray, 
+    makeFiberTypesArray, 
+    makeFiberArrayGet, 
+    makeFiberArrayPost, 
+    makeFactoryArray, 
+    makeMaliciousBrand, 
+    makeMaliciousFiber, 
+    makeMaliciousNotion, 
+    makeNotionsArrayGet, 
+    makeNotionsArrayPost, 
+    makeNotionType 
+} = require('./brands.fixtures')
 const { expect } = require('chai')
 const supertest = require('supertest')
 
-describe('Brands Endpoints', function() {
+describe.only('Brands Endpoints', function() {
     let db
 
     const brands = makeBrandsArray()
@@ -118,7 +130,7 @@ describe('Brands Endpoints', function() {
         })
 
         context('Given no brand with id brand_id exists', () => {
-            const brandId = 1
+            const brandId = 4
 
             it('responds with 404', () => {
                 return supertest(app)
@@ -163,7 +175,7 @@ describe('Brands Endpoints', function() {
                         expect(res.body[0].brand_id).to.eql(fiberArrayGet[0].brand_id)
                         expect(res.body[0].producer_country).to.eql(fiberArrayGet[0].producer_country)
                         expect(res.body[0].producer_id).to.eql(fiberArrayGet[0].producer_id)
-                        expect(res.body[0].producer_notes).to.eql(fiberArrayGet[0].producer_notes)
+                        expect(res.body[0].production_notes).to.eql(fiberArrayGet[0].production_notes)
                         expect(res.body[0].approved_by_admin).to.eql(fiberArrayGet[0].approved_by_admin)
                     })
             })
@@ -199,7 +211,7 @@ describe('Brands Endpoints', function() {
                     .get(`/api/brands/${brandId}/fibers`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body[0].producer_notes).to.eql(expectedFiber.producer_notes)
+                        expect(res.body[0].production_notes).to.eql(expectedFiber.production_notes)
                     })
             })
         })
@@ -342,9 +354,9 @@ describe('Brands Endpoints', function() {
             const newFiber = {
                 fiber_or_material_type_id: 1,
                 brand_id: 2,
-                producer_country: 'US',
+                producer_country: 1,
                 producer_id: 1,
-                producer_notes: 'This is a note about fiber',
+                production_notes: 'This is a note about fiber',
                 approved_by_admin: true
             }
 
@@ -359,7 +371,7 @@ describe('Brands Endpoints', function() {
                     expect(res.body.brand_id).to.eql(newFiber.brand_id)
                     expect(res.body.producer_country).to.eql(newFiber.producer_country)
                     expect(res.body.producer_id).to.eql(newFiber.producer_id)
-                    expect(res.body.producer_notes).to.eql(newFiber.producer_notes)
+                    expect(res.body.production_notes).to.eql(newFiber.production_notes)
                     expect(res.body.approved_by_admin).to.eql(newFiber.approved_by_admin)
                     expect(res.body).to.have.property('id')
                     expect(res.headers.location).to.eql(`/api/brands/${brandId}/fibers/${res.body.id}`)
@@ -378,19 +390,15 @@ describe('Brands Endpoints', function() {
             'fiber_or_material_type_id',
             'brand_id',
             'producer_country',
-            'producer_id',
-            'producer_notes',
-            'approved_by_admin'
+            'producer_id'
         ]
 
         requiredFields.forEach(field => {
             const newFiber = {
                 fiber_or_material_type_id: 2,
                 brand_id: 1,
-                producer_country: 'US',
+                producer_country: 1,
                 producer_id: 1,
-                producer_notes: 'These are notes about the producer',
-                approved_by_admin: true
             }
 
             it(`responds with 400 and an error message when the '${field}' is missing`, () => {
@@ -414,7 +422,7 @@ describe('Brands Endpoints', function() {
                 .send(maliciousFiber)
                 .expect(201)
                 .expect(res => {
-                    expect(res.body.producer_notes).to.eql(expectedFiber.producer_notes)                })
+                    expect(res.body.production_notes).to.eql(expectedFiber.production_notes)                })
         })
     })
 
@@ -427,10 +435,12 @@ describe('Brands Endpoints', function() {
             const newNotion = {
                 notion_type_id: 1,
                 brand_id: 2,
-                notion_factory_country: 'US',
-                notion_factory_id: 1,
-                notion_factory_notes: 'These are notes',
-                approved_by_admin: true
+                manufacturer_country: 1,
+                manufacturer_id: 1,
+                manufacturer_notes: 'These are the notes.',
+                material_type_id: 1,
+                material_origin_id: 1,
+                material_notes: 'These are the notes.'
             }
 
             const brandId = 2
@@ -442,9 +452,13 @@ describe('Brands Endpoints', function() {
                 .expect(res => {
                     expect(res.body.notion_type_id).to.eql(newNotion.notion_type_id)
                     expect(res.body.brand_id).to.eql(newNotion.brand_id)
-                    expect(res.body.notion_factory_country).to.eql(newNotion.notion_factory_country)
-                    expect(res.body.notion_factory_notes).to.eql(newNotion.notion_factory_notes)
-                    expect(res.body.approved_by_admin).to.eql(newNotion.approved_by_admin)
+                    expect(res.body.manufacturer_country).to.eql(newNotion.notion_factory_country)
+                    expect(res.body.manufacturer_id).to.eql(newNotion.notion_factory_country)
+                    expect(res.body.manufacturer_notes).to.eql(newNotion.notion_factory_country)
+                    expect(res.body.material_type_id).to.eql(newNotion.notion_factory_country)
+                    expect(res.body.material_origin_id).to.eql(newNotion.notion_factory_country)
+                    expect(res.body.material_notes).to.eql(newNotion.notion_factory_country)
+                    expect(res.body.approved_by_admin).to.eql(false)
                     expect(res.body).to.have.property('id')
                     expect(res.headers.location).to.eql(`/api/brands/${brandId}/notions/${res.body.id}`)
                     const expected = new Date().toLocaleString()
@@ -464,8 +478,7 @@ describe('Brands Endpoints', function() {
             'brand_id',
             'notion_factory_country',
             'notion_factory_id',
-            'notion_factory_notes',
-            'approved_by_admin'
+            'notion_factory_notes'
         ]
 
         requiredValues.forEach(value => {
@@ -474,8 +487,7 @@ describe('Brands Endpoints', function() {
                 brand_id: 2,
                 notion_factory_country: 'US',
                 notion_factory_id: 1,
-                notion_factory_notes: 1,
-                approved_by_admin: true
+                notion_factory_notes: 1
             }
 
         const brandId = 2
@@ -517,8 +529,8 @@ describe('Brands Endpoints', function() {
                 const updateBrand = {
                     english_name: 'Updated Brand Name',
                     website: 'www.updatedbrand.com',
-                    home_currency: 'ZOO',
-                    size_system: 'ZO',
+                    home_currency: 2,
+                    size_system: 2,
                     approved_by_admin: false
                 }
 
@@ -544,14 +556,14 @@ describe('Brands Endpoints', function() {
                     .patch(`/api/brands/${idToUpdate}`)
                     .send({irrelevantField: 'bar'})
                     .expect(400, {
-                        error: { message: `Request body must include 'english_name', 'website', 'home_currency', 'size_system', 'approved_by_admin'`}
+                        error: { message: `Request body must include 'english_name', 'website', 'home_currency', 'size_system',  and/or 'approved_by_admin'`}
                     })
             })
 
             it(`responds with 204 when updating only a subset of fields`, () => {
                 const idToUpdate = 1
                 const updateBrand = {
-                    website: 'www.newbrandwebsite'
+                    website: 'www.newbrandwebsite.com'
                 }
                 const expectedBrand = {
                     ...brands[idToUpdate - 1],
@@ -572,7 +584,7 @@ describe('Brands Endpoints', function() {
             })
         })
 
-        context('Given no brands', () => {
+        context('Given nonexistant brand id', () => {
             it('responds with 404', () => {
                 const brandId = 654
                 return supertest(app)

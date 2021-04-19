@@ -4,8 +4,8 @@ function makeBrandsArray() {
             id: 1,
             english_name: 'Sezane',
             website: 'www.sezane.com',
-            home_currency: 'EUR',
-            size_system: 'FR',
+            home_currency: 3,
+            size_system: 2,
             approved_by_admin: true,
             date_published: '2020-09-13T07:30:51.564Z'
         },
@@ -13,8 +13,8 @@ function makeBrandsArray() {
             id: 2,
             english_name: 'Amour Vert',
             website: 'www.amourvert.com',
-            home_currency: 'USD',
-            size_system: 'US',
+            home_currency: 1,
+            size_system: 1,
             approved_by_admin: true,
             date_published: '2020-09-13T07:30:51.564Z'
         },
@@ -22,8 +22,8 @@ function makeBrandsArray() {
             id: 3,
             english_name: 'Stella McCartney',
             website: 'www.stellamccartney.com',
-            home_currency: 'USD',
-            size_system: 'IT',
+            home_currency: 38,
+            size_system: 3,
             approved_by_admin: true,
             date_published: '2020-09-13T07:30:51.564Z'
         }
@@ -54,15 +54,12 @@ function makeFiberArrayGet() {
         {
             id: 1,
             fiber_type_id: 1,
-            fiber_type: 'Merino wool',
-            class: 'protein fiber',
+            fiber_type: 'Cotton',
+            class: 'naturally occuring cellulosic fiber',
             brand_id: 1,
-            producer_country: 'US',
+            producer_country: 1,
             producer_id: 1,
-            producer: 'The Orange Concept',
-            factory_notes: 'family-owned',
-            producer_notes: 'Notes',
-            producer_website: "www.orange.com",
+            production_notes: 'Notes',
             approved_by_admin: true,
             date_published: '2020-10-05T18:32:57.458Z'
 
@@ -73,12 +70,9 @@ function makeFiberArrayGet() {
             fiber_type: 'Merino wool',
             class: 'protein fiber',
             brand_id: 1,
-            producer_country: 'US',
+            producer_country: 2,
             producer_id: 1,
-            producer: 'The Orange Concept',
-            factory_notes: 'family-owned',
-            producer_notes: 'Notes',
-            producer_website: "www.orange.com",
+            production_notes: 'Notes',
             approved_by_admin: false,
             date_published: '2020-10-05T18:32:57.458Z'
         }
@@ -91,9 +85,9 @@ function makeFiberArrayPost() {
             id: 1,
             fiber_or_material_type_id: 1,
             brand_id: 1,
-            producer_country: 'US',
+            producer_country: 1,
             producer_id: 1,
-            producer_notes: 'Notes',
+            production_notes: 'Notes',
             approved_by_admin: true,
             date_published: '2020-10-05T18:32:57.458Z'
         },
@@ -101,9 +95,9 @@ function makeFiberArrayPost() {
             id: 2,
             fiber_or_material_type_id: 1,
             brand_id: 1,
-            producer_country: 'US',
+            producer_country: 1,
             producer_id: 1,
-            producer_notes: 'Notes',
+            production_notes: 'Notes',
             approved_by_admin: false,
             date_published: '2020-10-05T18:32:57.458Z'
         }
@@ -201,8 +195,8 @@ function makeMaliciousBrand() {
         id: 567,
         english_name: '<a src="www.sezane.com">Sezane</a>',
         website: '<a src="www.sezane.com">www.sezane.com</a>',
-        home_currency: 'EUR',
-        size_system: 'FR',
+        home_currency: 1,
+        size_system: 1,
         approved_by_admin: true,
         date_published: '2020-09-13T07:30:51.564Z'
     }
@@ -224,15 +218,16 @@ function makeMaliciousFiber() {
         id: 666,
         fiber_or_material_type_id: 1,
         brand_id: 2,
-        producer_country: 'US',
+        producer_country: 2,
         producer_id: 1,
-        producer_notes: 'This is a note about fiber <img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);">.',
-        approved_by_admin: true
+        production_notes: 'This is a note about fiber <img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);">.',
+        approved_by_admin: true,
+        date_published: '2020-09-13T07:30:51.564Z'
     }
 
     const expectedFiber = {
         ...maliciousFiber,
-        producer_notes: 'This is a note about fiber &lt;img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);"&gt;.'
+        production_notes: 'This is a note about fiber &lt;img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);"&gt;.'
     }
 
     return {
@@ -246,15 +241,20 @@ function makeMaliciousNotion() {
         id: 678,
         notion_type_id: 1,
         brand_id: 1,
-        notion_factory_country: 'US',
-        notion_factory_id: 1,
-        notion_factory_notes: 'These are the <a href="www.notes.com">notes</a>',
-        approved_by_admin: true
+        manufacturer_country: 1,
+        manufacturer_id: 1,
+        manufacturer_notes: 'These are the <a href="www.notes.com">notes</a>',
+        material_type_id: 1,
+        material_origin_id: 1,
+        material_notes: 'These are the <a href="www.notes.com">notes</a>',
+        approved_by_admin: true,
+        date_published: '2020-09-13T07:30:51.564Z'
     }
 
     const expectedNotion = {
         ...maliciousNotion,
-        notion_factory_notes: 'These are the &lt;a href="www.notes.com"&gt;notes&lt;/a&gt;'
+        manufacturer_notes: 'These are the &lt;a href="www.notes.com"&gt;notes&lt;/a&gt;',
+        material_notes: 'These are the &lt;a href="www.notes.com"&gt;notes&lt;/a&gt;'
     }
 
     return {

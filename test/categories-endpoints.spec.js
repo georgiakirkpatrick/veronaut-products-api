@@ -1,17 +1,24 @@
 const knex = require('knex')
 const app = require('../src/app')
 const { expect } = require('chai')
-const { makeCategoriesArray, makeBrandsArray, makeWash, makeDry, makeProductsArray, makeMaliciousProduct } = require('./categories.fixtures')
+const { 
+    makeCategoriesArray, 
+    makeBrandsArray, 
+    makeWash, 
+    makeDry, 
+    makeProductsArray, 
+    makeMaliciousProduct 
+} = require('./categories.fixtures')
 const supertest = require('supertest')
 
 describe('Categories Endpoints', function() {
     let db
 
-    const categories=makeCategoriesArray()
-    const brands=makeBrandsArray()
-    const wash=[makeWash()]
-    const dry=[makeDry()]
-    const {products, productsWithBrands}=makeProductsArray()
+    const categories = makeCategoriesArray()
+    const brands = makeBrandsArray()
+    const wash = [makeWash()]
+    const dry = [makeDry()]
+    const { products, productsWithBrands } = makeProductsArray()
 
     before('make knex instance', () => {
         db = knex({
