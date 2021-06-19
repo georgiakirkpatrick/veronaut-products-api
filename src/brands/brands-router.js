@@ -33,9 +33,13 @@ const serializeNotions = notion => ({
     notion_type_id: notion.notion_type_id,
     notion_type: notion.notion_type,
     brand_id: notion.brand_id,
-    notion_factory_country: notion.notion_factory_country,
-    notion_factory_id: notion.notion_factory_id,
-    notion_factory_notes: xss(notion.notion_factory_notes),
+    manufacturer_country: notion.manufacturer_country,
+    manufacturer_id: notion.manufacturer_id,
+    manufacturer_notes: notion.manufacturer_notes ? xss(notion.manufacturer_notes) : null,
+    material_type_id: notion.material_type_id,
+    material_origin_id: notion.material_origin_id,
+    material_producer_id: notion.material_producer_id,
+    material_notes: notion.material_notes ? xss(notion.material_notes) : null,
     approved_by_admin: notion.approved_by_admin,
     date_published: notion.date_published
 })
@@ -48,7 +52,6 @@ brandsRouter
                 req.app.get('db')
             )
             .then(brands => {
-                console.log('brands', brands)
                 res.json(brands.map(serializeBrands))
             })
             .catch(next)
@@ -58,17 +61,26 @@ brandsRouter
             english_name,
             website,
             home_currency,
-            size_system
+            size_system,
+            approved_by_admin
         } = req.body
 
         const newBrand = {
             english_name,
             website,
             home_currency,
+            size_system,
+            approved_by_admin
+        }
+
+        const requiredFields = {
+            english_name,
+            website,
+            home_currency,
             size_system
         }
 
-        for (const [key, value] of Object.entries(newBrand)) {
+        for (const [key, value] of Object.entries(requiredFields)) {
             if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
@@ -119,7 +131,7 @@ brandsRouter
         const numberOfValues = Object.values(brandToUpdate).filter(Boolean).length
         if (numberOfValues === 0) {
             return res.status(400).json({
-                error: { message: `Request body must include 'english_name', 'website', 'home_currency', 'size_system', 'approved_by_admin'`}
+                error: { message: `Request body must include 'english_name', 'website', 'home_currency', 'size_system', and/or 'approved_by_admin'`}
             })
         }
 

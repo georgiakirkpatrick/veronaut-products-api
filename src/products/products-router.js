@@ -18,10 +18,11 @@ const serializeProductGet = product => {
         product_url: xss(product.product_url),
         feature_image_url: xss(product.feature_image_url),
         multiple_color_options: product.multiple_color_options,
+        brand_currency: product.home_currency,
         cost_in_home_currency: product.cost_in_home_currency,
         wash_id: product.wash_id,
         dry_id: product.dry_id,
-        cmt_notes: xss(product.cmt_notes),
+        cmt_notes: product.cmt_notes ? xss(product.cmt_notes) : null,
         approved_by_admin: product.approved_by_admin,
         date_published: product.date_published
     }
@@ -40,8 +41,8 @@ const serializeProductPost = product => {
         cost_in_home_currency: product.cost_in_home_currency,
         wash_id: product.wash_id,
         dry_id: product.dry_id,
-        cmt_notes: xss(product.cmt_notes),
-        approved_by_admin: product.approved_by_admin,
+        cmt_notes: product.cmt_notes ? xss(product.cmt_notes) : null,
+        approved_by_admin: product.approved_by_admin ? product.approved_by_admin : null,
         date_published: product.date_published
     }
 }
@@ -74,8 +75,8 @@ const serializeFactories = factory => ({
     id: factory.id,
     english_name: xss(factory.english_name),
     country: factory.country,
-    website: xss(factory.website),
-    notes: xss(factory.notes),
+    website: factory.website ? xss(factory.website) : null,
+    notes: factory.notes ? xss(factory.notes) : null,
     stage: factory.stage,
     approved_by_admin: factory.approved_by_admin,
     date_published: factory.date_published
@@ -89,11 +90,11 @@ const serializeFibers = fiber => ({
     brand_id: fiber.brand_id,
     producer_country: fiber.producer_country,
     producer_id: fiber.producer_id,
+    production_notes: fiber.production_notes ? xss(fiber.production_notes) : null,
     producer: xss(fiber.producer),
     producer_country: fiber.producer_country,
-    producer_website: xss(fiber.producer_website),
-    factory_notes: xss(fiber.factory_notes),
-    producer_notes: xss(fiber.producer_notes),
+    producer_website: fiber.producer_website ? xss(fiber.producer_website) : null,
+    // producer_notes: fiber.producer_notes ? xss(fiber.producer_notes) : null,
     approved_by_admin: fiber.approved_by_admin,
     date_published: fiber.date_published
 })
@@ -109,18 +110,17 @@ const serializeImages = image => ({
 const serializeNotions = notion => ({
     id: notion.id,
     notion_type_id: notion.notion_type_id,
-    notion_type: xss(notion.notion_type),
+    notion_type: notion.type,
     brand_id: notion.brand_id,
-    notion_factory_country: notion.notion_factory_country,
-    notion_factory_id: notion.notion_factory_id,
-    factory: xss(notion.factory),
-    notion_factory_notes: xss(notion.notion_factory_notes),
-    material_id: notion.material_id,
-    fiber_or_material_type_id: notion.fiber_or_material_type_id,
-    material: xss(notion.material),
-    class: notion.class,
-    producer_country: notion.notion_country,
-    material_producer: notion.material_producer
+    manufacturer_country: notion.manufacturer_country,
+    manufacturer_id: notion.manufacturer_id,
+    manufacturer_notes: notion.manufacturer_notes ? xss(notion.manufacturer_notes) : null,
+    material_type_id: notion.material_type_id,
+    material_origin_id: notion.material_origin_id,
+    material_producer_id: notion.material_producer_id,
+    material_notes: notion.material_notes ? xss(notion.material_notes) : null,
+    approved_by_admin: notion.approved_by_admin,
+    date_published: notion.date_published
 })
 
 const serializeSizes = size => ({
@@ -152,7 +152,9 @@ productsRouter
             multiple_color_options,
             cost_in_home_currency,
             wash_id,
-            dry_id
+            dry_id,
+            cmt_notes,
+            approved_by_admin
         } = req.body
 
         const newProduct = {
@@ -164,7 +166,9 @@ productsRouter
             multiple_color_options,
             cost_in_home_currency,
             wash_id,
-            dry_id
+            dry_id,
+            cmt_notes,
+            approved_by_admin
         }
 
         for (const [key, value] of Object.entries(newProduct)) {
@@ -208,7 +212,8 @@ productsRouter
             cmt_notes,
             selected_sizes,
             fabrics,
-            notions
+            notions,
+            approved_by_admin
         } = req.body
 
         const newProduct = {
@@ -221,7 +226,8 @@ productsRouter
             cost_in_home_currency,
             wash_id,
             dry_id,
-            cmt_notes
+            cmt_notes,
+            approved_by_admin
         }
 
         const colorFieldsets = color_fieldsets
@@ -255,7 +261,20 @@ productsRouter
             }
 
             if (isObject(entry)) {
-                for (const [key, value] of Object.entries(entry)) {
+                const requiredFields = {
+                    english_name,
+                    brand_id,
+                    category_id,
+                    product_url,
+                    feature_image_url,
+                    multiple_color_options,
+                    cost_in_home_currency,
+                    wash_id,
+                    dry_id,
+                    cmt_notes
+                }
+
+                for (const [key, value] of Object.entries(requiredFields)) {
                     if (value === undefined) {
                         return res.status(400).json({
                             error: { message: `Missing '${key}' in request body`}
@@ -268,10 +287,10 @@ productsRouter
         req.app.get('db').transaction(async function (trx) {
             try {
                 // INSERT PRODUCT
-                    const product = await ProductsService.insertProduct(
-                        req.app.get('db'),
-                        newProduct
-                    )
+                const product = await ProductsService.insertProduct(
+                    req.app.get('db'),
+                    newProduct
+                )
 
                 const promises = []
 
@@ -313,7 +332,7 @@ productsRouter
                 // LINK PRODUCT SEWING INFO
                 const sewSet = {
                     "product_id": product.id, 
-                    "factory_id": sewFact.factory, 
+                    "factory_id": sewFact.factoryId, 
                     "stage": "sew"
                 }
 
@@ -327,7 +346,7 @@ productsRouter
                 // LINK PRODUCT CUTTING INFO
                 const cutSet = {
                     "product_id": product.id, 
-                    "factory_id": cutFact.factory, 
+                    "factory_id": cutFact.factoryId, 
                     "stage": "cut"
                 }
 
@@ -372,20 +391,24 @@ productsRouter
                 fabricArray.forEach(async fabric => {
                     const fabricDetails = {
                         "brand_id": product.brand_id,
-                        "fabric_mill_country": fabric.fabric_details.wovKnitLocation,
+                        "fabric_mill_country": fabric.fabric_details.wovKnitCountryId,
                         "fabric_mill_id": fabric.fabric_details.wovKnitId,
                         "fabric_mill_notes": fabric.fabric_details.wovKnitNotes, 
-                        "dye_print_finish_country": fabric.fabric_details.dyeFinLocation,
+                        "dye_print_finish_country": fabric.fabric_details.dyeFinCountryId,
                         "dye_print_finish_id": fabric.fabric_details.dyeFinId,
                         "dye_print_finish_notes": fabric.fabric_details.dyeFinNotes
                     }
 
-                    const fabricPromise = await FabricsService.insertFabric(
-                        req.app.get('db'),
-                        fabricDetails
-                    )
+                    try {
+                        const fabricPromise = await FabricsService.insertFabric(
+                            req.app.get('db'),
+                            fabricDetails
+                        )
 
-                    promises.push(fabricPromise)
+                        promises.push(fabricPromise)
+                    } catch (e) {
+                        console.log('catch 1', e)
+                    }
                     
                     // LINK PRODUCT AND FABRIC
                     const prodFabricSet = {
@@ -404,8 +427,8 @@ productsRouter
                     // INSERT FABRIC CERTIFICATIONS
                     fabric.certs.forEach(cert => {
                         const certPair = {
-                            fabric_id: fabricPromise.id,
-                            certification_id: cert
+                            "fabric_id": fabricPromise.id,
+                            "certification_id": cert
                         }
 
                         const certPromise = FabricsService.insertFabricCertification(
@@ -418,71 +441,74 @@ productsRouter
 
                     // INSERT FIBERS
                     fabric.fiber_array.forEach(async fiber => {
-                        const fiberSet = {
-                            "fiber_or_material_type_id": fiber.fiberTypeId,
-                            "brand_id": product.brand_id,
-                            "producer_country": fiber.originId,
-                            "producer_id": fiber.producerId,
-                            "production_notes": fiber.producerNotes
-                        }
-
-                        const fiberPromise = await FibersService.insertFiber(
-                            req.app.get('db'),
-                            fiberSet
-                        )
-
-                        promises.push(fiberPromise)
-
-                        // LINK PRODUCT AND FIBER
-                        const prodFiberPair = {
-                            "product_id": product.id,
-                            "fiber_or_material_id": fiberPromise.id
-                        }
-
-                        const prodFiberPromise = ProductsService.insertProductFiber(
-                            req.app.get('db'),
-                            prodFiberPair
-                        )
-
-                        promises.push(prodFiberPromise)
-                    
-                        // LINK FABRIC AND FIBER
-                        const fabFibSet = {
-                            "fabric_id": fabricPromise.id,
-                            "fiber_or_material_id": fiberPromise.id,
-                            "percent_of_fabric": fiber.percentage
-                        }
-
-                        const fabFibPromise = FabricsService.insertFabricFiber(
-                            req.app.get('db'),
-                            fabFibSet
-                        )
-
-                        promises.push(fabFibPromise)
-
-                        // LINK FIBER AND CERTIFICATIONS
-                        fiber.certIds.forEach(certId => {
-                            const fibCertPair = {
-                                "fiber_or_material_id": fiberPromise.id,
-                                "certification_id": certId
+                        try {
+                            const fiberSet = {
+                                "fiber_or_material_type_id": fiber.fiberTypeId,
+                                "brand_id": product.brand_id,
+                                "producer_country": fiber.originId,
+                                "producer_id": fiber.producerId,
+                                "production_notes": fiber.producerNotes
                             }
 
-                            const fibCertPromise = FibersService.insertFiberCert(
+                            const fiberPromise = await FibersService.insertFiber(
                                 req.app.get('db'),
-                                fibCertPair
+                                fiberSet
                             )
 
-                            promises.push(fibCertPromise)
-                        })
+                            promises.push(fiberPromise)
+
+                            // LINK PRODUCT AND FIBER
+                            const prodFiberPair = {
+                                "product_id": product.id,
+                                "fiber_or_material_id": fiberPromise.id
+                            }
+
+                            const prodFiberPromise = ProductsService.insertProductFiber(
+                                req.app.get('db'),
+                                prodFiberPair
+                            )
+
+                            promises.push(prodFiberPromise)
+                        
+                            // LINK FABRIC AND FIBER
+                            const fabFibSet = {
+                                "fabric_id": fabricPromise.id,
+                                "fiber_or_material_id": fiberPromise.id,
+                                "percent_of_fabric": fiber.percentage
+                            }
+
+                            const fabFibPromise = FabricsService.insertFabricFiber(
+                                req.app.get('db'),
+                                fabFibSet
+                            )
+
+                            promises.push(fabFibPromise)
+
+                            // LINK FIBER AND CERTIFICATIONS
+                            fiber.certIds.forEach(certId => {
+                                const fibCertPair = {
+                                    "fiber_or_material_id": fiberPromise.id,
+                                    "certification_id": certId
+                                }
+
+                                const fibCertPromise = FibersService.insertFiberCert(
+                                    req.app.get('db'),
+                                    fibCertPair
+                                )
+
+                                promises.push(fibCertPromise)
+                            })
+                        } catch (e) {
+                            console.log('catch 2', e)
+                        }    
                     })
                 })
 
-                // INSERT NOTIONS
                 notionsArray.forEach(async notion => {
                     const notionDetails = {
                         "notion_type_id": notion.typeId,
                         "brand_id": product.brand_id,
-                        "manufacturer_country": notion.locationId,
+                        "manufacturer_country": notion.countryId,
                         "manufacturer_id": notion.factoryId,
                         "manufacturer_notes": notion.notes,
                         "material_type_id": notion.materialTypeId,
@@ -529,8 +555,12 @@ productsRouter
 
                 trx.commit()
 
-                return res.json(product)
+                res
+                    .status(201)
+                    .location(path.posix.join(req.originalUrl, `/${product.id}`))
+                    .json(serializeProductPost(product))
             } catch (e) {
+                console.log('catch 3', e)
                 trx.rollback()
                 next(e)
             }
@@ -568,7 +598,7 @@ productsRouter
             cost_in_home_currency: res.product.cost_in_home_currency,
             wash_id: res.product.wash_id,
             dry_id: res.product.dry_id,
-            cmt_notes: xss(res.product.cmt_notes),
+            cmt_notes: res.product.cmt_notes ? xss(res.product.cmt_notes) : null,
             approved_by_admin: res.product.approved_by_admin,
             date_published: res.product.date_published
         })
@@ -665,15 +695,23 @@ productsRouter
         .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
-        const {product_id, certification_id} = req.body
-        const newProductCertification = {product_id, certification_id}
+        const productId = res.product.id
+
+        const { certification_id } = req.body
+
+        const newProductCertification = { 
+            product_id: productId,
+            certification_id
+        }
+
+        const requiredFields = {
+            certification_id
+        }
         
-        for (const [key, value] of Object.entries(newProductCertification)) {
-            if (value === undefined) {
-                return res.status(400).json({
-                    error: { message: `Missing '${key}' in request body`}
-                })
-            }
+        if (requiredFields.certification_id === undefined) {
+            return res.status(400).json({
+                error: { message: `Missing 'certification_id' in request body`}
+            })
         }
 
         ProductsService
@@ -732,8 +770,14 @@ productsRouter
             color_english_name,
             swatch_image_url
         }
+
+        const requiredFields = {
+            color_description_id,
+            color_english_name,
+            swatch_image_url
+        }
     
-        for (const [key, value] of Object.entries(newProductColor)) {
+        for (const [key, value] of Object.entries(requiredFields)) {
             if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
@@ -784,10 +828,23 @@ productsRouter
             .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
-        const {product_id, fabric_id, relationship} = req.body
-        const newProductFabric = {product_id, fabric_id, relationship}
+        const {
+            fabric_id, 
+            relationship
+        } = req.body
+
+        const newProductFabric = {
+            product_id: req.params.product_id, 
+            fabric_id, 
+            relationship
+        }
+
+        const requiredFields = {
+            fabric_id, 
+            relationship
+        }
         
-        for (const [key, value] of Object.entries(newProductFabric)) {
+        for (const [key, value] of Object.entries(requiredFields)) {
             if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
@@ -839,10 +896,23 @@ productsRouter
             .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
-        const { product_id, factory_id, stage } = req.body
-        const newProductFactory = { product_id, factory_id, stage }
+        const { 
+            factory_id, 
+            stage 
+        } = req.body
 
-        for (const [ key, value ] of Object.entries(newProductFactory)) {
+        const newProductFactory = {  
+            product_id: req.params.product_id,
+            factory_id,
+            stage
+        }
+
+        const requiredFields = {
+            factory_id, 
+            stage 
+        }
+
+        for (const [ key, value ] of Object.entries(requiredFields)) {
             if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
@@ -851,16 +921,16 @@ productsRouter
         }
 
         ProductsService
-            .insertProductFactory(
-                req.app.get('db'),
-                newProductFactory
-            )
-            .then(response => {
-                res
-                    .status(201)
-                    .json(response)
-            })
-            .catch(next)
+        .insertProductFactory(
+            req.app.get('db'),
+            newProductFactory
+        )
+        .then(response => {
+            res
+                .status(201)
+                .json(response)
+        })
+        .catch(next)        
     })
 
 productsRouter
@@ -894,10 +964,20 @@ productsRouter
             .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
-        const { product_id, fiber_or_material_id } = req.body
-        const newProductFiber = { product_id, fiber_or_material_id }
+        const { 
+            fiber_or_material_id 
+        } = req.body
 
-        for (const [ key, value ] of Object.entries(newProductFiber)) {
+        const newProductFiber = {
+            product_id: req.params.product_id,
+            fiber_or_material_id
+        }
+
+        const requiredFields = { 
+            fiber_or_material_id 
+        }
+
+        for (const [ key, value ] of Object.entries(requiredFields)) {
             if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
@@ -964,7 +1044,13 @@ productsRouter
             primary_image_for_color
         }
 
-        for (const [key, value] of Object.entries(newImage)) {
+        const requiredFields = {
+            product_image_url,
+            color_description_id,
+            primary_image_for_color
+        }
+
+        for (const [key, value] of Object.entries(requiredFields)) {
             if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
@@ -1016,10 +1102,20 @@ productsRouter
             .catch(next)
         })
     .post(jsonParser, (req, res, next) => {
-        const { notion_id, product_id } = req.body
-        const newPair = { notion_id, product_id}
+        const { 
+            notion_id 
+        } = req.body
 
-        for (const [key, value] of Object.entries(newPair)) {
+        const newPair = { 
+            notion_id, 
+            product_id: req.params.product_id
+        }
+
+        const requiredFields = {
+            notion_id
+        }
+
+        for (const [key, value] of Object.entries(requiredFields)) {
             if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
@@ -1071,15 +1167,19 @@ productsRouter
             .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
-        const { size_id, product_id } = req.body
-        const newPair = { size_id, product_id }
+        const { 
+            size_id
+        } = req.body
 
-        for (const [key, value] of Object.entries(newPair)) {
-            if (value === undefined) {
-                return res.status(400).json({
-                    error: { message: `Missing '${key}' in request body`}
-                })
-            }
+        const newPair = { 
+            size_id, 
+            product_id: req.params.product_id
+        }
+
+        if (req.body.size_id === undefined) {
+            return res.status(400).json({
+                error: { message: `Missing 'size_id' in request body`}
+            })
         }
 
         ProductsService

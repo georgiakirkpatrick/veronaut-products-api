@@ -70,23 +70,22 @@ const FabricsService = {
 
     // Fibers
         getFibersForFabric(knex, fabricId) {
+
             return knex('fabrics_to_fibers_and_materials')
                 .join('fibers_and_materials', {'fabrics_to_fibers_and_materials.fiber_or_material_id': 'fibers_and_materials.id'})
                 .join('fiber_and_material_types', {'fibers_and_materials.fiber_or_material_type_id': 'fiber_and_material_types.id'})
-                .join('fibers_to_factories', {'fibers_and_materials.producer_id': 'fibers_to_factories.factory_id'})
-                .join('factories', {'fibers_to_factories.factory_id': 'factories.id'})
+                .join('factories', {'fibers_and_materials.producer_id': 'factories.id'})
                 .select(
-                    'fibers_and_materials.id as id',
+                    'fibers_and_materials.id',
                     'fibers_and_materials.brand_id',
                     'fibers_and_materials.fiber_or_material_type_id as fiber_type_id',
                     'fiber_and_material_types.english_name as fiber_type',
                     'fiber_and_material_types.fiber_type_class as class',
                     'fibers_and_materials.producer_country',
                     'fibers_and_materials.producer_id',
-                    'factories.english_name as factory',
+                    'factories.english_name as producer',
                     'factories.country as factory_country',
-                    'factories.website as factory_website',
-                    'factories.factory_notes',
+                    'factories.website as producer_website',
                     'fibers_and_materials.production_notes',
                     'fibers_and_materials.approved_by_admin',
                     'fibers_and_materials.date_published'
@@ -99,20 +98,9 @@ const FabricsService = {
                 .insert(newSet)
                 .into('fabrics_to_fibers_and_materials')
                 .returning('*')
-                .then(response => response[0])
-        },
-
-    // Fiber Types
-        getAllFiberTypes(knex) {
-            return knex('fiber_and_material_types').select('*')
-        },
-
-        insertFiberType(knex, newFiberType) {
-            return knex
-                .insert(newFiberType)
-                .into('fiber_and_material_types')
-                .returning('*')
-                .then(response => response[0])
+                .then(response => {
+                    return response[0]
+                })
         },
 
     // Certifications

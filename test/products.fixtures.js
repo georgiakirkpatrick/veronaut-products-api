@@ -1,10 +1,102 @@
-function makeProductsArray() {
-    return [
+const makeColor = () => (
+    {
+        id: 1,
+        product_id: 1,
+        color_description_id: 1,
+        color_english_name: 'Lemon',
+        swatch_image_url: 'www.lemon-swatch.com'
+    }
+)
+
+const makeDry = () => (
+    { 
+      id: 1,
+      english_name: "Hang to dry"
+    }
+)
+
+const makeImage = () => (
+    {
+        id: 1,
+        product_id: 1,
+        product_image_url: 'www.brand.com/product/image',
+        color_description_id: 1,
+        primary_image_for_color: true
+    }
+)
+
+const makeMalImage = () => {
+    const malImage = {
+        id: 1,
+        product_id: 1,
+        product_image_url: '<a href="www.brand.com/product/image">Evil</a>',
+        color_description_id: 1,
+        primary_image_for_color: true
+    }
+    
+    const expectedImage = {
+        ...malImage,
+        product_image_url: '&lt;a href="www.brand.com/product/image"&gt;Evil&lt;/a&gt;',
+    }
+
+    return {
+        malImage,
+        expectedImage
+    }    
+}
+
+const makeMalProduct = () => {
+    const malProduct = {
+        id: 666,
+        english_name: 'mal product <script>alert("xss");</script>',
+        brand_id: 1,
+        category_id: 1,
+        product_url: '<a href="https://google.com">google</a>',
+        feature_image_url: 'https://silvaniaperu.com/silvania-dress',
+        multiple_color_options: true,
+        cost_in_home_currency: 666,
+        wash_id: 1,
+        dry_id: 1,
+        cmt_notes: 'This is a bad image for testing purposes <img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);">.',
+        approved_by_admin: true,
+        date_published: "2020-09-13T07:30:51.564Z"
+    }
+
+    const expectedProduct = {
+        id: 666,
+        brand_id: 1,
+        category_id: 1,
+        feature_image_url: 'https://silvaniaperu.com/silvania-dress',
+        multiple_color_options: true,
+        cost_in_home_currency: 666,
+        wash_id: 1,
+        dry_id: 1,
+        approved_by_admin: true,
+        date_published: "2020-09-13T07:30:51.564Z",
+        english_name: 'mal product &lt;script&gt;alert("xss");&lt;/script&gt;',
+        product_url: '&lt;a href="https://google.com"&gt;google&lt;/a&gt;',
+        cmt_notes: 'This is a bad image for testing purposes &lt;img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);"&gt;.',
+    }
+
+    return {
+        malProduct,
+        expectedProduct
+    }
+}
+
+const makeNotionsToMaterials = () => (
+    {
+        fiber_or_material_id: 1,
+        notion_id: 1
+    }    
+)
+
+const makeProductArray = () => {
+    const productsPost = [
         {
             id: 1,
             english_name: 'Silvania Dress',
             brand_id: 1,
-            brand_name: 'Silvania',
             category_id: 1,
             product_url: 'https://silvaniaperu.com/silvania-dress',
             feature_image_url: 'https://silvaniaperu.com/silvania-dress',
@@ -12,8 +104,6 @@ function makeProductsArray() {
             cost_in_home_currency: 148.00,
             wash_id: 1,
             dry_id: 1,
-            cmt_country: 'PE',
-            cmt_factory_notes: '',
             approved_by_admin: true,
             date_published: "2020-09-13T07:30:51.564Z"
         },
@@ -28,8 +118,6 @@ function makeProductsArray() {
             cost_in_home_currency: 148.00,
             wash_id: 1,
             dry_id: 1,
-            cmt_country: 'PE',
-            cmt_factory_notes: '',
             approved_by_admin: true,
             date_published: "2020-09-13T07:30:51.564Z"
         },
@@ -44,8 +132,6 @@ function makeProductsArray() {
             cost_in_home_currency: 148.00,
             wash_id: 1,
             dry_id: 1,
-            cmt_country: 'PE',
-            cmt_factory_notes: '',
             approved_by_admin: true,
             date_published: "2020-09-13T07:30:51.564Z"
         },
@@ -60,105 +146,43 @@ function makeProductsArray() {
             cost_in_home_currency: 148.00,
             wash_id: 1,
             dry_id: 1,
-            cmt_country: 'PE',
-            cmt_factory_notes: '',
             approved_by_admin: true,
             date_published: "2020-09-13T07:30:51.564Z"
         }
     ]
-}
 
-function makeCategory() {
-    return {
-      id: 1,
-      english_name: 'Activewear', 
-      category_class: 'clothing'
-    }
-}
-
-function makeWash() {
-    return { 
-      id: 1,
-      english_name: "Handwash Cold"
-    }
-}
-
-function makeDry() {
-    return { 
-      id: 1,
-      english_name: "Hang to dry"
-    }
-}
-
-function makeImage() {
-    return {
-        id: 1,
-        product_id: 1,
-        product_image_url: 'www.brand.com/product/image',
-        swatch_image_url: 'www.brand.com/product/swatch',
-        color_english_name: 'ocher',
-        color_description_id: 1,
-        primary_image_for_color: true
-    }
-}
-
-function makeBrand() {
-    return {
-        id: 1,
-        english_name: 'Sezane',
-        website: 'https://silvaniaprints.com',
-        home_currency: 'USD',
-        size_system: 'US',
-        approved_by_admin: true,
-        date_published: "2020-09-13T07:30:51.564Z"
-    }
-}
-
-function makeMaterialTypes() {
-    return {
-        id: 1,
-        english_name: 'polyester',
-        fiber_type_class: 'synthetic fiber',
-        approved_by_admin: true,
-        date_published: "2020-09-13T07:30:51.564Z"
-    }
-}
-
-function makeMaterials() {
-    return {
-        id: 1,
-        fiber_or_material_type_id: 1,
-        brand_id: 1,
-        producer_country: 'US',
-        producer_id: 1,
-        producer_notes: 'Notes',
-        approved_by_admin: true,
-        date_published: "2020-09-13T07:30:51.564Z"
-    }
-}
-
-function makeNotionsToMaterials() {
-    return {
-        fiber_or_material_id: 1,
-        notion_id: 1
-    }    
-}
-
-function makeProductToNotions() {
-    return [
+    const productsGet = [
         {
-            product_id: 1,
-            notion_id: 1
+            ...productsPost[0],
+            brand_name: 'Sezane',
+            brand_currency: 3,
+            cmt_notes: null
         },
         {
-            product_id: 1,
-            notion_id: 2
+            ...productsPost[1],
+            brand_name: 'Sezane',
+            brand_currency: 3,
+            cmt_notes: null,
+        },
+        {
+            ...productsPost[2],
+            brand_name: 'Sezane',
+            brand_currency: 3,
+            cmt_notes: null
+        },
+        {
+            ...productsPost[3],
+            brand_name: 'Sezane',
+            brand_currency: 3,
+            cmt_notes: null
         }
-    ]    
+    ]
+
+    return { productsPost, productsGet }
 }
 
-function makeProductToCertificationArray() {
-    return [
+const makeProductToCertificationArray = () => (
+    [
         {
             product_id: 1,
             certification_id: 1
@@ -172,10 +196,10 @@ function makeProductToCertificationArray() {
             certification_id: 3
         }
     ]
-}
+)
 
-function makeProductToFactoriesArray() {
-    return [
+const makeProductToFactoriesArray = () => (
+    [
         {
             product_id: 1,
             factory_id: 1,
@@ -187,10 +211,10 @@ function makeProductToFactoriesArray() {
             stage: 'cut'
         }
     ]
-}
+)
 
-function makeProductToFiberArray() {
-    return [
+const makeProductToFiberArray = () => (
+    [
         {
             product_id: 1,
             fiber_or_material_id: 1
@@ -200,152 +224,59 @@ function makeProductToFiberArray() {
             fiber_or_material_id: 2
         }
     ]
-}
+)
 
-function makeProductsArrayWithBrand() {
-    const products = makeProductsArray();
-    const brand = makeBrand();
-    return products.map((p) => ({
-      ...p,
-      brand_name: brand.english_name,
-    //   brand_id: brand.id,
-      home_currency: brand.home_currency
-    }))
-}
+const makeProductToNotions = () => (
+    [
+        {
+            product_id: 1,
+            notion_id: 1
+        },
+        {
+            product_id: 1,
+            notion_id: 2
+        }
+    ]    
+)
 
-function makeMaliciousImage() {
-    const maliciousImage = {
+const makeWash = () => (
+    { 
+      id: 1,
+      english_name: "Handwash Cold"
+    }
+)
+
+const makeSize = () => (
+    {
         id: 1,
-        product_id: 1,
-        product_image_url: '<a href="www.brand.com/product/image">Evil</a>',
-        swatch_image_url: '<a href="www.brand.com/product/swatch">Evil</a>',
-        color_english_name: '<a href="www.brand.com">Ocher</a>',
-        color_description_id: 1,
-        primary_image_for_color: true
-    }
-    
-    const expectedImage = {
-        ...maliciousImage,
-        product_image_url: '&lt;a href="www.brand.com/product/image"&gt;Evil&lt;/a&gt;',
-        swatch_image_url: '&lt;a href="www.brand.com/product/swatch"&gt;Evil&lt;/a&gt;',
-        color_english_name: '&lt;a href="www.brand.com"&gt;Ocher&lt;/a&gt;',
-    }
-
-    return {
-        maliciousImage,
-        expectedImage
-    }    
-}
-
-function makeMaliciousProduct() {
-    const maliciousProduct = {
-        id: 666,
-        english_name: 'Malicious product <script>alert("xss");</script>',
-        brand_id: 1,
-        category_id: 1,
-        product_url: '<a href="https://google.com">google</a>',
-        feature_image_url: 'https://silvaniaperu.com/silvania-dress',
-        multiple_color_options: true,
-        cost_in_home_currency: 666,
-        wash_id: 1,
-        dry_id: 1,
-        cmt_country: 'US',
-        cmt_factory_notes: 'This is a bad image for testing purposes <img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);">.',
-        approved_by_admin: true,
-        date_published: "2020-09-13T07:30:51.564Z"
-    }
-
-    const expectedProduct = {
-        ...maliciousProduct,
-        english_name: 'Malicious product &lt;script&gt;alert(\"xss\");&lt;/script&gt;',
-        product_url: '&lt;a href="https://google.com"&gt;google&lt;/a&gt;',
-        cmt_factory_notes: 'This is a bad image for testing purposes &lt;img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);"&gt;.',
-    }
-
-    return {
-        maliciousProduct,
-        expectedProduct
-    }
-}
-
-function makeSize() {
-    return {
-        id: 1,
-        size_type_id: 1,
-        size_class_id: 1,
+        country_system: 'US',
+        size_text: '6',
+        size_category: 'dress',
+        size_class: 'standard',
         us_size: '6'
     }
-}
+)
 
-function makeMaliciousSize() {
-    const maliciousSize = {
-        id: 1,
-        size_type_id: 1,
-        size_class_id: 1,
-        us_size: '<a href="www.naughty.com">6</a>'
-    }
-
-    const expectedSize = {
-        ...maliciousSize,
-        us_size: '&lt;a href="www.naughty.com"&gt;6&lt;/a&gt;'
-    }
-
-    return {
-        maliciousSize,
-        expectedSize
-    }
-}
-
-function makeSizeClass() {
-    return {
-        id: 1,
-        english_name: 'standard'
-    }
-}
-
-function makeMaliciousSizeClass() {
-    const maliciousSizeClass = {
-        english_name: '<a href="www.naughty.com">standard</a>'
-    }
-
-    const expectedSizeClass = {
-        ...maliciousSizeClass,
-        english_name: '&lt;a href="www.naughty.com"&gt;standard&lt;/a&gt;'
-    }
-
-    return {
-        maliciousSizeClass,
-        expectedSizeClass
-    }
-}
-
-function makeSizeToProduct() {
-    return {
+const makeSizeToProduct = () => (
+    {
         size_id: 1,
         product_id: 1
     }
-}
+)
 
 module.exports = {
-    makeBrand,
-    makeCategory,
+    makeColor,
     makeDry,
     makeImage,
     makeNotionsToMaterials,
-    makeMaterials,
-    makeMaterialTypes,
-    makeProductsArray,
-    makeProductsArrayWithBrand,
+    makeProductArray,
     makeProductToCertificationArray,
     makeProductToFactoriesArray,
     makeProductToFiberArray,
     makeProductToNotions,
     makeSize,
-    makeSizeClass,
     makeSizeToProduct,
     makeWash,
-    makeMaliciousImage,
-    makeMaliciousProduct,
-    makeMaliciousSize,
-    makeMaliciousSizeClass
+    makeMalImage,
+    makeMalProduct
 }

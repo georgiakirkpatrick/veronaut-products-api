@@ -1,14 +1,14 @@
 const knex = require('knex')
 const app = require('../src/app')
-const { makeCertificationsArray, makeMaliciousCertification } = require('./certifications.fixtures')
 const supertest = require('supertest')
 const { expect } = require('chai')
+const { makeCertificationArray, makeMalCertification  } = require('./certifications.fixtures')
 
 describe('Certifications Endpoints', function() {
+    const certifications = makeCertificationArray()
+    const { malCertification, expectedCertification } = makeMalCertification()
+    
     let db
-
-    const certifications = makeCertificationsArray()
-    const { maliciousCertification, expectedCertification } = makeMaliciousCertification()
 
     before('make knex instance', () => {
         db = knex({
@@ -19,14 +19,12 @@ describe('Certifications Endpoints', function() {
     })
 
     after('disconnect from db', () => db.destroy())
-
     before('clean the table', () => db.raw('TRUNCATE table certifications RESTART IDENTITY CASCADE'))
-    
     afterEach('cleanup', () => db.raw('TRUNCATE table certifications RESTART IDENTITY CASCADE'))
 
     describe('GET /api/certifications', () => {
         context('when there are certifications in the database', () => {
-            beforeEach('insert certifications', () => { return db.into('certifications').insert(certifications) })
+            beforeEach(() => db.into('certifications').insert(certifications))
 
             it('returns all the certifications', () => {
                 return supertest(app)
@@ -44,7 +42,8 @@ describe('Certifications Endpoints', function() {
         })
 
         context('given a malicious certification', () => {
-            beforeEach(() => { return db.into('certifications').insert([maliciousCertification]) })
+            beforeEach(() => db.into('certifications').insert(malCertification))
+            
             it('removes the attack content', () => {
                 return supertest(app)
                     .get('/api/certifications')
@@ -59,7 +58,7 @@ describe('Certifications Endpoints', function() {
 
     describe('GET /api/certifications/:certification_id', () => {
         context('when the certification with id certification_id exists', () => {
-            beforeEach('insert certifications', () => { return db.into('certifications').insert(certifications) })
+            beforeEach(() => db.into('certifications').insert(certifications))
 
             it('responds with the certfication', () => {
                 const certificationId = 1
@@ -81,7 +80,7 @@ describe('Certifications Endpoints', function() {
         })
 
         context('when certification with certification_id is a malicious certification', () => {
-            beforeEach(() => db.into('certifications').insert(maliciousCertification))
+            beforeEach(() => db.into('certifications').insert(malCertification))
             const certificationId = 666
             it('removes the attack content in the response', () => {
                 return supertest(app)
@@ -147,11 +146,11 @@ describe('Certifications Endpoints', function() {
         })
 
         it('removes XSS attack content from the response', () => {
-            const { maliciousCertification, expectedCertification } = makeMaliciousCertification()
+            const { malCertification, expectedCertification } = makeMalCertification()
 
             return supertest(app)
                 .post('/api/certifications')
-                .send(maliciousCertification)
+                .send(malCertification)
                 .expect(201)
                 .expect(res => {
                     expect(res.body.english_name).to.eql(expectedCertification.english_name)
@@ -161,7 +160,7 @@ describe('Certifications Endpoints', function() {
     })
 
     describe('PATCH /api/certifications/:certification_id', () => {
-        beforeEach('insert certifications', () => { return db.into('certifications').insert(certifications) })
+        beforeEach(() => db.into('certifications').insert(certifications))
 
         context('given there the certification exists', () => {
             const idToUpdate = 1
@@ -220,7 +219,7 @@ describe('Certifications Endpoints', function() {
     })
 
     describe('DELETE /api/certifications/:certification_id', () => {
-        beforeEach('insert certifications', () => { return db.into('certifications').insert(certifications) })
+        beforeEach(() => db.into('certifications').insert(certifications))
         const idToDelete = 1
         const expectedCertifications = certifications.filter(certification => certification.id !== idToDelete)
 

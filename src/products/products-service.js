@@ -11,6 +11,7 @@ const ProductsService = {
                 'products.category_id',
                 'products.feature_image_url',
                 'products.multiple_color_options',
+                'brands.home_currency',
                 'products.cost_in_home_currency',
                 'products.product_url',
                 'products.wash_id',
@@ -39,9 +40,6 @@ const ProductsService = {
     },
 
     deleteProduct(knex, id) {
-        console.log(
-            'deleteProduct ran and id is', id
-        )
         return knex('products')
             .where({ id })
             .delete()
@@ -85,8 +83,6 @@ const ProductsService = {
     },
 
     insertProductColor(knex, newProductColor) {
-        console.log('newProductColor', newProductColor)
-
         return knex
             .insert(newProductColor)
             .into('product_colors')
@@ -175,19 +171,16 @@ const ProductsService = {
                 'fibers_and_materials.brand_id',
                 'fibers_and_materials.producer_country',
                 'fibers_and_materials.producer_id',
+                'fibers_and_materials.production_notes',
                 'factories.english_name as producer',
                 'factories.website as producer_website',
                 'fibers_and_materials.production_notes',
-                'factories.notes as factory_notes',
+                'factories.notes as producer_notes',
                 'fibers_and_materials.approved_by_admin',
                 'fibers_and_materials.date_published'
             )
             .where('product_id', productId)
     },
-
-    producer: 'The Orange Concept',
-            producer_website: 'www.orange.com',
-            factory_notes: 'family-owned',
 
     insertProductFiber(knex, newPair) {
         return knex
@@ -202,24 +195,20 @@ const ProductsService = {
         return knex('notions')
             .join('notion_types', {'notions.notion_type_id': 'notion_types.id'})
             .join('notions_to_products', {'notions.id': 'notions_to_products.notion_id'})
-            .join('factories', {'notions.notion_factory_id': 'factories.id'})
-            .join('notions_to_fibers_and_materials', {'notions.id': 'notions_to_fibers_and_materials.notion_id'})
-            .join('fibers_and_materials', {'notions_to_fibers_and_materials.fiber_or_material_id': 'fibers_and_materials.id'})
-            .join('fiber_and_material_types', {'fibers_and_materials.fiber_or_material_type_id': 'fiber_and_material_types.id'})
+            .join('factories', {'notions.manufacturer_id': 'factories.id'})
+            .join('fiber_and_material_types', {'notions.material_type_id': 'fiber_and_material_types.id'})
             .select(
                 'notions.id',
                 'notions.notion_type_id',
+                'notion_types.english_name as type',
                 'notions.brand_id',
-                'notion_types.english_name as notion_type',
-                'notions.notion_factory_country',
-                'notions.notion_factory_id',
-                'factories.english_name as factory',
-                'notions.notion_factory_notes',
-                'fibers_and_materials.id as material_id',
-                'fibers_and_materials.fiber_or_material_type_id',
-                'fiber_and_material_types.english_name as material',
-                'fibers_and_materials.producer_country',
-                'fibers_and_materials.producer_id as material_producer_id',
+                'notions.manufacturer_country',
+                'notions.manufacturer_id',
+                'notions.manufacturer_notes',
+                'notions.material_type_id',
+                'notions.material_origin_id',
+                'notions.material_producer_id',
+                'notions.material_notes',
                 'notions.approved_by_admin',
                 'notions.date_published'
             )

@@ -9,7 +9,9 @@ const FactoriesService = {
         .into('factories')
         .insert(newFactory)
         .returning('*')
-        .then(response => response[0])
+        .then(response => {
+            return response[0]
+        })
     },
 
     getFactoryById(knex, id) {

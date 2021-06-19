@@ -1,24 +1,19 @@
 const knex = require('knex')
 const app = require('../src/app')
 const { expect } = require('chai')
-const { 
-    makeCategoriesArray, 
-    makeBrandsArray, 
-    makeWash, 
-    makeDry, 
-    makeProductsArray, 
-    makeMaliciousProduct 
-} = require('./categories.fixtures')
 const supertest = require('supertest')
+const { makeBrandArray } = require('./brands.fixtures')
+const { makeCategoryArray } = require('./categories.fixtures')
+const { makeProductArray, makeDry, makeMalProduct, makeWash } = require('./products.fixtures')
 
 describe('Categories Endpoints', function() {
+    const categories = makeCategoryArray()
+    const brands = makeBrandArray()
+    const wash = makeWash()
+    const dry = makeDry()
+    const { productsPost, productsGet } = makeProductArray()
+    
     let db
-
-    const categories = makeCategoriesArray()
-    const brands = makeBrandsArray()
-    const wash = [makeWash()]
-    const dry = [makeDry()]
-    const { products, productsWithBrands } = makeProductsArray()
 
     before('make knex instance', () => {
         db = knex({
@@ -27,26 +22,22 @@ describe('Categories Endpoints', function() {
         })
         app.set('db', db)
     })
-
-    after('disconnect from db', () => db.destroy())
-
-    before('clean the table', () => db.raw('TRUNCATE table categories, brands, wash_instructions, dry_instructions, products RESTART IDENTITY CASCADE'))
     
+    after('disconnect from db', () => db.destroy())
+    before('clean the table', () => db.raw('TRUNCATE table categories, brands, wash_instructions, dry_instructions, products RESTART IDENTITY CASCADE'))
     afterEach('cleanup', () => db.raw('TRUNCATE table categories, brands, wash_instructions, dry_instructions, products RESTART IDENTITY CASCADE'))
 
     describe('GET /api/categories', () => {
         
         context('Given there are categories in the database', () => {
-            const testCategories = makeCategoriesArray()
-    
             beforeEach('insert categories', () => {
-                return db.into('categories').insert(testCategories)
+                return db.into('categories').insert(categories)
             })
     
             it('GET /api/categories responds with 200 and all of the categories', () => {
                 return supertest(app)
                     .get('/api/categories')
-                    .expect(200, testCategories)
+                    .expect(200, categories)
             })
         })
     
@@ -61,29 +52,28 @@ describe('Categories Endpoints', function() {
 
     describe('GET /api/categories/:category_id/products', () => {
         context('Given there are products for the specified category', () => {
-
-            beforeEach('insert categories', () => { return db.into('categories').insert(categories) })
-            beforeEach('insert brands', () => { return db.into('brands').insert(brands) })
-            beforeEach('insert wash', () => { return db.into('wash_instructions').insert(wash) })
-            beforeEach('insert dry', () => { return db.into('dry_instructions').insert(dry) })
-            beforeEach('insert products', () => { return db.into('products').insert(products) })
+            beforeEach(() => db.into('categories').insert(categories))
+            beforeEach(() => db.into('brands').insert(brands))
+            beforeEach(() => db.into('wash_instructions').insert(wash))
+            beforeEach(() => db.into('dry_instructions').insert(dry))
+            beforeEach(() => db.into('products').insert(productsPost))
 
             it('it responds with 200 and all the products for the specified category', () => {
                 const categoryId = 1
 
                 return supertest(app)
                     .get(`/api/categories/${categoryId}/products`)
-                    .expect(200, productsWithBrands)
+                    .expect(200, productsGet)
             })
         })
 
         context('Given no products', () => {
-            
-            beforeEach('insert categories', () => { return db.into('categories').insert(categories) })
-            beforeEach('insert brands', () => { return db.into('brands').insert(brands) })
-            beforeEach('insert wash', () => { return db.into('wash_instructions').insert(wash) })
-            beforeEach('insert dry', () => { return db.into('dry_instructions').insert(dry) })
-            beforeEach('insert products', () => { return db.into('products').insert([]) })
+        
+            beforeEach(() => db.into('categories').insert(categories))
+            beforeEach(() => db.into('brands').insert(brands))
+            beforeEach(() => db.into('wash_instructions').insert(wash))
+            beforeEach(() => db.into('dry_instructions').insert(dry))
+            beforeEach(() => db.into('products').insert([]))
 
             it('responds with 200 and an empty list', () => {
                 const categoryId = 1
@@ -95,13 +85,13 @@ describe('Categories Endpoints', function() {
         })
 
         context('Given an XSS attack product', () => {
-            const { maliciousProduct, expectedProduct } = makeMaliciousProduct()
+            const { malProduct, expectedProduct } = makeMalProduct()
             
-            beforeEach('insert categories', () => { return db.into('categories').insert(categories) })
-            beforeEach('insert brands', () => { return db.into('brands').insert(brands) })
-            beforeEach('insert wash', () => { return db.into('wash_instructions').insert(wash) })
-            beforeEach('insert dry', () => { return db.into('dry_instructions').insert(dry) })
-            beforeEach('insert malicious products', () => { return db.into('products').insert([maliciousProduct]) })
+            beforeEach(() => db.into('categories').insert(categories))
+            beforeEach(() => db.into('brands').insert(brands))
+            beforeEach(() => db.into('wash_instructions').insert(wash))
+            beforeEach(() => db.into('dry_instructions').insert(dry))
+            beforeEach(() => db.into('products').insert([malProduct]))
 
             const categoryId = 1
 

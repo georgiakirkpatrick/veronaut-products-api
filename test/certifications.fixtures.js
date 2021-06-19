@@ -1,4 +1,4 @@
-function makeCertificationsArray() {
+function makeCertificationArray() {
     return [
         {
             id: 1,
@@ -24,8 +24,8 @@ function makeCertificationsArray() {
     ]
 }
 
-function makeMaliciousCertification() {
-    const maliciousCertification = {
+function makeMalCertification() {
+    const malCertification = {
         id: 666,
         english_name: '<a href="www.bad.com">Organic</a>',
         website: '<a href="www.bad.com">www.organic.com</a>',
@@ -34,18 +34,18 @@ function makeMaliciousCertification() {
     }
 
     const expectedCertification = {
-        ...maliciousCertification,
+        ...malCertification,
         english_name: '&lt;a href="www.bad.com"&gt;Organic&lt;/a&gt;',
         website: '&lt;a href="www.bad.com"&gt;www.organic.com&lt;/a&gt;'
     }
 
     return {
-        maliciousCertification,
+        malCertification,
         expectedCertification
     }
 }
 
 module.exports = { 
-    makeCertificationsArray, 
-    makeMaliciousCertification 
+    makeCertificationArray, 
+    makeMalCertification 
 }

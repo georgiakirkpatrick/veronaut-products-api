@@ -7,6 +7,7 @@ CREATE TABLE notions (
     manufacturer_notes TEXT,
     material_type_id INTEGER REFERENCES fiber_and_material_types(id) ON DELETE CASCADE NOT NULL,
     material_origin_id INTEGER NOT NULL,
+    material_producer_id INTEGER REFERENCES factories(id) ON DELETE CASCADE NOT NULL,
     material_notes TEXT,
     approved_by_admin BOOLEAN DEFAULT false,
     date_published TIMESTAMPTZ DEFAULT now() NOT NULL

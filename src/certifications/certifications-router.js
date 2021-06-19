@@ -26,19 +26,24 @@ certificationsRouter
             .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
-        console.log('res.user', res.user)
-
         const { 
             english_name,
-            website
+            website,
+            approved_by_admin
         } = req.body
 
         const newCertification = {
             english_name,
-            website
+            website,
+            approved_by_admin
         }
 
-        for (const [key, value] of Object.entries(newCertification)) {
+        const requiredFields = {
+            english_name,
+            website        
+        }
+
+        for (const [key, value] of Object.entries(requiredFields)) {
             if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
@@ -100,7 +105,7 @@ certificationsRouter
         if (numberOfValues === 0) {
             return res.status(400).json({
                 error: { 
-                    message: `Request body must contain 'english_name', 'website', 'approved_by_admin'`
+                    message: `Request body must contain 'english_name', 'website', and/or 'approved_by_admin'`
                 }
             })
         }

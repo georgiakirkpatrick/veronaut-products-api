@@ -2,7 +2,22 @@ const NotionsService = {
     // Notions
         getAllNotions(knex) {
             return knex('notions')
-                .select('*')
+                .join('notion_types', {'notions.notion_type_id': 'notion_types.id'})
+                .select(
+                    'notions.id',
+                    'notions.notion_type_id',
+                    'notion_types.english_name as type',
+                    'notions.brand_id',
+                    'notions.manufacturer_country',
+                    'notions.manufacturer_id',
+                    'notions.manufacturer_notes',
+                    'notions.material_type_id',
+                    'notions.material_origin_id',
+                    'notions.material_producer_id',
+                    'notions.material_notes',
+                    'notions.approved_by_admin',
+                    'notions.date_published'
+                )
         },        
         
         getNotionById(knex, notionId) {
@@ -11,11 +26,15 @@ const NotionsService = {
                 .select(
                     'notions.id',
                     'notions.notion_type_id',
-                    'notion_types.english_name as notion_type',
+                    'notion_types.english_name as type',
                     'notions.brand_id',
                     'notions.manufacturer_country',
                     'notions.manufacturer_id',
                     'notions.manufacturer_notes',
+                    'material_type_id',
+                    'material_origin_id',
+                    'material_producer_id',
+                    'material_notes',
                     'notions.approved_by_admin',
                     'notions.date_published'
                 )
@@ -33,14 +52,38 @@ const NotionsService = {
 
         updateNotion(knex, notionId, fieldsToUpdate) {
             return knex('notions')
-                .where({ notionId })
+                .where({ id: notionId })
                 .update(fieldsToUpdate)
         },
 
         deleteNotion(knex, notionId) {
             return knex('notions')
-                .where({ notionId })
+                .where({ id: notionId })
                 .delete()
+        },
+
+    // Certifications
+        getCertsForNot(knex, notionId) {
+            return knex('notions')
+                .join('notions_to_certifications', {'notions.id': 'notions_to_certifications.notion_id'})
+                .join('certifications', {'notions_to_certifications.certification_id': 'certifications.id'})
+                .select(
+                    'certifications.id',
+                    'certifications.english_name',
+                    'certifications.website',
+                    'certifications.approved_by_admin',
+                    'certifications.date_published'
+                )
+                .where('notions.id', notionId)
+
+        },
+
+        insertNotCert(knex, notCertPair) {
+            return knex
+                .insert(notCertPair)
+                .into('notions_to_certifications')
+                .returning('*')
+                .then(response => response[0])
         },
 
     // Materials
@@ -52,11 +95,15 @@ const NotionsService = {
                 .then(response => response[0])
         },
 
-    // Certifications
-        insertNotCert(knex, notCertPair) {
+    // Notion Types
+        getAllNotTypes(knex) {
+            return knex('notion_types').select('*')
+        },
+
+        insertNotType(knex, newNotType) {
             return knex
-                .insert(notCertPair)
-                .into('notions_to_certifications')
+                .insert(newNotType)
+                .into('notion_types')
                 .returning('*')
                 .then(response => response[0])
         }

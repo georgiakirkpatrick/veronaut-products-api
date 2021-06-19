@@ -4,9 +4,10 @@ insert into notions (
     manufacturer_country, 
     manufacturer_id,
     material_type_id,
-    material_origin_id
+    material_origin_id,
+    material_producer_id
 )
 
 values (
-    1, 1, 1, 1, 1, 1
+    1, 1, 1, 1, 1, 1, 1
 );

@@ -4,3 +4,18 @@ CREATE TABLE dry_instructions (
     approved_by_admin BOOLEAN DEFAULT false,
     date_published TIMESTAMPTZ DEFAULT now() NOT NULL
 );
+
+INSERT INTO dry_instructions
+    (english_name, approved_by_admin)
+VALUES
+    ('Not disclosed', true),
+    ('Hang dry', true),
+    ('Hang dry in the shade', true),
+    ('Dry flat', true),
+    ('Tumble dry', true),
+    ('Tumble dry low heat', true),
+    ('Tumble dry medium heat', true),
+    ('Tumble dry high heat', true),
+    ('Tumble dry normal cycle', true),
+    ('Tumble dry permanent press', true),
+    ('Tumble dry delicate', true);

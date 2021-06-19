@@ -4,3 +4,19 @@ CREATE TABLE wash_instructions (
     approved_by_admin BOOLEAN DEFAULT false,
     date_published TIMESTAMPTZ DEFAULT now() NOT NULL
 );
+
+INSERT INTO wash_instructions
+    (english_name, approved_by_admin)
+VALUES
+    ('Not disclosed', true),
+    ('Do not wash', true),
+    ('Machine wash cold (<85°F/<30°C)', true),
+    ('Machine wash warm (<105°F/<40°C)', true),
+    ('Machine wash hot (≥140°F/≥60°C)', true),
+    ('Hand wash', true),
+    ('Dry clean only', true),
+    ('Do not dry clean', true),
+    ('Do not wash', true),
+    ('Machine wash normal cycle', true),
+    ('Machine wash permanent press', true),
+    ('Machine wash delicate', true);

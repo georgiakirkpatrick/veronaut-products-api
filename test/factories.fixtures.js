@@ -1,5 +1,5 @@
-function makeFactoriesArray() {
-    return [
+const makeFactoryArray = () => (
+    [
         {
             id: 1,
             english_name: 'The Orange Concept',
@@ -19,10 +19,10 @@ function makeFactoriesArray() {
             date_published: "2020-10-13T21:54:18.074Z"
         }
     ]
-}
+)
 
-function makeMaliciousFactory() {
-    const maliciousFactory = {
+const makeMalFactory = () => {
+    const malFactory = {
         id: 666,
         english_name: '<a href="www.evil.com">Evil</a>',
         country: 1,
@@ -33,19 +33,19 @@ function makeMaliciousFactory() {
     }
 
     const expectedFactory = {
-        ...maliciousFactory,
+        ...malFactory,
         english_name: '&lt;a href="www.evil.com"&gt;Evil&lt;/a&gt;',
         website: '&lt;a href="www.evil.com"&gt;www.evil.com&lt;/a&gt;',
         notes: '&lt;a href="www.evil.com"&gt;Evil&lt;/a&gt;'
     }
 
     return {
-        maliciousFactory,
+        malFactory,
         expectedFactory
     }
 }
 
 module.exports = {
-    makeFactoriesArray,
-    makeMaliciousFactory
+    makeFactoryArray,
+    makeMalFactory
 }

@@ -8,7 +8,6 @@ const BrandsService = {
     },
 
     insertBrand(knex, newBrand) {
-        console.log('insertBrand ran and newBrand is ', newBrand)
         return knex
             .insert(newBrand)
             .into('brands')
@@ -54,13 +53,15 @@ const BrandsService = {
             .select(
                 'notions.id',
                 'notions.notion_type_id',
+                'notions.brand_id',
                 'notion_types.english_name as notion_type',
                 'notions.manufacturer_country',
                 'notions.manufacturer_id',
                 'notions.manufacturer_notes',
-                'material_type_id',
-                'material_origin_id',
-                'material_notes',
+                'notions.material_type_id',
+                'notions.material_origin_id',
+                'notions.material_producer_id',
+                'notions.material_notes',
                 'notions.approved_by_admin',
                 'notions.date_published'
             )

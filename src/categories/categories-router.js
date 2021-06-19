@@ -25,8 +25,7 @@ const serializeProducts = product => ({
     cost_in_home_currency : product.cost_in_home_currency,
     wash_id : product.wash_id,
     dry_id : product.dry_id,
-    cmt_country : product.cmt_country,
-    cmt_factory_notes : xss(product.cmt_factory_notes),
+    cmt_notes: product.cmt_notes,
     approved_by_admin : product.approved_by_admin,
     date_published : product.date_published
 })
@@ -80,8 +79,6 @@ categoriesRouter
 categoriesRouter
     .route('/:category_id/products')
     .all((req, res, next) => {
-        console.log('req.params.category_id', req.params.category_id)
-
         CategoriesService.getCategoryById(
                 req.app.get('db'),
                 req.params.category_id

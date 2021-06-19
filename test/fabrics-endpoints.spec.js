@@ -1,42 +1,44 @@
 const knex = require('knex')
 const app = require('../src/app')
-const { 
-    makeFabricTypesArray, makeFiberTypesArray, makeNotionTypesArray, makeBrandsArray, makeCertificationsArray, 
-    makeMaliciousCertification, makeFabricsArray, makeMaliciousFiber, makeFibersArray, 
-    makeFactoriesArray,makeFabricsToFibers,makeFibersToFactories,makeFabricsToCertifications, makeFabricsToFactories, 
-    makeMaliciousFabricType, makeMaliciousFactoriesArray, makeMaliciousFiberType, makeMaliciousNotionType, makeMaliciousFabric, makeMaliciousFibersToFactories, makeFabricsToMaliciousFibers, 
-    makeFabricsToMaliciousCertifications, makeFabricsToMaliciousFactories 
-} = require('./fabrics.fixtures')
 const supertest = require('supertest')
 const { expect } = require('chai')
+const { makeBrandArray, makeMalBrand } = require('./brands.fixtures')
+const { makeCertificationArray, makeMalCertification } = require('./certifications.fixtures')
+const { 
+    makeFabricArray, makeFabricsToCertifications, makeFabricsToFactories, makeFabricsToFibers,
+    makeFabricsTomalFibers, makeFabricsTomalCertifications, makeFabricsTomalFactories, makeFabricTypeArray,
+    makeFibersToFactories, makeNotionTypesArray, makeMalFabricType, makeMalNotionType, makeMalFabric, makeMalFibersToFactories
+} = require('./fabrics.fixtures')
+const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
+const { makeFiberArray, makeFiberTypeArray, makeMalFiber, makeMalFiberType } = require('./fibers.fixtures')
 
 describe('Fabrics Endpoints', function() {
-    let db
-
-    const fabricTypes = makeFabricTypesArray()
-    const fiberTypes = makeFiberTypesArray()
+    const fabricTypes = makeFabricTypeArray()
+    const fiberTypes = makeFiberTypeArray()
     const notionTypes = makeNotionTypesArray()
-    const brands = makeBrandsArray()
-    const fabrics = makeFabricsArray()
-    const fabricsWithTypes = makeFabricsArrayWithTypes()
-    const fibers = makeFibersArray()
-    const factories = makeFactoriesArray()
-    const certifications = makeCertificationsArray()
+    const brands = makeBrandArray()
+    const fabrics = makeFabricArray()
+    const { fibersPost, fibersGet} = makeFiberArray()
+    const factories = makeFactoryArray()
+    const certifications = makeCertificationArray()
     const fabricsToFibers = makeFabricsToFibers()
     const fibersToFactories = makeFibersToFactories()
     const fabricsToFactories = makeFabricsToFactories()
-    const { maliciousFabric, expectedFabric } = makeMaliciousFabric()
-    const { maliciousFiber, expectedFiber } = makeMaliciousFiber()
-    const { maliciousFabricType, expectedFabricType } = makeMaliciousFabricType()
-    const { maliciousFiberType, expectedFiberType } = makeMaliciousFiberType()
-    const { maliciousNotionType, expectedNotionType } = makeMaliciousNotionType()
-    const { maliciousFactory, expectedFactory } = makeMaliciousFactoriesArray()
-    const { maliciousCertification, expectedCertification } = makeMaliciousCertification()
-    const maliciousFibersToFactories = makeMaliciousFibersToFactories()
-    const fabricsToMaliciousFibers = makeFabricsToMaliciousFibers()
+    const { malBrand } = makeMalBrand()
+    const { malFabric, expectedFabric } = makeMalFabric()
+    const { malFiber, expectedFiber } = makeMalFiber()
+    const { malFabricType, expectedFabricType } = makeMalFabricType()
+    const { malFiberType } = makeMalFiberType()
+    const { malNotionType, expectedNotionType } = makeMalNotionType()
+    const { malFactory, expectedFactory } = makeMalFactory()
+    const { malCertification, expectedCertification } = makeMalCertification()
+    const malFibersToFactories = makeMalFibersToFactories()
+    const fabricsTomalFibers = makeFabricsTomalFibers()
     const fabricsToCertifications = makeFabricsToCertifications()
-    const fabricsToMaliciousCertifications = makeFabricsToMaliciousCertifications()
-    const fabricsToMaliciousFactories = makeFabricsToMaliciousFactories()
+    const fabricsTomalCertifications = makeFabricsTomalCertifications()
+    const fabricsTomalFactories = makeFabricsTomalFactories()
+
+    let db
 
     before('make knex instance', () => {
         db = knex({
@@ -47,16 +49,14 @@ describe('Fabrics Endpoints', function() {
     })
 
     after('disconnect from db', () => db.destroy())
-
     before('clean the table', () => db.raw('TRUNCATE table fabric_types, brands, fabrics, factories, fiber_and_material_types, fibers_to_factories, fabrics_to_fibers_and_materials, notion_types, certifications, fabrics_to_certifications RESTART IDENTITY CASCADE'))
-    
     afterEach('cleanup', () => db.raw('TRUNCATE table fabric_types, brands, fabrics, factories, fiber_and_material_types, fibers_to_factories, fabrics_to_fibers_and_materials, notion_types, certifications, fabrics_to_certifications RESTART IDENTITY CASCADE'))
 
     describe('GET /api/fabrics', () => {
         context('when there are fabrics in the database', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
             
             it('returns all the fabrics', () => {
                 return supertest(app)
@@ -66,8 +66,10 @@ describe('Fabrics Endpoints', function() {
                         expect(res.body.fabric_type_id).to.eql(fabrics.fabric_type_id)
                         expect(res.body.brand_id).to.eql(fabrics.brand_id)
                         expect(res.body.fabric_type).to.eql(fabricTypes.english_name)
+                        expect(res.body.fabric_mill_id).to.eql(fabrics.fabric_mill_id)
                         expect(res.body.fabric_mill_country).to.eql(fabrics.fabric_mill_country)
                         expect(res.body.fabric_mill_notes).to.eql(fabrics.fabric_mill_notes)
+                        expect(res.body.dye_print_finish_id).to.eql(fabrics.dye_print_finish_id)
                         expect(res.body.dye_print_finish_country).to.eql(fabrics.dye_print_finish_country)
                         expect(res.body.dye_print_finish_notes).to.eql(fabrics.dye_print_finish_notes)
                         expect(res.body.approved_by_admin).to.eql(fabrics.approved_by_admin)
@@ -85,9 +87,9 @@ describe('Fabrics Endpoints', function() {
         })
 
         context('given a malicious fabric', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert( maliciousFabric ) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert( malFabric ))
 
             it('removes the attack content', () => {
                 return supertest(app)
@@ -103,7 +105,7 @@ describe('Fabrics Endpoints', function() {
 
     describe('GET /api/fabrics/fabric-types', () => {
         context('when there are fabric types in the database', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
 
             it('returns all the fabric types', () => {
                 return supertest(app)
@@ -120,8 +122,8 @@ describe('Fabrics Endpoints', function() {
             })
         })
 
-        context('given a malicious fabric types', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(maliciousFabricType) })
+        context('given a malicious fabric type', () => {
+            beforeEach(() =>  db.into('fabric_types').insert(malFabricType))
 
             it('removes the attack content', () => {
 
@@ -135,42 +137,9 @@ describe('Fabrics Endpoints', function() {
         })
     })
 
-    describe('GET /api/fabrics/fiber-types', () => {
-        context('when there are fiber types in the database', () => {
-            beforeEach(() => { return db.into('fiber_and_material_types').insert(fiberTypes) })
-
-            it('returns all the fiber types', () => {
-                return supertest(app)
-                    .get('/api/fabrics/fiber-types')
-                    .expect(200, fiberTypes)
-            })
-        })
-
-        context('when there are no fiber types in the database', () => {
-            it('returns 200 and an empty list', () => {
-                return supertest(app)
-                    .get('/api/fabrics/fiber-types')
-                    .expect(200, [])
-            })
-        })
-
-        context('given a malicious fiber type', () => {
-            beforeEach(() => { return db.into('fiber_and_material_types').insert(maliciousFiberType) })
-
-            it('removes the attack content', () => {
-                return supertest(app)
-                    .get('/api/fabrics/fiber-types')
-                    .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].english_name).to.eql(expectedFiberType.english_name)
-                    })
-            })
-        })
-    })
-
     describe('GET /api/fabrics/notion-types', () => {
         context('when there are notion types in the database', () => {
-            beforeEach(() => { return db.into('notion_types').insert(notionTypes) })
+            beforeEach(() =>  db.into('notion_types').insert(notionTypes))
 
             it('returns all the notion types', () => {
                 return supertest(app)
@@ -188,7 +157,7 @@ describe('Fabrics Endpoints', function() {
         })
 
         context('given a malicious notion type', () => {
-            beforeEach(() => { return db.into('notion_types').insert(maliciousNotionType) })
+            beforeEach(() =>  db.into('notion_types').insert(malNotionType))
 
             it('removes the attack content', () => {
                 return supertest(app)
@@ -204,16 +173,16 @@ describe('Fabrics Endpoints', function() {
 
     describe('GET /api/fabrics/:fabric_id', () => {
         context('when the fabric with id fabric_id exists', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
+            // beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
 
             const fabricId = 1
 
             it('returns the fabric with id fabric_id', () => {
                 return supertest(app)
                     .get(`/api/fabrics/${fabricId}`)
-                    .expect(200, fabricsWithTypes[fabricId - 1])
+                    .expect(200, fabrics[fabricId - 1])
             })
         })
 
@@ -228,9 +197,9 @@ describe('Fabrics Endpoints', function() {
         })
 
         context('when the fabric with id fabric_id is a malicious fabric', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(maliciousFabric) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert(malFabric))
 
             const fabricId = 666
 
@@ -248,14 +217,14 @@ describe('Fabrics Endpoints', function() {
 
     describe('GET /api/fabrics/:fabric_id/fibers', () => {
         context('when there are fibers in the database', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('fiber_and_material_types').insert(fiberTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('factories').insert(factories) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
-            beforeEach(() => { return db.into('fibers_and_materials').insert(fibers) })
-            beforeEach(() => { return db.into('fabrics_to_fibers_and_materials').insert(fabricsToFibers) })
-            beforeEach(() => { return db.into('fibers_to_factories').insert(fibersToFactories) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('factories').insert(factories))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
+            beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
+            beforeEach(() =>  db.into('fabrics_to_fibers_and_materials').insert(fabricsToFibers))
+            beforeEach(() =>  db.into('fibers_to_factories').insert(fibersToFactories))
             
             const fabricId = 1
 
@@ -264,27 +233,27 @@ describe('Fabrics Endpoints', function() {
                     .get(`/api/fabrics/${fabricId}/fibers`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body[0].id).to.eql(fibers[0].id)
-                        expect(res.body[0].brand_id).to.eql(fibers[0].brand_id),
-                        expect(res.body[0].fiber_type_id).to.eql(fibers[0].fiber_or_material_type_id),
-                        expect(res.body[0].fiber_type).to.eql(fiberTypes[0].english_name),
-                        expect(res.body[0].class).to.eql(fiberTypes[0].fiber_type_class),
-                        expect(res.body[0].producer_country).to.eql(fibers[0].producer_country),
-                        expect(res.body[0].producer_id).to.eql(fibers[0].producer_id)
-                        expect(res.body[0].factory).to.eql(factories[0].english_name)
-                        expect(res.body[0].factory_country).to.eql(factories[0].country)
-                        expect(res.body[0].factory_website).to.eql(factories[0].website)
-                        expect(res.body[0].production_notes).to.eql(fibers[0].production_notes)
-                        expect(res.body[0].approved_by_admin).to.eql(fibers[0].approved_by_admin)
+                        expect(res.body[0].id).to.eql(fibersGet[0].id)
+                        expect(res.body[0].brand_id).to.eql(fibersGet[0].brand_id),
+                        expect(res.body[0].fiber_type_id).to.eql(fibersGet[0].fiber_type_id)
+                        expect(res.body[0].fiber_type).to.eql(fibersGet[0].fiber_type)
+                        expect(res.body[0].class).to.eql(fibersGet[0].class)
+                        expect(res.body[0].producer_country).to.eql(fibersGet[0].producer_country)
+                        expect(res.body[0].producer_id).to.eql(fibersGet[0].producer_id)
+                        expect(res.body[0].producer).to.eql(fibersGet[0].producer)
+                        expect(res.body[0].producer_country).to.eql(fibersGet[0].producer_country)
+                        expect(res.body[0].producer_website).to.eql(fibersGet[0].producer_website)
+                        expect(res.body[0].production_notes).to.eql(fibersGet[0].production_notes)
+                        expect(res.body[0].approved_by_admin).to.eql(fibersGet[0].approved_by_admin)
                     })
             })
         })
 
         context('when there are no fibers in the database', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('factories').insert(factories) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('factories').insert(factories))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
 
             const fabricId = 1
 
@@ -295,15 +264,16 @@ describe('Fabrics Endpoints', function() {
             })
         })
 
-        context('given a malicious fibers', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('fiber_and_material_types').insert(fiberTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('factories').insert(factories) }) 
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
-            beforeEach(() => { return db.into('fibers_and_materials').insert(maliciousFiber) })
-            beforeEach(() => { return db.into('fabrics_to_fibers_and_materials').insert(fabricsToMaliciousFibers) })
-            beforeEach(() => { return db.into('fibers_to_factories').insert(maliciousFibersToFactories) })
+        context('given a malicious fiber', () => {
+            // beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('brands').insert(malBrand))
+            beforeEach(() =>  db.into('factories').insert(malFactory)) 
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
+            beforeEach(() =>  db.into('fiber_and_material_types').insert(malFiberType))
+            beforeEach(() =>  db.into('fibers_and_materials').insert(malFiber))
+            beforeEach(() =>  db.into('fabrics_to_fibers_and_materials').insert(fabricsTomalFibers))
+            beforeEach(() =>  db.into('fibers_to_factories').insert(malFibersToFactories))
             
             const fabricId = 1
 
@@ -312,7 +282,8 @@ describe('Fabrics Endpoints', function() {
                     .get(`/api/fabrics/${fabricId}/fibers`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body[0].fiber_type).to.eql(expectedFiber.production_notes)
+                        expect(res.body[0].producer_website).to.eql(expectedFiber.producer_website)
+                        expect(res.body[0].production_notes).to.eql(expectedFiber.production_notes)
                     })
             })
         })
@@ -320,11 +291,11 @@ describe('Fabrics Endpoints', function() {
 
     describe('GET /api/fabrics/:fabric_id/certifications', () => {
         context('when there are certifications in the database', () => {
-            beforeEach(() => { return db.into('certifications').insert(certifications) })
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
-            beforeEach(() => { return db.into('fabrics_to_certifications').insert(fabricsToCertifications) })
+            beforeEach(() =>  db.into('certifications').insert(certifications))
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
+            beforeEach(() =>  db.into('fabrics_to_certifications').insert(fabricsToCertifications))
 
             const fabricId = 1
 
@@ -342,9 +313,9 @@ describe('Fabrics Endpoints', function() {
         })
 
         context('when there are no certifications in the database', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
 
             const fabricId = 1
 
@@ -356,12 +327,12 @@ describe('Fabrics Endpoints', function() {
             })        
         })
 
-        context('given a malicious certifications', () => {
-            beforeEach(() => { return db.into('certifications').insert(maliciousCertification) })
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
-            beforeEach(() => { return db.into('fabrics_to_certifications').insert(fabricsToMaliciousCertifications) })
+        context('given a malicious certification', () => {
+            beforeEach(() =>  db.into('certifications').insert(malCertification))
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
+            beforeEach(() =>  db.into('fabrics_to_certifications').insert(fabricsTomalCertifications))
 
             const fabricId = 1
 
@@ -381,11 +352,11 @@ describe('Fabrics Endpoints', function() {
 
     describe('GET /api/fabrics/:fabric_id/factories', () => {
         context('when there are factories in the database', () => {
-            beforeEach(() => { return db.into('factories').insert(factories) })
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
-            beforeEach(() => { return db.into('fabrics_to_factories').insert(fabricsToFactories) })
+            beforeEach(() =>  db.into('factories').insert(factories))
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
+            beforeEach(() =>  db.into('fabrics_to_factories').insert(fabricsToFactories))
             
             const fabricId = 1
 
@@ -405,9 +376,9 @@ describe('Fabrics Endpoints', function() {
         })
 
         context('when there are no factories in the database', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
 
             const fabricId = 1
 
@@ -419,12 +390,12 @@ describe('Fabrics Endpoints', function() {
             })
         })
 
-        context('given a malicious factories', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
-            beforeEach(() => { return db.into('factories').insert(maliciousFactory) })
-            beforeEach(() => { return db.into('fabrics_to_factories').insert(fabricsToMaliciousFactories) })
+        context('given a malicious factory', () => {
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
+            beforeEach(() =>  db.into('factories').insert(malFactory))
+            beforeEach(() =>  db.into('fabrics_to_factories').insert(fabricsTomalFactories))
 
             const fabricId = 1
 
@@ -445,16 +416,17 @@ describe('Fabrics Endpoints', function() {
     })
 
     describe('POST /api/fabrics', () => {
-        beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-        beforeEach(() => { return db.into('brands').insert(brands) })
+        beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+        beforeEach(() =>  db.into('brands').insert(brands))
 
         it('creates a fabric, responding with 201 and the new fabric', () => {
             const newFabric = {
-                fabric_type_id: 1, 
-                brand_id: 1, 
-                fabric_mill_country: 'US', 
-                fabric_mill_notes: 'over 200 employees', 
-                dye_print_finish_country: 'US', 
+                brand_id: 1,
+                fabric_mill_country: 1,
+                fabric_mill_id: 1,
+                fabric_mill_notes: 'over 200 employees',
+                dye_print_finish_country: 1,
+                dye_print_finish_id: 1,
                 dye_print_finish_notes: '1000 employees',
                 approved_by_admin: true
             }
@@ -464,11 +436,13 @@ describe('Fabrics Endpoints', function() {
                 .send(newFabric)
                 .expect(201)
                 .expect(res => {
-                    expect(res.body.fabric_type_id).to.eql(newFabric.fabric_type_id)
                     expect(res.body.brand_id).to.eql(newFabric.brand_id)
                     expect(res.body.fabric_mill_country).to.eql(newFabric.fabric_mill_country)
+                    expect(res.body.fabric_mill_id).to.eql(newFabric.fabric_mill_id)
                     expect(res.body.fabric_mill_notes).to.eql(newFabric.fabric_mill_notes)
                     expect(res.body.dye_print_finish_country).to.eql(newFabric.dye_print_finish_country)
+                    expect(res.body.dye_print_finish_id).to.eql(newFabric.dye_print_finish_id)
+                    expect(res.body.dye_print_finish_notes).to.eql(newFabric.dye_print_finish_notes)
                     expect(res.body.approved_by_admin).to.eql(newFabric.approved_by_admin)
                     const expected = new Date().toLocaleString()
                     const actual = new Date(res.body.date_published).toLocaleString()
@@ -482,22 +456,22 @@ describe('Fabrics Endpoints', function() {
         })
 
         const requiredFields = [
-            'fabric_type_id',
-            'brand_id', 
-            'fabric_mill_country', 
-            'fabric_mill_notes', 
-            'dye_print_finish_country', 
-            'dye_print_finish_notes',
-            'approved_by_admin'
+            'brand_id',
+            'fabric_mill_country',
+            'fabric_mill_id',
+            'dye_print_finish_country',
+            'dye_print_finish_id'
         ]
-        
+
         requiredFields.forEach(field => {
             const newFabric = {
                 fabric_type_id: 1, 
-                brand_id: 1, 
-                fabric_mill_country: 'US',
+                brand_id: 1,
+                fabric_mill_id: 1,
+                fabric_mill_country: 1,
                 fabric_mill_notes: 'over 200 employees',
-                dye_print_finish_country: 'US',
+                dye_print_finish_id: 1,
+                dye_print_finish_country: 1,
                 dye_print_finish_notes: '1000 employees',
                 approved_by_admin: true
             }
@@ -517,7 +491,7 @@ describe('Fabrics Endpoints', function() {
         it('removes XSS attack content from the response', () => {
             return supertest(app)
                 .post('/api/fabrics')
-                .send(maliciousFabric)
+                .send(malFabric)
                 .expect(201)
                 .expect(res => {
                     expect(res.body.fabric_mill_notes).to.eql(expectedFabric.fabric_mill_notes)
@@ -555,8 +529,7 @@ describe('Fabrics Endpoints', function() {
 
         const requiredFields = [
             'english_name',
-            'fabric_type_class',
-            'approved_by_admin'
+            'fabric_type_class'
         ]
 
         requiredFields.forEach(field => {
@@ -581,73 +554,10 @@ describe('Fabrics Endpoints', function() {
         it('removes XSS attack content from the response', () => {
             return supertest(app)
                 .post('/api/fabrics/fabric-types')
-                .send(maliciousFabricType)
+                .send(malFabricType)
                 .expect(201)
                 .expect(res => {
                     expect(res.body.english_name).to.eql(expectedFabricType.english_name)
-                })
-        })
-    })
-
-    describe('POST /api/fabrics/fiber-types', () => {
-        it('creates a fiber-type, responding with 201 and the new fabric', () => {
-            const newFiberType = {
-                english_name: 'cotton',
-                fiber_type_class: 'naturally occuring cellulosic fiber',
-                approved_by_admin: true
-            }
-
-            return supertest(app)
-                .post('/api/fabrics/fiber-types')
-                .send(newFiberType)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(newFiberType.english_name)
-                    expect(res.body.fiber_type_class).to.eql(newFiberType.fiber_type_class)
-                    expect(res.body.approved_by_admin).to.eql(newFiberType.approved_by_admin)
-                    const expected = new Date().toLocaleString()
-                    const actual = new Date(res.body.date_published).toLocaleString()
-                    expect(actual).to.eql(expected)
-                })
-                .then(res => {
-                    supertest(app)
-                        .get(`/api/fabrics/fiber-types/${res.body.id}`)
-                        .expect(res.body)
-                })
-        })
-
-        const requiredFields = [
-            'english_name',
-            'fiber_type_class',
-            'approved_by_admin'
-        ]
-
-        requiredFields.forEach(field => {
-            const newFiberType = {
-                english_name: 'cotton',
-                fiber_type_class: 'naturally occuring cellulosic fiber',
-                approved_by_admin: true
-            }
-
-            delete newFiberType[field]
-
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
-                return supertest(app)
-                    .post('/api/fabrics/fiber-types')
-                    .send(newFiberType)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                    })
-            })
-        })
-
-        it('removes XSS attack content from the response', () => {
-            return supertest(app)
-                .post('/api/fabrics/fiber-types')
-                .send(maliciousFiberType)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(expectedFiberType.english_name)
                 })
         })
     })
@@ -678,9 +588,7 @@ describe('Fabrics Endpoints', function() {
         })
 
         const requiredFields = [
-            'english_name',
-            'approved_by_admin'
-        ]
+            'english_name'        ]
 
         requiredFields.forEach(field => {
             const newNotionType = {
@@ -703,7 +611,7 @@ describe('Fabrics Endpoints', function() {
         it('removes XSS attack content from the response', () => {
             return supertest(app)
                 .post('/api/fabrics/notion-types')
-                .send(maliciousNotionType)
+                .send(malNotionType)
                 .expect(201)
                 .expect(res => {
                     expect(res.body.english_name).to.eql(expectedNotionType.english_name)
@@ -712,16 +620,17 @@ describe('Fabrics Endpoints', function() {
     })
 
     describe('POST /api/fabrics/:fabric_id/fibers', () => {
-        beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-        beforeEach(() => { return db.into('fiber_and_material_types').insert(fiberTypes) })
-        beforeEach(() => { return db.into('brands').insert(brands) })
-        beforeEach(() => { return db.into('factories').insert(factories) }) 
-        beforeEach(() => { return db.into('fabrics').insert(fabrics) })
-        beforeEach(() => { return db.into('fibers_and_materials').insert(fibers) })
+        beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+        beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
+        beforeEach(() =>  db.into('brands').insert(brands))
+        beforeEach(() =>  db.into('factories').insert(factories)) 
+        beforeEach(() =>  db.into('fabrics').insert(fabrics))
+        beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
 
         const fabricFiberPair =  {
             fabric_id: 1,
-            fiber_or_material_id: 1
+            fiber_or_material_id: 1,
+            percent_of_fabric: 100
         }
 
         it('creates a fiber, responding with 201 and the new fabric', () => {
@@ -760,11 +669,11 @@ describe('Fabrics Endpoints', function() {
     })
 
     describe('POST /api/fabrics/:fabric_id/certifications', () => {
-        beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-        beforeEach(() => { return db.into('brands').insert(brands) })
-        beforeEach(() => { return db.into('factories').insert(factories) }) 
-        beforeEach(() => { return db.into('fabrics').insert(fabrics) })
-        beforeEach(() => { return db.into('certifications').insert(certifications) })
+        beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+        beforeEach(() =>  db.into('brands').insert(brands))
+        beforeEach(() =>  db.into('factories').insert(factories)) 
+        beforeEach(() =>  db.into('fabrics').insert(fabrics))
+        beforeEach(() =>  db.into('certifications').insert(certifications))
         
         const fabricId = 1
 
@@ -805,10 +714,10 @@ describe('Fabrics Endpoints', function() {
     })
 
     describe('POST /api/fabrics/:fabric_id/factories', () => {
-        beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-        beforeEach(() => { return db.into('brands').insert(brands) })
-        beforeEach(() => { return db.into('factories').insert(factories) }) 
-        beforeEach(() => { return db.into('fabrics').insert(fabrics) })
+        beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+        beforeEach(() =>  db.into('brands').insert(brands))
+        beforeEach(() =>  db.into('factories').insert(factories)) 
+        beforeEach(() =>  db.into('fabrics').insert(fabrics))
 
         const newFabricFactoryPair = {
             fabric_id: 1,
@@ -850,9 +759,9 @@ describe('Fabrics Endpoints', function() {
 
     describe('PATCH /api/fabrics/:fabric_id', () => {
         context('when the fabric with id fabric_id exists', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
 
             it('updates the fabric and responds 204', () => {
                 const idToUpdate = 1
@@ -860,9 +769,9 @@ describe('Fabrics Endpoints', function() {
                 const updateFabric = {
                     fabric_type_id: 1,
                     brand_id: 1,
-                    fabric_mill_country: 'PE',
+                    fabric_mill_country: 1,
                     fabric_mill_notes: 'This is a fabric mill in Peru',
-                    dye_print_finish_country: 'US',
+                    dye_print_finish_country: 1,
                     dye_print_finish_notes: 'This is a dye plant in Peru',
                     approved_by_admin: true
                 }
@@ -889,7 +798,7 @@ describe('Fabrics Endpoints', function() {
                         .patch(`/api/fabrics/${idToUpdate}`)
                         .send({irrelevantField: 'bar'})
                         .expect(400, {
-                            error: { message: `Request body must include 'fabric_type_id', 'brand_id', 'fabric_mill_country', 'fabric_mill_notes', 'dye_print_finish_country', 'dye_print_finish_notes', or 'approved_by_admin'`}
+                            error: { message: `Request body must include 'brand_id', 'fabric_mill_country', 'fabric_mill_id', 'fabric_mill_notes', 'dye_print_finish_country', 'dye_print_finish_id', 'dye_print_finish_notes', or 'approved_by_admin'`}
                         })
             })
 
@@ -938,12 +847,11 @@ describe('Fabrics Endpoints', function() {
         })
     })
 
-
     describe('DELETE /api/fabrics/:fabric_id', () => {
         context('when the fabric with id fabric_id exists', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
 
             it('removes the fabric and responds 204', () => {
                 const idToRemove = 1
@@ -967,9 +875,9 @@ describe('Fabrics Endpoints', function() {
         })
 
         context('when the fabric with id fabric_id does not exist', () => {
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('brands').insert(brands) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
 
             it('responds with 404', () => {
                 const idToRemove = 222

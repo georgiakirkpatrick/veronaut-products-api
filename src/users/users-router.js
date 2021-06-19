@@ -24,7 +24,6 @@ usersRouter
         UsersService
             .getAllUsers(req.app.get('db'))
             .then(users => {
-                console.log('users', users)
                 res.json(users.map(serializeUser))
             })
             .catch(next)
@@ -72,8 +71,6 @@ usersRouter
             newUser
         )
         .then(user => {
-            console.log('req.originalUrl', req.originalUrl)
-            console.log('user.id', user.id)
             res
                 .status(201)
                 .location(path.posix.join(req.originalUrl, `/${user.id}`))

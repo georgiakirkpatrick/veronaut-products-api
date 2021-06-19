@@ -1,90 +1,66 @@
 const knex = require('knex')
 const app = require('../src/app')
-
-const { makeCertificationsArray } = require('./certifications.fixtures')
-
-const { makeBrandsArray, makeMaliciousBrand, makeFiberArrayGet, makeFiberArrayPost, makeFiberTypesArray, 
-    makeNotionsArrayGet, makeNotionsArrayPost, makeNotionType, makeMaliciousNotion, makeMaliciousNotionType 
-} = require('./brands.fixtures')
-
-const { makeMaliciousCertification, makeFabricTypesArray, makeFabricsArray, 
-    makeMaliciousFabricType, makeMaliciousFabric, makeMaliciousFiber, makeMaliciousFiberType 
-} = require('./fabrics.fixtures')
-
-const { makeFactoriesArray, makeMaliciousFactory } = require('./factories.fixtures')
-
-const { makeCategory, makeDry, makeImage, makeNotionsToMaterials, makeMaterials, makeMaterialTypes,
-    makeProductsArray, makeProductsArrayWithBrand, makeProductToCertificationArray, makeProductToFactoriesArray,
-    makeProductToFiberArray,makeProductToNotions, makeSize, makeSizeClass, makeSizeToProduct,
-    makeWash, makeMaliciousImage, makeMaliciousProduct, makeMaliciousSize, makeMaliciousSizeClass
-} = require('./products.fixtures')
-
 const supertest = require('supertest')
 const { expect } = require('chai')
+const { makeCategoryArray } = require('./categories.fixtures')
+const { makeCertificationArray } = require('./certifications.fixtures')
+const { makeBrandArray, makeMalBrand } = require('./brands.fixtures')
+const { makeMalCertification } = require('./certifications.fixtures')
+const { makeFabricTypeArray, makeFabricArray, makeMalFabric } = require('./fabrics.fixtures')
+const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
+const { makeFiberArray, makeFiberTypeArray, makeMalFiber, makeMalFiberType } = require('./fibers.fixtures')
+const { makeNotionArray, makeNotionType, makeMalNotion, makeMalNotionType } = require('./notions.fixtures')
+const {
+    makeDry, makeImage, makeProductArray, makeProductToCertificationArray, makeProductToFactoriesArray,
+    makeProductToFiberArray, makeSize, makeSizeToProduct, makeWash, makeMalImage, makeMalProduct
+} = require('./products.fixtures')
 
 describe('Products Endpoints', () => {
+    const brands = makeBrandArray()
+    const categories = makeCategoryArray()
+    const certifications = makeCertificationArray()
+    const dryInstructions = [ makeDry() ]
+    const fabricTypes = makeFabricTypeArray()
+    const fabrics = makeFabricArray()
+    const factories = makeFactoryArray()
+    const { fibersPost, fibersGet} = makeFiberArray()
+    const fiberTypes = makeFiberTypeArray()
+    const image = makeImage()
+    const { malBrand } = makeMalBrand()
+    const { malCertification, expectedCertification } = makeMalCertification()
+    const { malFabric, expectedFabric } = makeMalFabric()
+    const { malFactory, expectedFactory } = makeMalFactory()
+    const { malFiber, expectedFiber } = makeMalFiber()
+    const { malFiberType } = makeMalFiberType()
+    const { malImage, expectedImage } = makeMalImage()
+    const { malNotion, expectedNotion } = makeMalNotion()
+    const { malNotionType} = makeMalNotionType()
+    const { malProduct, expectedProduct } = makeMalProduct()
+    const materialTypes = makeFiberTypeArray()
+    const materials = makeFiberArray()
+    const { notionsPost, notionsGet } = makeNotionArray()
+    const notionType = makeNotionType()
+    const productsToFactories = makeProductToFactoriesArray()
+    const productsToFibers = makeProductToFiberArray()
+    const { productsGet, productsPost } = makeProductArray()
+    const productsToCertifications = makeProductToCertificationArray()
+    const size = makeSize()
+    const sizeToProduct = makeSizeToProduct()
+    const washInstructions = [ makeWash() ]      
+
     let db
 
-    // const { maliciousBrand, expectedBrand } = makeMaliciousBrand()
-
-    const certifications = makeCertificationsArray()
-    const { maliciousCertification, expectedCertification } = makeMaliciousCertification()
-    const productsToCertifications = makeProductToCertificationArray()
-
-    const fabricTypes = makeFabricTypesArray()
-    const { maliciousFabricType, expectedFabricType } = makeMaliciousFabricType()
-
-    const fabrics = makeFabricsArray()
-    const { maliciousFabric, expectedFabric } = makeMaliciousFabric()
-
-    const factories = makeFactoriesArray()
-    const { maliciousFactory, expectedFactory } = makeMaliciousFactory()
-    const productsToFactories = makeProductToFactoriesArray()
-
-    const fiberTypes = makeFiberTypesArray()
-    const { maliciousFiberType, expectedFiberType } = makeMaliciousFiberType()
-
-    const fibers = makeFiberArrayPost()
-    const getFibers = makeFiberArrayGet()
-    const { maliciousFiber, expectedFiber } = makeMaliciousFiber()
-    const productsToFibers = makeProductToFiberArray()
-
-    const image=makeImage()
-    const { maliciousImage, expectedImage } = makeMaliciousImage()
-
-    const notionType = makeNotionType()
-    const { maliciousNotionType, expectedNotionType} = makeMaliciousNotionType()
-
-    const notions=makeNotionsArrayPost()
-    const getNotions = makeNotionsArrayGet()
-    const { maliciousNotion, expectedNotion } = makeMaliciousNotion()
-    const productsToNotions = makeProductToNotions()
-    const notionsToMaterials = makeNotionsToMaterials()
-    const materials = makeMaterials()
-    const materialTypes = makeMaterialTypes()
-
-    const size = makeSize()
-    const sizeClass = makeSizeClass()
-    const sizeToProduct = makeSizeToProduct()
-    const { maliciousSize, expectedSize } = makeMaliciousSize()
-    const { maliciousSizeClass, expectedSizeClass } = makeMaliciousSizeClass()
-
-    function insertFixtures(
-        products=makeProductsArray(),
-        brands=makeBrandsArray(),
-        categories=[makeCategory()],
-        washInstructions=[makeWash()],
-        dryInstructions=[makeDry()]
-      ) {
-        return Promise.all([
+    const insertFixtures = () => (
+        Promise.all([
             db.into('brands').insert(brands),
             db.into('wash_instructions').insert(washInstructions),
             db.into('dry_instructions').insert(dryInstructions),
             db.into('categories').insert(categories)
-            ]).then(
-                () => db.into('products').insert(products)
+            ])
+            .then(
+                () => db.into('products').insert(productsPost)
             )
-    }
+    )
 
     before('make knex instance', () => {
         db = knex({
@@ -93,30 +69,25 @@ describe('Products Endpoints', () => {
         })
         app.set('db', db)
     })
-
     after('disconnect from db', () => db.destroy())
 
     const cleanUpTables = () => db.raw(
-        `TRUNCATE table products, brands, categories, certifications, dry_instructions, fabric_types, fabrics, 
-        factories, fibers_and_materials, fiber_and_material_types, notion_types, notions, notions_to_products, 
+        `TRUNCATE table products, brands, categories, certifications, dry_instructions, fabric_types, fabrics, fabrics_to_products, 
+        factories, fibers_and_materials, fiber_and_material_types, fibers_to_products, notion_types, notions, notions_to_products, 
         notions_to_fibers_and_materials, product_cmts_to_certifications, product_cmts_to_factories, 
-        sizes, sizes_to_products, wash_instructions RESTART IDENTITY CASCADE`
-    );
-  
-    before('clean tables', cleanUpTables)
-  
-    afterEach('cleanup tables', cleanUpTables)
+        product_colors, sizes, sizes_to_products, wash_instructions RESTART IDENTITY CASCADE`
+    )
+    before('clean tables', () => db.raw('TRUNCATE table products, brands, categories, certifications, dry_instructions, fabric_types, fabrics, fabrics_to_products, factories, fibers_and_materials, fiber_and_material_types, fibers_to_products, notion_types, notions, notions_to_products, notions_to_fibers_and_materials, product_cmts_to_certifications, product_cmts_to_factories, product_colors, sizes, sizes_to_products, wash_instructions RESTART IDENTITY CASCADE'))
+    afterEach('clean tables', () => db.raw('TRUNCATE table products, brands, categories, certifications, dry_instructions, fabric_types, fabrics, fabrics_to_products, factories, fibers_and_materials, fiber_and_material_types, fibers_to_products, notion_types, notions, notions_to_products, notions_to_fibers_and_materials, product_cmts_to_certifications, product_cmts_to_factories, product_colors, sizes, sizes_to_products, wash_instructions RESTART IDENTITY CASCADE'))
 
     describe('GET /api/products', () => {
         context('Given there are products in the database', () => {
-            const testProducts = makeProductsArray()
-
             beforeEach(insertFixtures)
 
-            it.only('GET /api/products responds with 200 and all of the products', () => {
+            it('GET /api/products responds with 200 and all of the products', () => {
                 return supertest(app)
                     .get('/api/products')
-                    .expect(200, testProducts)
+                    .expect(200, productsGet)
             })
         })
 
@@ -129,9 +100,11 @@ describe('Products Endpoints', () => {
         })
 
         context('Given an XSS attack product', () => {
-            const { maliciousProduct, expectedProduct } = makeMaliciousProduct()
-
-            beforeEach(() => insertFixtures([ maliciousProduct ]))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('wash_instructions').insert(washInstructions))
+            beforeEach(() =>  db.into('dry_instructions').insert(dryInstructions))
+            beforeEach(() =>  db.into('categories').insert(categories))
+            beforeEach(() =>  db.into('products').insert(malProduct))
 
             it('removes XSS attack content', () => {
                 return supertest(app)
@@ -140,7 +113,7 @@ describe('Products Endpoints', () => {
                     .expect(res => {
                         expect(res.body[0].english_name).to.eql(expectedProduct.english_name)
                         expect(res.body[0].product_url).to.eql(expectedProduct.product_url)
-                        expect(res.body[0].cmt_factory_notes).to.eql(expectedProduct.cmt_factory_notes)
+                        expect(res.body[0].cmt_notes).to.eql(expectedProduct.cmt_notes)
                     })
             })
         })
@@ -152,39 +125,36 @@ describe('Products Endpoints', () => {
 
             it('GET /api/products/:product_id responds with 200 and the specified product', () => {
                 const productId = 2
-                const productArray = makeProductsArray()
-                const expectedProduct = productArray[productId - 1]
 
                 return supertest(app)
                     .get(`/api/products/${productId}`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body.id).to.eql(expectedProduct.id)
-                        expect(res.body.english_name).to.eql(expectedProduct.english_name)
-                        expect(res.body.brand_id).to.eql(expectedProduct.brand_id)
-                        expect(res.body.category_id).to.eql(expectedProduct.category_id)
-                        expect(res.body.product_url).to.eql(expectedProduct.product_url)
-                        expect(res.body.feature_image_url).to.eql(expectedProduct.feature_image_url)
-                        expect(res.body.multiple_color_options).to.eql(expectedProduct.multiple_color_options)
-                        expect(res.body.cost_in_home_currency).to.eql(expectedProduct.cost_in_home_currency)
-                        expect(res.body.wash_id).to.eql(expectedProduct.wash_id)
-                        expect(res.body.dry_id).to.eql(expectedProduct.dry_id)
-                        expect(res.body.cmt_country).to.eql(expectedProduct.cmt_country)
-                        expect(res.body.cmt_factory_notes).to.eql(expectedProduct.cmt_factory_notes)
-                        expect(res.body.approved_by_admin).to.eql(expectedProduct.approved_by_admin)
-                        expect(res.body.date_published).to.eql(expectedProduct.date_published)
+                        expect(res.body.id).to.eql(productsGet[productId - 1].id)
+                        expect(res.body.english_name).to.eql(productsGet[productId - 1].english_name)
+                        expect(res.body.brand_id).to.eql(productsGet[productId - 1].brand_id)
+                        expect(res.body.category_id).to.eql(productsGet[productId - 1].category_id)
+                        expect(res.body.product_url).to.eql(productsGet[productId - 1].product_url)
+                        expect(res.body.feature_image_url).to.eql(productsGet[productId - 1].feature_image_url)
+                        expect(res.body.multiple_color_options).to.eql(productsGet[productId - 1].multiple_color_options)
+                        expect(res.body.cost_in_home_currency).to.eql(productsGet[productId - 1].cost_in_home_currency)
+                        expect(res.body.wash_id).to.eql(productsGet[productId - 1].wash_id)
+                        expect(res.body.dry_id).to.eql(productsGet[productId - 1].dry_id)
+                        expect(res.body.cmt_country).to.eql(productsGet[productId - 1].cmt_country)
+                        expect(res.body.cmt_factory_notes).to.eql(productsGet[productId - 1].cmt_factory_notes)
+                        expect(res.body.approved_by_admin).to.eql(productsGet[productId - 1].approved_by_admin)
+                        expect(res.body.date_published).to.eql(productsGet[productId - 1].date_published)
                     })
             })
         })
 
         context(`Given an XSS attack product`, () => {
-            const { maliciousProduct, expectedProduct } = makeMaliciousProduct()
-
-            beforeEach(() => insertFixtures([ maliciousProduct ]));
+            beforeEach(insertFixtures)
+            beforeEach(() =>  db.into('products').insert(malProduct))
 
             it(`Removes XSS attack content`, () => {
                 return supertest(app)
-                    .get(`/api/products/${maliciousProduct.id}`)
+                    .get(`/api/products/${malProduct.id}`)
                     .expect(200)
                     .expect(res => {
                         expect(res.body.english_name).to.eql(expectedProduct.english_name)
@@ -209,8 +179,8 @@ describe('Products Endpoints', () => {
 
         context('when there are certifications in the database', () => {
             beforeEach(insertFixtures)
-            beforeEach(() => { return db.into('certifications').insert(certifications) })
-            beforeEach(() => { return db.into('product_cmts_to_certifications').insert(productsToCertifications)})
+            beforeEach(() =>  db.into('certifications').insert(certifications))
+            beforeEach(() =>  db.into('product_cmts_to_certifications').insert(productsToCertifications))
             
             it('returns all the certifications', () => {
                 return supertest(app)
@@ -231,11 +201,11 @@ describe('Products Endpoints', () => {
 
         context('given a malicious certification', () => {
             beforeEach(insertFixtures)
-            beforeEach(() => { return db.into('certifications').insert( maliciousCertification) })
+            beforeEach(() =>  db.into('certifications').insert( malCertification))
 
-            const pTC = [{ product_id: productId, certification_id: maliciousCertification.id }]
+            const pTC = [{ product_id: productId, certification_id: malCertification.id }]
 
-            beforeEach(() => { return db.into('product_cmts_to_certifications').insert(pTC)})
+            beforeEach(() =>  db.into('product_cmts_to_certifications').insert(pTC))
 
             it('removes the attack content', () => {
                 return supertest(app)
@@ -248,8 +218,8 @@ describe('Products Endpoints', () => {
     describe('GET /api/products/:product_id/fabrics', () => {
         context('when there are fabrics in the database', () => {
             beforeEach(insertFixtures)
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('fabrics').insert(fabrics) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('fabrics').insert(fabrics))
         
 
             it('returns all the fabrics', () => {
@@ -280,8 +250,8 @@ describe('Products Endpoints', () => {
 
         context('given a malicious fabric', () => {
             beforeEach(insertFixtures)
-            beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-            beforeEach(() => { return db.into('fabrics').insert(maliciousFabric) })
+            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+            beforeEach(() =>  db.into('fabrics').insert(malFabric))
 
             it('removes the attack content', () => {
                 return supertest(app)
@@ -300,8 +270,8 @@ describe('Products Endpoints', () => {
         productId = 1
 
         context('when there are factories in the database', () => {
-            beforeEach(() => { return db.into('factories').insert(factories) })
-            beforeEach(() => { return db.into('product_cmts_to_factories').insert(productsToFactories) })
+            beforeEach(() =>  db.into('factories').insert(factories))
+            beforeEach(() =>  db.into('product_cmts_to_factories').insert(productsToFactories))
 
             it('returns all the factories', () => {
                 return supertest(app)
@@ -322,11 +292,11 @@ describe('Products Endpoints', () => {
         })
 
         context('given a malicious factory', () => {
-            beforeEach(() => { return db.into('factories').insert(maliciousFactory) })
+            beforeEach(() =>  db.into('factories').insert(malFactory))
 
-            const pTF = [{ product_id: productId, factory_id: maliciousFactory.id, stage: 'sew' }]
+            const pTF = [{ product_id: productId, factory_id: malFactory.id, stage: 'sew' }]
 
-            beforeEach(() => { return db.into('product_cmts_to_factories').insert(pTF) })
+            beforeEach(() =>  db.into('product_cmts_to_factories').insert(pTF))
 
             it('removes the attack content', () => {
                 return supertest(app)
@@ -348,24 +318,24 @@ describe('Products Endpoints', () => {
 
     describe('GET /api/products/:product_id/fibers', () => {
         beforeEach(insertFixtures)
-        productId = 1
+        const productId = 1
 
         context('when there are fibers in the database', () => {
-            beforeEach(() => { return db.into('factories').insert(factories) })
-            beforeEach(() => { return db.into('fiber_and_material_types').insert(fiberTypes) })
-            beforeEach(() => { return db.into('fibers_and_materials').insert(fibers) })
-            beforeEach(() => { return db.into('fibers_to_products').insert(productsToFibers) })
+            beforeEach(() =>  db.into('factories').insert(factories))
+            beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
+            beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
+            beforeEach(() =>  db.into('fibers_to_products').insert(productsToFibers))
 
             it('returns all the fibers', () => {
                 return supertest(app)
                     .get(`/api/products/${productId}/fibers`)
-                    .expect(200, getFibers)
+                    .expect(200, fibersGet)
             })
         })
 
         context('when there are no fibers in the database', () => {
             it('responds with 200 and an empty list', () => {
-            
+
             return supertest(app)
                 .get(`/api/products/${productId}/fibers`)
                 .expect(200, [])
@@ -373,14 +343,15 @@ describe('Products Endpoints', () => {
         })
 
         context('given a malicious fiber', () => {
-            beforeEach(() => { return db.into('factories').insert(factories) })
-            beforeEach(() => { return db.into('fiber_and_material_types').insert(fiberTypes) })
-            beforeEach(() => { return db.into('fibers_and_materials').insert(fibers) })
-            beforeEach(() => { return db.into('fibers_and_materials').insert(maliciousFiber) })
-
-            const pTF = [{ product_id: productId, fiber_or_material_id: maliciousFiber.id }]
-
-            beforeEach(() => { return db.into('fibers_to_products').insert(pTF) })
+            beforeEach(() =>  db.into('brands').insert(malBrand))
+            beforeEach(() =>  db.into('factories').insert(factories))
+            beforeEach(() =>  db.into('factories').insert(malFactory))
+            beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
+            beforeEach(() =>  db.into('fiber_and_material_types').insert(malFiberType))
+            beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
+            beforeEach(() =>  db.into('fibers_and_materials').insert(malFiber))
+            const pTF = [{ product_id: productId, fiber_or_material_id: malFiber.id }]
+            beforeEach(() =>  db.into('fibers_to_products').insert(pTF))
 
             it('removes the attack content', () => {
                 return supertest(app)
@@ -393,8 +364,10 @@ describe('Products Endpoints', () => {
     describe('GET /api/products/:product_id/images', () => {
         beforeEach(insertFixtures)
 
+        const productId = 1
+
         context('when there are images in the database', () => {
-            beforeEach(() => { return db.into('product_images').insert(image) })
+            beforeEach(() =>  db.into('product_images').insert(image))
             
             it('returns all the images', () => {
                 return supertest(app)
@@ -413,7 +386,7 @@ describe('Products Endpoints', () => {
         })
 
         context('given a malicious image', () => {
-            beforeEach(() => { return db.into('product_images').insert(maliciousImage) })
+            beforeEach(() =>  db.into('product_images').insert(malImage))
 
             it('removes the attack content', () => {
                 return supertest(app)
@@ -425,38 +398,27 @@ describe('Products Endpoints', () => {
 
     describe('GET /api/products/:product_id/notions', () => {
         beforeEach(insertFixtures)
-        productId = 1
+        const productId = 1
 
         context('when there are notions in the database', () => {
-            beforeEach(() => { return db.into('factories').insert(factories)})
-            beforeEach(() => { return db.into('notion_types').insert(notionType) })
-            beforeEach(() => { return db.into('notions').insert(notions) })
-            beforeEach(() => { return db.into('notions_to_products').insert(productsToNotions) })
-            beforeEach(() => { return db.into('fiber_and_material_types').insert(materialTypes) })
-            beforeEach(() => { return db.into('fibers_and_materials').insert(materials) })
-            beforeEach(() => { return db.into('notions_to_fibers_and_materials').insert(notionsToMaterials) })
-            
-            it('returns all the notions', () => {
-                return supertest(app)
-                    .get(`/api/products/${productId}/notions`)
-                    .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].id).to.eql(notions[0].id)
-                        expect(res.body[0].notion_type_id).to.eql(notions[0].notion_type_id)
-                        expect(res.body[0].brand_id).to.eql(notions[0].brand_id)
-                        expect(res.body[0].notion_type).to.eql(notionType[0].english_name)
-                        expect(res.body[0].notion_factory_country).to.eql(notions[0].notion_factory_country)
-                        expect(res.body[0].notion_factory_id).to.eql(notions[0].notion_factory_id)
-                        expect(res.body[0].factory).to.eql(factories[0].english_name)
-                        expect(res.body[0].notion_factory_country).to.eql(notions[0].notion_factory_country)
-                        expect(res.body[0].notion_factory_id).to.eql(notions[0].notion_factory_id)
-                        expect(res.body[0].factory).to.eql(factories[0].english_name)
-                        expect(res.body[0].notion_factory_notes).to.eql(notions[0].notion_factory_notes)
-                        expect(res.body[0].material_id).to.eql(materials.id)
-                        expect(res.body[0].fiber_or_material_type_id).to.eql(materialTypes.id)
-                        expect(res.body[0].material_id).to.eql(materialTypes.id)
-                        expect(res.body[0].material).to.eql(materialTypes.english_name)
-                    })
+            beforeEach(() => {
+                Promise.all([
+                    db.into('brands').insert(brands),
+                    db.into('factories').insert(factories),
+                    db.into('notion_types').insert(notionType),
+                    db.into('fiber_and_material_types').insert(materialTypes),
+                    db.into('categories').insert(categories),
+                    ])
+                    .then(() =>
+                        Promise.all([
+                            db.into('notions').insert(notionsPost),
+                            db.into('fibers_and_materials').insert(materials)
+                    ]))
+                    .then(
+                        Promise.all([
+                            db.into('notions_to_products').insert(productsToNotions),
+                            // db.into('notions_to_fibers_and_materials').insert(notionsToMaterials)
+                    ]))
             })
         })
 
@@ -470,30 +432,22 @@ describe('Products Endpoints', () => {
         })
 
         context('given a malicious notion', () => {
-            beforeEach(() => { return db.into('factories').insert(factories)})
-            beforeEach(() => { return db.into('notion_types').insert(notionType) })
-            beforeEach(() => { return db.into('notions').insert(maliciousNotion) })
-            beforeEach(() => { return db.into('fiber_and_material_types').insert(materialTypes) })
-            beforeEach(() => { return db.into('fibers_and_materials').insert(materials) })
-
-            const nTFM = { notion_id: maliciousNotion.id, fiber_or_material_id: productId }
-
-            beforeEach(() => { return db.into('notions_to_fibers_and_materials').insert(nTFM) })
-
-            const pTN = { product_id: productId, notion_id: maliciousNotion.id }
-
-            beforeEach(() => { return db.into('notions_to_products').insert(pTN) })
+            const pTN = { product_id: productId, notion_id: malNotion.id }
+            beforeEach(() =>  db.into('brands').insert(malBrand))
+            beforeEach(() =>  db.into('factories').insert(factories))
+            beforeEach(() =>  db.into('notion_types').insert(malNotionType))
+            beforeEach(() =>  db.into('fiber_and_material_types').insert(malFiberType))
+            beforeEach(() =>  db.into('notions').insert(malNotion))
+            beforeEach(() =>  db.into('notions_to_products').insert(pTN))
 
             it('removes the attack content', () => {
                 return supertest(app)
                     .get(`/api/products/${productId}/notions`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body[0].notion_type).to.eql(notionType[0].english_name)
-                        expect(res.body[0].factory).to.eql(factories[0].english_name)
-                        expect(res.body[0].notion_factory_notes).to.eql(expectedNotion.notion_factory_notes)
-                        expect(res.body[0].material).to.eql(materialTypes.english_name)
-                        expect(res.body[0].material_producer).to.eql(expectedNotion.material_producer)
+                        expect(res.body[0].notion_type).to.eql(malNotionType.english_name)
+                        expect(res.body[0].manufacturer_notes).to.eql(expectedNotion.manufacturer_notes)
+                        expect(res.body[0].material_notes).to.eql(expectedNotion.material_notes)
                     })
             })
         })            
@@ -501,60 +455,37 @@ describe('Products Endpoints', () => {
 
     describe('GET /api/products/:product_id/sizes', () => {
         beforeEach(insertFixtures)
-
         const productId = 1
 
         context('when there are sizes in the database', () => {
-            beforeEach(() => { return db.into('size_classes').insert([ sizeClass ]) })
-            beforeEach(() => { return db.into('sizes').insert([ size ])})
-            beforeEach(() => { return db.into('sizes_to_products').insert([ sizeToProduct ]) })
-            
+            beforeEach(() =>  db.into('sizes').insert(size))
+            beforeEach(() =>  db.into('sizes_to_products').insert(sizeToProduct))
+
             it('returns all the sizes', () => {
                 return supertest(app)
                     .get(`/api/products/${productId}/sizes`)
                     .expect(200)
                     .expect(res => {
                         expect(res.body[0].id).to.eql(size.id)
-                        // expect(res.body[0].size_class_id).to.eql(size.size_class_id)
-                        expect(res.body[0].size_class).to.eql(sizeClass.english_name)
                         expect(res.body[0].us_size).to.eql(size.us_size)
                     })
             })
         })
 
         context('when there are no sizes in the database', () => {
-            beforeEach(() => { return db.into('size_classes').insert([ sizeClass ]) })
-            beforeEach(() => { return db.into('sizes').insert([ size ])})
-            beforeEach(() => { return db.into('sizes_to_products').insert() })
-
-            
             it('responds with 200 and an empty list', () => {
                 return supertest(app)
                     .get(`/api/products/${productId}/sizes`)
                     .expect(200, [])
-                })
-            })
-
-        context('given a malicious size', () => {
-            beforeEach(() => { return db.into('size_classes').insert([ maliciousSizeClass ]) })
-            beforeEach(() => { return db.into('sizes').insert([ maliciousSize ])})
-            beforeEach(() => { return db.into('sizes_to_products').insert([ sizeToProduct ]) })
-
-
-            it('removes the attack content', () => {
-                return supertest(app)
-                    .get(`/api/products/${productId}/sizes`)
-                    .expect(200)
-                    .expect( res => {
-                        expect(res.body[0].size_class).to.eql(maliciousSizeClass.english_name)
-                        expect(res.body[0].us_size).to.eql(maliciousSize.us_size)
-                    })
             })
         })
     })
 
     describe('POST /api/products', () => {
-        beforeEach(() => insertFixtures([]))
+        beforeEach(() =>  db.into('brands').insert(brands))
+        beforeEach(() =>  db.into('wash_instructions').insert(washInstructions))
+        beforeEach(() =>  db.into('dry_instructions').insert(dryInstructions))
+        beforeEach(() =>  db.into('categories').insert(categories))
 
         it(`Creates a product, responding with 201 and the new product`, () => {
             const newProduct = {
@@ -567,8 +498,7 @@ describe('Products Endpoints', () => {
                 wash_id: 1,
                 dry_id: 1,
                 cost_in_home_currency: 60,
-                cmt_country: 'US',
-                cmt_factory_notes: '100 employees',
+                cmt_notes: '100 employees',
                 approved_by_admin: true
             }
             
@@ -585,8 +515,7 @@ describe('Products Endpoints', () => {
                     expect(res.body.wash_id).to.eql(newProduct.wash_id)
                     expect(res.body.dry_id).to.eql(newProduct.dry_id)
                     expect(res.body.cost_in_home_currency).to.eql(newProduct.cost_in_home_currency)
-                    expect(res.body.cmt_country).to.eql(newProduct.cmt_country)
-                    expect(res.body.cmt_factory_notes).to.eql(newProduct.cmt_factory_notes)
+                    expect(res.body.cmt_notes).to.eql(newProduct.cmt_notes)
                     expect(res.body.approved_by_admin).to.eql(newProduct.approved_by_admin)
                     expect(res.body).to.have.property('id')
                     expect(res.headers.location).to.have.eql(`/api/products/${res.body.id}`)
@@ -613,9 +542,6 @@ describe('Products Endpoints', () => {
             'cost_in_home_currency',
             'wash_id',
             'dry_id',
-            'cmt_country',
-            'cmt_factory_notes',
-            'approved_by_admin'
         ]
 
         requiredFields.forEach(field => {
@@ -648,10 +574,175 @@ describe('Products Endpoints', () => {
         })
 
         it(`Removes XSS attack content from response`, () => {
-            const { maliciousProduct, expectedProduct } = makeMaliciousProduct()
             return supertest(app)
                 .post('/api/products')
-                .send(maliciousProduct)
+                .send(malProduct)
+                .expect(201)
+                .expect(res => {
+                    expect(res.body.english_name).to.eql(expectedProduct.english_name)
+                    expect(res.body.product_url).to.eql(expectedProduct.product_url)
+                    expect(res.body.cmt_factory_notes).to.eql(expectedProduct.cmt_factory_notes)
+                })
+        })
+    })
+
+    describe('POST /api/products/product-form', () => {
+        beforeEach(() =>  db.into('brands').insert(brands))
+        beforeEach(() =>  db.into('categories').insert(categories))
+        beforeEach(() =>  db.into('certifications').insert(certifications))
+        beforeEach(() =>  db.into('dry_instructions').insert(dryInstructions))
+        beforeEach(() =>  db.into('factories').insert(factories))
+        beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
+        beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
+        beforeEach(() =>  db.into('notion_types').insert(notionType))
+        beforeEach(() =>  db.into('sizes').insert(size))
+        beforeEach(() =>  db.into('wash_instructions').insert(washInstructions))
+
+        it(`Creates a product, responding with 201 and the new product`, () => {
+            const newProduct = {
+                english_name: 'Yellow Shirt',
+                brand_id: 1,
+                category_id: 1,
+                product_url: 'https://canopyandunderstory.com',
+                feature_image_url: "http://test-url-feature-image.com",
+                multiple_color_options: true,
+                cost_in_home_currency: 60,
+                wash_id: 1,
+                dry_id: 1,
+                color_fieldsets: [
+                    {
+                        name: 'Daffodil',
+                        descriptionId: 14,
+                        swatchUrl: 'www.swatch.com',
+                        imageUrls: ['image-1.com', 'image-2.com']
+                    }
+                ],
+                sew_fact: {
+                    countryId: 1,
+                    factoryId: 1
+                },
+                cut_fact: {
+                    countryId: 1,
+                    factoryId: 1
+                },
+                man_cert_checks: [1],
+                cmt_notes: '100 employees',
+                selected_sizes: [1],
+                fabrics: [
+                    {
+                        certs: [1],
+                        fabric_details: {
+                            dyeFinCountryId: 1,
+                            dyeFinId: 1,
+                            dyeFinNotes: 'Notes',
+                            wovKnitCountryId: 1,
+                            wovKnitId: 1,
+                            wovKnitNotes: 'Notes'
+                        },
+                        fiber_array: [
+                            {
+                               
+                                    fiberTypeId: 1,
+                                    percentage: 100,
+                                    originId: 1,
+                                    producerId: 1,
+                                    producerNotes: 'Notes',
+                                    certIds: [1]
+                            }
+                        ],
+                        relationship: 'primary'
+                    }
+                ],
+                notions: [
+                    {
+                        typeId: 1,
+                        countryId: 1,
+                        factoryId: 1,
+                        notes: null,
+                        materialTypeId: 1,
+                        materialOriginId: 1,
+                        materialProducerId: 1,
+                        certIds: [1]
+                    }
+                ],
+                approved_by_admin: true
+            }
+
+            return supertest(app)
+                .post('/api/products/product-form')
+                .send(newProduct)
+                .then(res => {
+                    expect(res.body.english_name).to.eql(newProduct.english_name)
+                    expect(res.body.brand_id).to.eql(newProduct.brand_id)
+                    expect(res.body.category_id).to.eql(newProduct.category_id)
+                    expect(res.body.product_url).to.eql(newProduct.product_url)
+                    expect(res.body.feature_image_url).to.eql(newProduct.feature_image_url)
+                    expect(res.body.multiple_color_options).to.eql(newProduct.multiple_color_options)
+                    expect(res.body.wash_id).to.eql(newProduct.wash_id)
+                    expect(res.body.dry_id).to.eql(newProduct.dry_id)
+                    expect(res.body.cost_in_home_currency).to.eql(newProduct.cost_in_home_currency)
+                    expect(res.body.cmt_notes).to.eql(newProduct.cmt_notes)
+                    expect(res.body.approved_by_admin).to.eql(newProduct.approved_by_admin)
+                    expect(res.body).to.have.property('id')
+                    // expect(res.headers.location).to.have.eql(`/api/products/${res.body.id}`)
+                    const expected = new Date().toLocaleString()
+                    const actual = new Date(res.body.date_published).toLocaleString()
+                    expect(actual).to.eql(expected)
+                   return res
+                })
+                .then(postRes => {
+                    supertest(app)
+                    .get(`/api/products/${postRes.body.id}`)
+                    .expect(postRes.body)
+                })
+                
+        })
+
+        const requiredFields = [
+            'english_name',
+            'brand_id',
+            'category_id',
+            'product_url',
+            'feature_image_url',
+            'multiple_color_options',
+            'cost_in_home_currency',
+            'wash_id',
+            'dry_id',
+        ]
+
+        requiredFields.forEach(field => {
+            const newProduct = {
+                english_name: 'Yellow Shirt',
+                brand_id: 1,
+                category_id: 1,
+                product_url: 'https://canopyandunderstory.com',
+                feature_image_url: 'https://canopyandunderstory.com',
+                multiple_color_options: false,
+                home_currency: 'USD',
+                cost_in_home_currency: 60,
+                wash_id: 1,
+                dry_id: 1,
+                cmt_country: 'US',
+                cmt_factory_notes: '100 employees',
+                approved_by_admin: true
+            }
+
+            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
+                delete newProduct[field]
+
+                return supertest(app)
+                    .post('/api/products')
+                    .send(newProduct)
+                    .expect(400, {
+                        error: { message: `Missing '${field}' in request body`}
+                    })
+            })
+        })
+
+        it(`Removes XSS attack content from response`, () => {
+            return supertest(app)
+                .post('/api/products')
+                .send(malProduct)
                 .expect(201)
                 .expect(res => {
                     expect(res.body.english_name).to.eql(expectedProduct.english_name)
@@ -663,40 +754,74 @@ describe('Products Endpoints', () => {
 
     describe('POST /api/products/:product_id/certifications', () => {
         beforeEach(insertFixtures)
-        beforeEach(() => { return db.into('certifications').insert(certifications[0]) })
+        beforeEach(() =>  db.into('certifications').insert(certifications[0]))
 
         const productId = 1
 
-        it('creates a product-certification pair, responding with 201 and the new product-certification pair', () => {
-            const productCertificationPair = {
-                product_id: 1,
-                certification_id: 1
-            }
+        const prodCert = {
+            certification_id: 1
+        }
 
+        it('creates a product-certification pair, responding with 201 and the new product-certification pair', () => {            
             return supertest(app)
                 .post(`/api/products/${productId}/certifications`)
-                .send(productCertificationPair)
-                .expect(201, productCertificationPair)
+                .send(prodCert)
+                .expect(201, {
+                    product_id: productId,
+                    certification_id: prodCert.certification_id
+                })
+        })
+        
+        it(`responds with 400 and an error message when the 'certification_id' is missing`, () => {
+            return supertest(app)
+                .post(`/api/products/${productId}/certifications`)
+                    .send({})
+                    .expect(400, {
+                        error: { message: `Missing 'certification_id' in request body`}
+                    })
+        })
+    })
+
+    describe('POST /api/products/:product_id/colors', () => {
+        beforeEach(insertFixtures)
+
+        const productId = 1
+
+        const newColor = {
+            product_id: productId,
+            color_english_name: 'Lemon',
+            color_description_id: 1,
+            swatch_image_url: 'www.lemon-swatch.com'
+        }
+
+        it('creates a color, responding with 201 and the new color', () => {           
+
+            return supertest(app)
+                .post(`/api/products/${productId}/colors`)
+                .send(newColor)
+                .expect(201, {
+                    ...newColor,
+                    id: 1
+                })
         })
 
         const requiredFields = [
-            'product_id',
-            'certification_id'
+            'color_description_id',
+            'color_english_name',
+            'swatch_image_url'
         ]
         
         requiredFields.forEach(field => {
-            const newCertificationPair = {
-                product_id: 1,
-                certification_id: 1
+            const color = {
+                ...newColor
             }
 
-            delete newCertificationPair[field]
+            delete color[field]
 
             it(`responds with 400 and an error message when the '${field}' is missing`, () => {
-                
                 return supertest(app)
-                    .post(`/api/products/${productId}/certifications`)
-                        .send(newCertificationPair)
+                    .post(`/api/products/${productId}/colors`)
+                        .send(color)
                         .expect(400, {
                             error: { message: `Missing '${field}' in request body`}
                         })
@@ -706,85 +831,88 @@ describe('Products Endpoints', () => {
 
     describe('POST /api/products/:product_id/fabrics', () => {
         beforeEach(insertFixtures)
-        beforeEach(() => { return db.into('fabric_types').insert(fabricTypes) })
-        beforeEach(() => { return db.into('fabrics').insert(fabrics) })
+        beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+        beforeEach(() =>  db.into('fabrics').insert(fabrics))
     
         const productId = 1
 
-        it('creates a product-fabric pair, responding with 201 and the new product-fabric pair', () => {
-            const newProductFabricPair = {
-                product_id: 1,
-                fabric_id: 1
-            }
-
-            return supertest(app)
-                .post(`/api/products/${productId}/fabrics`)
-                .send(newProductFabricPair)
-                .expect(201, newProductFabricPair)
-        })
+        const newProductFabricSet = {
+            fabric_id: 1,
+            relationship: 'primary'
+        }
 
         const requiredFields = [
-            'product_id',
-            'fabric_id'
+            'fabric_id',
+            'relationship'
         ]
-        
+
+        // it('creates a product-fabric pair, responding with 201 and the new product-fabric pair', () => {
+        //     return supertest(app)
+        //         .post(`/api/products/${productId}/fabrics`)
+        //         .send(newProductFabricSet)
+        //         .expect(201)
+        //         .expect(res => {
+        //             expect(res.body.product_id).to.eql(productId)
+        //             expect(res.body.fabric_id).to.eql(newProductFabricSet.fabric_id)
+        //             expect(res.body.relationship).to.eql(newProductFabricSet.relationship)
+        //         })
+        // })
+
         requiredFields.forEach(field => {
-            const newProductFabricPair = {
-                product_id: 1,
-                fabric_id: 1
+            const prodFab = {
+                ...newProductFabricSet
             }
 
-            delete newProductFabricPair[field]
+            delete prodFab[field]
 
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
+            it(`responds with 400 and an error message when the 'fabric_id' is missing`, () => {
                 return supertest(app)
                     .post(`/api/products/${productId}/fabrics`)
-                    .send(newProductFabricPair)
+                    .send(prodFab)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
                     })
             })
-        })
+        })   
     })
 
     describe('POST /api/products/:product_id/factories', () => {
             beforeEach(insertFixtures)
-            beforeEach(() => { return db.into('factories').insert(factories) })
+            beforeEach(() =>  db.into('factories').insert(factories))
 
             const productId = 1
 
-        it('creates a product-factory pair, responding with 201 and the new product-factory pair', () => {
-            const newProductFactoryTriplet = {
-                product_id: 1,
+            const newProdFactSet = {
                 factory_id: 1,
                 stage: 'sew'
             }
 
+        it('creates a product-factory set, responding with 201 and the new product-factory set', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/factories`)
-                .send(newProductFactoryTriplet)
-                .expect(201, newProductFactoryTriplet)
+                .send(newProdFactSet)
+                .expect(201, {
+                    ...newProdFactSet,
+                    product_id: productId
+                })
         })
 
         const requiredFields = [
-            'product_id',
             'factory_id',
             'stage'
         ]
         
         requiredFields.forEach(field => {
-            const newProductFactoryTriplet = {
-                product_id: 1,
-                factory_id: 1,
-                stage: 'sew'
+            const prodFact = {
+                ...newProdFactSet
             }
 
-            delete newProductFactoryTriplet[field]
+            delete prodFact[field]
 
             it(`responds with 400 and an error message when the '${field}' is missing`, () => {
                 return supertest(app)
                     .post(`/api/products/${productId}/factories`)
-                    .send(newProductFactoryTriplet)
+                    .send(prodFact)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
                     })  
@@ -794,139 +922,100 @@ describe('Products Endpoints', () => {
 
     describe('POST /api/products/:product_id/fibers', () => {
         beforeEach(insertFixtures)
-        beforeEach(() => { return db.into('factories').insert(factories) })
-        beforeEach(() => { return db.into('fiber_and_material_types').insert(fiberTypes) })
-        beforeEach(() => { return db.into('fibers_and_materials').insert(fibers) })
+        beforeEach(() =>  db.into('factories').insert(factories))
+        beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
+        beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
     
         const productId = 1
 
-        it('creates a product-fiber pair, responding with 201 and the new product-fiber pair', () => {
-            const newProductFiberPair = {
-                product_id: 1,
-                fiber_or_material_id: 1
-            }
+        const newProductFiberPair = {
+            product_id: productId,
+            fiber_or_material_id: 1
+        }
 
+        it('creates a product-fiber pair, responding with 201 and the new product-fiber pair', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/fibers`)
                 .send(newProductFiberPair)
                 .expect(201, newProductFiberPair)
         })
 
-        const requiredFields = [
-            'product_id',
-            'fiber_or_material_id'
-        ]
-        
-        requiredFields.forEach(field => {
-            const newProductFiberPair = {
-                product_id: 1,
-                fiber_or_material_id: 1
-            }
-
-            delete newProductFiberPair[field]
-
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
-                return supertest(app)
-                    .post(`/api/products/${productId}/fibers`)
-                    .send(newProductFiberPair)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                })  
-            })
-        })    
+        it(`responds with 400 and an error message when the 'fiber_or_material_id' is missing`, () => {
+            return supertest(app)
+                .post(`/api/products/${productId}/fibers`)
+                .send({})
+                .expect(400, {
+                    error: { message: `Missing 'fiber_or_material_id' in request body`}
+            })  
+        })
     })
 
     describe('POST /api/products/:product_id/notions', () => {
         beforeEach(insertFixtures)
-        beforeEach(() => { return db.into('factories').insert(factories)})
-        beforeEach(() => { return db.into('notion_types').insert(notionType)})
-        beforeEach(() => { return db.into('notions').insert(notions)})
+        beforeEach(() =>  db.into('factories').insert(factories))
+        beforeEach(() =>  db.into('notion_types').insert(notionType))
+        beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
+        beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
+        beforeEach(() =>  db.into('notions').insert(notionsPost))
 
         const productId = 1
 
-        it('creates a product-notion pair, responding with 201 and the new product-notion pair', () => {
-            const newProductNotionPair = {
-                product_id: 1,
-                notion_id: 1
-            }
+        const newProductNotionPair = {
+            product_id: productId,
+            notion_id: 1
+        }
 
+        it('creates a product-notion pair, responding with 201 and the new product-notion pair', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/notions`)
                 .send(newProductNotionPair)
                 .expect(201, newProductNotionPair)
         })
 
-        const requiredFields = []
-        
-        requiredFields.forEach(field => {
-            const newProductNotionPair = {
-                product_id: 1,
-                notion_id: 1
-            }
-
-            delete newProductNotionPair[field]
-
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
-                return supertest(app)
-                    .post(`/api/products/${productId}/notions`)
-                    .send(newProductNotionPair)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                    })  
-            })
+        it(`responds with 400 and an error message when the 'notion_id' is missing`, () => {
+            return supertest(app)
+                .post(`/api/products/${productId}/notions`)
+                .send({})
+                .expect(400, {
+                    error: { message: `Missing 'notion_id' in request body`}
+                })  
         })
     })
 
     describe('POST /api/products/:product_id/sizes', () => {
         beforeEach(insertFixtures)
-        beforeEach(() => { return db.into('size_classes').insert(sizeClass)})
-        beforeEach(() => { return db.into('sizes').insert(size)})
+        beforeEach(() =>  db.into('sizes').insert(size))
 
         const productId = 1
 
-        it('creates a product-size pair, responding with 201 and the new product-size pair', () => {
-            const newProductSizePair = {
-                product_id: 1,
-                size_id: 1
-            }
+        const newProductSizePair = {
+            product_id: productId,
+            size_id: 1
+        }
 
+        it('creates a product-size pair, responding with 201 and the new product-size pair', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/sizes`)
                 .send(newProductSizePair)
                 .expect(201, newProductSizePair)
-            })
-
-            const requiredFields = [
-                'product_id',
-                'size_id'
-            ]
+        })
         
-            requiredFields.forEach(field => {
-                const newProductSizePair = {
-                    product_id: 1,
-                    size_id: 1
-                }
-            
-            delete newProductSizePair[field]
-
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
-                return supertest(app)
-                    .post(`/api/products/${productId}/sizes`)
-                    .send(newProductSizePair)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                    }) 
-            })
-        })    
+        it(`responds with 400 and an error message when the 'size_id' is missing`, () => {
+            return supertest(app)
+                .post(`/api/products/${productId}/sizes`)
+                .send({})
+                .expect(400, {
+                    error: { message: `Missing 'size_id' in request body`}
+                }) 
+        })
     })
 
     describe('PATCH /api/products/:product_id', () => {
         context('Given there are products in the database', () => {
-            const testProducts=makeProductsArray()
             beforeEach(insertFixtures)
+            const idToUpdate = 1
 
             it('responds with 204 and updates the product', () => {
-                const idToUpdate = 1
                 const updateProduct = {
                     english_name: 'Updated Product Name',
                     brand_id: 1,
@@ -934,16 +1023,14 @@ describe('Products Endpoints', () => {
                     product_url: 'https://canopyandunderstory.com',
                     feature_image_url: 'https://canopyandunderstory.com',
                     multiple_color_options: false,
-                    home_currency: 'USD',
                     cost_in_home_currency: 60,
                     wash_id: 1,
                     dry_id: 1,
-                    cmt_country: 'US',
-                    cmt_factory_notes: 'Updated Notes',
+                    cmt_notes: 'Updated Notes',
                     approved_by_admin: true
                 }
                 const expectedProduct = {
-                    ...testProducts[idToUpdate - 1],
+                    ...productsGet[idToUpdate - 1],
                     ...updateProduct
                 }
 
@@ -959,22 +1046,20 @@ describe('Products Endpoints', () => {
             })
 
             it('responds with 400 when no required fields are supplied', () => {
-                const idToUpdate = 1
                 return supertest(app)
                     .patch(`/api/products/${idToUpdate}`)
                     .send({ irrelevantField: 'foo' })
                     .expect(400, {
-                        error: { message: `Request body must contain 'english_name', 'brand_id', 'category_id', 'product_url', 'feature_image_url', 'multiple_color_options', 'cost_in_home_currency', 'wash_id', 'dry_id', 'cmt_country', 'cmt_factory_notes', or 'approved_by_admin'`}
+                        error: { message: `Request body must contain 'english_name', 'brand_id', 'category_id', 'product_url', 'feature_image_url', 'multiple_color_options', 'cost_in_home_currency', 'wash_id', 'dry_id', 'cmt_notes', or 'approved_by_admin'`}
                     })
             })
 
             it(`responds with 204 when updating only a subset of fields`, () => {
-                const idToUpdate = 1
                 const updateProduct = {
                     english_name: 'Updated Product Name'
                 }
                 const expectedProduct = {
-                    ...testProducts[idToUpdate - 1],
+                    ...productsPost[idToUpdate - 1],
                     ...updateProduct
                 }
 
@@ -1004,13 +1089,11 @@ describe('Products Endpoints', () => {
 
     describe('DELETE /api/products/:product_id', () => {
         context('Given there are products in the database', () => {
-            const testProducts = makeProductsArray()
-
             beforeEach(insertFixtures)
 
             it('responds with 204 and removes the product', () => {
                 const idToRemove = 1
-                const expectedProducts =  testProducts.filter(product => product.id !== idToRemove)
+                const expectedProducts = productsGet.filter(product => product.id !== idToRemove)
 
                 return supertest(app)
                     .delete(`/api/products/${idToRemove}`)

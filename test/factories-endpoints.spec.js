@@ -1,13 +1,13 @@
 const knex = require('knex')
 const app = require('../src/app')
-const { makeFactoriesArray, makeMaliciousFactory } = require('./factories.fixtures')
 const supertest = require('supertest')
 const { expect } = require('chai')
 
-const factories = makeFactoriesArray()
-const { maliciousFactory, expectedFactory } = makeMaliciousFactory()
+const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
 
 describe('Factories Endpoints', function() {
+    const factories = makeFactoryArray()
+    const { malFactory, expectedFactory } = makeMalFactory()
     let db
 
     before('make knex instance', () => {
@@ -17,16 +17,14 @@ describe('Factories Endpoints', function() {
         })
         app.set('db', db)
     })
-
-    after('disconnect from db', () => db.destroy())
-
-    before('clean the table', () => db.raw('TRUNCATE table factories RESTART IDENTITY CASCADE'))
     
+    after('disconnect from db', () => db.destroy())
+    before('clean the table', () => db.raw('TRUNCATE table factories RESTART IDENTITY CASCADE'))
     afterEach('cleanup', () => db.raw('TRUNCATE table factories RESTART IDENTITY CASCADE'))
 
     describe('GET /api/factories', () => {
         context('when there are factories in the database', () => {
-            beforeEach(() => { return db.into('factories').insert(factories) })
+            beforeEach(() =>  db.into('factories').insert(factories))
             
             it('returns all the factories', () => {
                 return supertest(app)
@@ -45,7 +43,7 @@ describe('Factories Endpoints', function() {
         })
 
         context('given a malicious factory', () => {
-            beforeEach(() => { return db.into('factories').insert( maliciousFactory ) })
+            beforeEach(() =>  db.into('factories').insert( malFactory ))
 
             it('removes the attack content', () => {
                 return supertest(app)
@@ -57,7 +55,7 @@ describe('Factories Endpoints', function() {
 
     describe('GET /api/factories/:factory_id', () => {
         context('when the factory with id factory_id exists', () => {
-            beforeEach(() => { return db.into('factories').insert(factories) })
+            beforeEach(() =>  db.into('factories').insert(factories))
 
             const factoryId = 1
 
@@ -79,7 +77,7 @@ describe('Factories Endpoints', function() {
         })
 
         context('when the factory with id factory_id is a malicious factory', () => {
-            beforeEach(() => { return db.into('factories').insert(maliciousFactory) })
+            beforeEach(() =>  db.into('factories').insert(malFactory))
 
             const factoryId = 666
 
@@ -122,10 +120,7 @@ describe('Factories Endpoints', function() {
 
         const requiredFields = [
             'english_name',
-            'country',
-            'website',
-            'notes',
-            'approved_by_admin'
+            'country'
         ]
 
         requiredFields.forEach(field => {
@@ -150,11 +145,11 @@ describe('Factories Endpoints', function() {
         })
 
         it(`Removes XSS attack content from response`, () => {
-            const { maliciousFactory, expectedFactory } = makeMaliciousFactory()
+            const { malFactory, expectedFactory } = makeMalFactory()
 
             return supertest(app)
                 .post(`/api/factories`)
-                .send(maliciousFactory)
+                .send(malFactory)
                 .expect(201)
                 .expect(res => {
                     expect(res.body.english_name).to.eql(expectedFactory.english_name)
@@ -169,7 +164,7 @@ describe('Factories Endpoints', function() {
 
     describe('PATCH /api/factories/:factory_id', () => {
         context('when the factory with id factory_id exists', () => {
-            beforeEach(() => { return db.into('factories').insert(factories) })
+            beforeEach(() =>  db.into('factories').insert(factories))
 
             it('updates the factory and responds 204', () => {
                 const idToUpdate = 1
@@ -203,7 +198,7 @@ describe('Factories Endpoints', function() {
                         .patch(`/api/factories/${idToUpdate}`)
                         .send({irrelevantField: 'bar'})
                         .expect(400, {
-                            error: { message: `Request body must contain 'english_name', 'country', 'website', 'notes', 'approved_by_admin'`}
+                            error: { message: `Request body must contain 'english_name', 'country', 'website', 'notes', and/or 'approved_by_admin'`}
                         })
             })
 
@@ -252,7 +247,7 @@ describe('Factories Endpoints', function() {
 
     describe('DELETE /api/factories/:factory_id', () => {
         context('when the factory with id factory_id exists', () => {
-            beforeEach(() => { return db.into('factories').insert(factories) })
+            beforeEach(() =>  db.into('factories').insert(factories))
 
             it('removes the factory and responds 204', () => {
                 const idToRemove = 1
@@ -276,7 +271,7 @@ describe('Factories Endpoints', function() {
         })
 
         context('when the fabric with id fabric_id does not exist', () => {
-            beforeEach(() => { return db.into('factories').insert(factories) })
+            beforeEach(() =>  db.into('factories').insert(factories))
 
             it('responds with 404', () => {
                 const idToRemove = 222

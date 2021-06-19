@@ -34,14 +34,12 @@ const CategoriesService = {
                 'products.cost_in_home_currency',
                 'products.wash_id',
                 'products.dry_id',
-                'products.cmt_country',
-                'products.cmt_factory_notes',
+                'products.cmt_notes',
                 'products.approved_by_admin',
                 'products.date_published'
             )
             .where('products.category_id', categoryId)
             .then(response => {
-                console.log('getProductsForCategory response', response)
 
                 return response
             })

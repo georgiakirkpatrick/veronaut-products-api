@@ -32,17 +32,24 @@ factoriesRouter
             english_name,
             country,
             website,
-            notes
+            notes,
+            approved_by_admin
         } = req.body
 
         const newFactory = {
             english_name,
             country,
             website,
-            notes
+            notes,
+            approved_by_admin
         }
 
-        for (const [key, value] of Object.entries(newFactory)) {
+        const requiredFields = {
+            english_name,
+            country
+        }
+
+        for (const [key, value] of Object.entries(requiredFields)) {
             if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
@@ -117,7 +124,7 @@ factoriesRouter
         if (numberOfValues === 0) {
             return res.status(400).json({
                 error: {
-                    message: `Request body must contain 'english_name', 'country', 'website', 'notes', 'approved_by_admin'`
+                    message: `Request body must contain 'english_name', 'country', 'website', 'notes', and/or 'approved_by_admin'`
                 }
             })
         }

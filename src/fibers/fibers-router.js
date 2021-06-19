@@ -5,20 +5,36 @@ const FibersService = require('./fibers-service')
 const fibersRouter = express.Router()
 const jsonParser = express.json()
 
+const serializeCertifications = certification => ({
+    id: certification.id,
+    english_name: xss(certification.english_name),
+    website: xss(certification.website),
+    approved_by_admin: certification.approved_by_admin,
+    date_published: certification.date_published
+})
+
 const serializeFibers = fiber => ({
     id: fiber.id,
     fiber_type_id: fiber.fiber_type_id,
-    fiber_type: fiber.fiber_type,
+    fiber_type: fiber.fiber_type ? xss(fiber.fiber_type) : null,
     class: fiber.class,
     brand_id: fiber.brand_id,
     producer_country: fiber.producer_country,
     producer_id: fiber.producer_id,
-    production_notes: fiber.production_notes,
+    production_notes: fiber.production_notes ? xss(fiber.production_notes) : null,
     producer: fiber.producer,
-    producer_website: fiber.producer_website,
-    producer_notes: fiber.producer_notes,
+    producer_website: fiber.producer_website ? xss(fiber.producer_website) : null,
+    // producer_notes: fiber.producer_notes ? xss(fiber.producer_notes) : null,
     approved_by_admin: fiber.approved_by_admin,
     date_published: fiber.date_published
+})
+
+const serializeFiberTypes = fiberType => ({
+    id: fiberType.id,
+    english_name: xss(fiberType.english_name),
+    fiber_type_class: fiberType.fiber_type_class,
+    approved_by_admin: fiberType.approved_by_admin,
+    date_published: fiberType.date_published
 })
 
 fibersRouter
@@ -37,7 +53,8 @@ fibersRouter
             brand_id,
             producer_country,
             producer_id,
-            production_notes
+            production_notes,
+            approved_by_admin
         } = req.body
 
         const newFiber = {
@@ -45,22 +62,92 @@ fibersRouter
             brand_id,
             producer_country,
             producer_id,
-            production_notes
+            production_notes,
+            approved_by_admin
         }
 
-        for (const [key, value] of Object.entries(newFiber)) {
+        const requiredFields = {
+            fiber_or_material_type_id,
+            brand_id,
+            producer_country,
+            producer_id
+        }
+
+        for (const [key, value] of Object.entries(requiredFields)) {
             if (value === undefined) {
                 return res.status(400).json({ error: { message: `Missing '${key}' in request body` } })
             }
         }
 
-        FibersService.insertFiber(req.app.get('db'), newFiber)
+        FibersService
+            .insertFiber(req.app.get('db'), newFiber)
             .then(fiber => {
                 res
                     .status(201)
                     .location(path.posix.join(req.originalUrl + `/${fiber.id}` ))
-                    .json(serializeFibers(fiber))
+                    .json({
+                        id: fiber.id,
+                        fiber_type_id: fiber.fiber_or_material_type_id,
+                        brand_id: fiber.brand_id,
+                        producer_country: fiber.producer_country,
+                        producer_id: fiber.producer_id,
+                        production_notes: fiber.production_notes ? xss(fiber.production_notes) : null,
+                        approved_by_admin: fiber.approved_by_admin,
+                        date_published: fiber.date_published
+                    })
             })
+    })
+
+fibersRouter
+    .route('/fiber-types')
+    .get((req, res, next) => {
+        FibersService
+            .getAllFiberTypes(
+                req.app.get('db')
+            )
+            .then(fiberTypes => {
+                res.json(fiberTypes.map(serializeFiberTypes))
+            })
+            .catch(next)
+    })
+    .post(jsonParser, (req, res, next) => {
+        const { 
+            english_name, 
+            fiber_type_class,
+            approved_by_admin
+        } = req.body
+
+        const newFiberType = { 
+            english_name, 
+            fiber_type_class,
+            approved_by_admin
+        }
+
+        const requiredFields = { 
+            english_name
+        }
+
+        for (const [key, value] of Object.entries(requiredFields)) {
+            if (value === undefined) {
+                return res.status(400).json({
+                    error: { message: `Missing '${key}' in request body`}
+                })
+            }
+        }
+
+        FibersService
+            .insertFiberType(
+                req.app.get('db'),
+                newFiberType
+            )
+            .then(fiberType => {
+                res
+                    .status(201)
+                    .location(path.posix.join(req.originalUrl + `/${fiberType.id}`))
+                    .json(serializeFiberTypes(fiberType))
+                    
+            })
+            .catch(next)
     })
 
 fibersRouter
@@ -91,10 +178,10 @@ fibersRouter
             brand_id: res.fiber.brand_id,
             producer_country: res.fiber.producer_country,
             producer_id: res.fiber.producer_id,
-            production_notes: xss(res.fiber.production_notes),
+            production_notes: res.fiber.production_notes ? xss(res.fiber.production_notes) : null,
             producer: xss(res.fiber.producer),
-            producer_website: xss(res.fiber.producer_website),
-            producer_notes: xss(res.fiber.producer_notes),
+            producer_website: res.fiber.producer_website ? xss(res.fiber.producer_website): null,
+            // producer_notes: res.fiber.producer_notes ? xss(res.fiber.producer_notes) : null,
             approved_by_admin: res.fiber.approved_by_admin,
             date_published: res.fiber.date_published
         })
@@ -102,7 +189,7 @@ fibersRouter
     })
     .patch(jsonParser, (req, res, next) => {
         const {
-            fiber_type_id,
+            fiber_or_material_type_id,
             brand_id,
             producer_country,
             producer_id,
@@ -111,7 +198,7 @@ fibersRouter
         } = req.body
 
         const newFiberFields = {
-            fiber_type_id,
+            fiber_or_material_type_id,
             brand_id,
             producer_country,
             producer_id,
@@ -123,7 +210,7 @@ fibersRouter
         if (numberOfValues === 0) {
             return res.status(400).json({
                 error: {
-                    message: `Request body must contain 'fiber_type_id', 'brand_id', 'producer_country', 'producer_id', 'production_notes', 'approved_by_admin'`
+                    message: `Request body must contain 'fiber_or_material_type_id', 'brand_id', 'producer_country', 'producer_id', 'production_notes', and/or 'approved_by_admin'`
                 }
             })
         }
@@ -169,14 +256,30 @@ fibersRouter
         })
         .catch(next)
     })
+    .get((req, res, next) => {
+        FibersService
+            .getCertificationsForFiber(
+                req.app.get('db'),
+                req.params.fiber_id
+            )
+            .then(certifications => {
+                res.json(certifications.map(serializeCertifications))
+            })
+            .catch(next)
+    })
     .post(jsonParser, (req, res, next) => {
-        const { fiber_id, certification_id } = req.body
+        const { certification_id } = req.body
+
         const fibCertPair = {
-            fiber_id,
+            fiber_or_material_id: req.params.fiber_id,
+            certification_id
+        }
+
+        const requiredFields = {
             certification_id
         }
         
-        for (const [key, value] of Object.entries(fibCertPair)) {
+        for (const [key, value] of Object.entries(requiredFields)) {
             if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
