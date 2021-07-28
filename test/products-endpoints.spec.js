@@ -11,7 +11,7 @@ const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
 const { makeFiberArray, makeFiberTypeArray, makeMalFiber, makeMalFiberType } = require('./fibers.fixtures')
 const { makeNotionArray, makeNotionType, makeMalNotion, makeMalNotionType } = require('./notions.fixtures')
 const {
-    makeDry, makeImage, makeProductArray, makeProductToCertificationArray, makeProductToFactoriesArray,
+    makeColor, makeDry, makeImage, makeProductArray, makeProductToCertificationArray, makeProductToFactoriesArray,
     makeProductToFiberArray, makeSize, makeSizeToProduct, makeWash, makeMalImage, makeMalProduct
 } = require('./products.fixtures')
 
@@ -19,9 +19,10 @@ describe('Products Endpoints', () => {
     const brands = makeBrandArray()
     const categories = makeCategoryArray()
     const certifications = makeCertificationArray()
+    const color = makeColor()
     const dryInstructions = [ makeDry() ]
     const fabricTypes = makeFabricTypeArray()
-    const fabrics = makeFabricArray()
+    const { fabricArray, expectedFabricArray } = makeFabricArray()
     const factories = makeFactoryArray()
     const { fibersPost, fibersGet} = makeFiberArray()
     const fiberTypes = makeFiberTypeArray()
@@ -37,12 +38,11 @@ describe('Products Endpoints', () => {
     const { malNotionType} = makeMalNotionType()
     const { malProduct, expectedProduct } = makeMalProduct()
     const materialTypes = makeFiberTypeArray()
-    const materials = makeFiberArray()
-    const { notionsPost, notionsGet } = makeNotionArray()
+    const { notionsPost, notionsCertsGet, notionsGet } = makeNotionArray()
     const notionType = makeNotionType()
     const productsToFactories = makeProductToFactoriesArray()
     const productsToFibers = makeProductToFiberArray()
-    const { productsGet, productsPost } = makeProductArray()
+    const { productsExtendedGet, productsOnlyGet, productsPost } = makeProductArray()
     const productsToCertifications = makeProductToCertificationArray()
     const size = makeSize()
     const sizeToProduct = makeSizeToProduct()
@@ -50,16 +50,15 @@ describe('Products Endpoints', () => {
 
     let db
 
+
     const insertFixtures = () => (
         Promise.all([
             db.into('brands').insert(brands),
-            db.into('wash_instructions').insert(washInstructions),
+            db.into('categories').insert(categories),
             db.into('dry_instructions').insert(dryInstructions),
-            db.into('categories').insert(categories)
-            ])
-            .then(
-                () => db.into('products').insert(productsPost)
-            )
+            db.into('wash_instructions').insert(washInstructions)
+        ])
+        .then(() => db.into('products').insert(productsPost))
     )
 
     before('make knex instance', () => {
@@ -72,13 +71,35 @@ describe('Products Endpoints', () => {
     after('disconnect from db', () => db.destroy())
 
     const cleanUpTables = () => db.raw(
-        `TRUNCATE table products, brands, categories, certifications, dry_instructions, fabric_types, fabrics, fabrics_to_products, 
-        factories, fibers_and_materials, fiber_and_material_types, fibers_to_products, notion_types, notions, notions_to_products, 
-        notions_to_fibers_and_materials, product_cmts_to_certifications, product_cmts_to_factories, 
-        product_colors, sizes, sizes_to_products, wash_instructions RESTART IDENTITY CASCADE`
+        `TRUNCATE table 
+        notions_to_certifications,
+        brands,
+        categories,
+        certifications, 
+        dry_instructions, 
+        fabric_types, 
+        fabrics, 
+        fabrics_to_products, 
+        factories,
+        notions_to_fibers_and_materials,
+        fibers_and_materials, 
+        fiber_and_material_types, 
+        fibers_to_products, 
+        notions_to_products, 
+        notion_types,
+        notions,
+        product_cmts_to_certifications, 
+        product_cmts_to_factories, 
+        products, 
+        product_colors, 
+        sizes, 
+        sizes_to_products, 
+        wash_instructions 
+        RESTART IDENTITY CASCADE`
     )
-    before('clean tables', () => db.raw('TRUNCATE table products, brands, categories, certifications, dry_instructions, fabric_types, fabrics, fabrics_to_products, factories, fibers_and_materials, fiber_and_material_types, fibers_to_products, notion_types, notions, notions_to_products, notions_to_fibers_and_materials, product_cmts_to_certifications, product_cmts_to_factories, product_colors, sizes, sizes_to_products, wash_instructions RESTART IDENTITY CASCADE'))
-    afterEach('clean tables', () => db.raw('TRUNCATE table products, brands, categories, certifications, dry_instructions, fabric_types, fabrics, fabrics_to_products, factories, fibers_and_materials, fiber_and_material_types, fibers_to_products, notion_types, notions, notions_to_products, notions_to_fibers_and_materials, product_cmts_to_certifications, product_cmts_to_factories, product_colors, sizes, sizes_to_products, wash_instructions RESTART IDENTITY CASCADE'))
+
+    before('clean tables', () => cleanUpTables())
+    afterEach('clean tables', () => cleanUpTables())
 
     describe('GET /api/products', () => {
         context('Given there are products in the database', () => {
@@ -87,7 +108,7 @@ describe('Products Endpoints', () => {
             it('GET /api/products responds with 200 and all of the products', () => {
                 return supertest(app)
                     .get('/api/products')
-                    .expect(200, productsGet)
+                    .expect(200, productsOnlyGet)
             })
         })
 
@@ -130,20 +151,20 @@ describe('Products Endpoints', () => {
                     .get(`/api/products/${productId}`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body.id).to.eql(productsGet[productId - 1].id)
-                        expect(res.body.english_name).to.eql(productsGet[productId - 1].english_name)
-                        expect(res.body.brand_id).to.eql(productsGet[productId - 1].brand_id)
-                        expect(res.body.category_id).to.eql(productsGet[productId - 1].category_id)
-                        expect(res.body.product_url).to.eql(productsGet[productId - 1].product_url)
-                        expect(res.body.feature_image_url).to.eql(productsGet[productId - 1].feature_image_url)
-                        expect(res.body.multiple_color_options).to.eql(productsGet[productId - 1].multiple_color_options)
-                        expect(res.body.cost_in_home_currency).to.eql(productsGet[productId - 1].cost_in_home_currency)
-                        expect(res.body.wash_id).to.eql(productsGet[productId - 1].wash_id)
-                        expect(res.body.dry_id).to.eql(productsGet[productId - 1].dry_id)
-                        expect(res.body.cmt_country).to.eql(productsGet[productId - 1].cmt_country)
-                        expect(res.body.cmt_factory_notes).to.eql(productsGet[productId - 1].cmt_factory_notes)
-                        expect(res.body.approved_by_admin).to.eql(productsGet[productId - 1].approved_by_admin)
-                        expect(res.body.date_published).to.eql(productsGet[productId - 1].date_published)
+                        expect(res.body.id).to.eql(productsExtendedGet[productId - 1].id)
+                        expect(res.body.english_name).to.eql(productsExtendedGet[productId - 1].english_name)
+                        expect(res.body.brand_id).to.eql(productsExtendedGet[productId - 1].brand_id)
+                        expect(res.body.category_id).to.eql(productsExtendedGet[productId - 1].category_id)
+                        expect(res.body.product_url).to.eql(productsExtendedGet[productId - 1].product_url)
+                        expect(res.body.feature_image_url).to.eql(productsExtendedGet[productId - 1].feature_image_url)
+                        expect(res.body.multiple_color_options).to.eql(productsExtendedGet[productId - 1].multiple_color_options)
+                        expect(res.body.cost_in_home_currency).to.eql(productsExtendedGet[productId - 1].cost_in_home_currency)
+                        expect(res.body.wash_id).to.eql(productsExtendedGet[productId - 1].wash_id)
+                        expect(res.body.dry_id).to.eql(productsExtendedGet[productId - 1].dry_id)
+                        expect(res.body.cmt_country).to.eql(productsExtendedGet[productId - 1].cmt_country)
+                        expect(res.body.cmt_factory_notes).to.eql(productsExtendedGet[productId - 1].cmt_factory_notes)
+                        expect(res.body.approved_by_admin).to.eql(productsExtendedGet[productId - 1].approved_by_admin)
+                        expect(res.body.date_published).to.eql(productsExtendedGet[productId - 1].date_published)
                     })
             })
         })
@@ -219,22 +240,21 @@ describe('Products Endpoints', () => {
         context('when there are fabrics in the database', () => {
             beforeEach(insertFixtures)
             beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('fabrics').insert(fabrics))
-        
+            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
 
             it('returns all the fabrics', () => {
                 return supertest(app)
                     .get('/api/fabrics')
                     .expect(200)
                     .expect(res => {
-                        expect(res.body.fabric_type_id).to.eql(fabrics.fabric_type_id)
-                        expect(res.body.brand_id).to.eql(fabrics.brand_id)
+                        expect(res.body.fabric_type_id).to.eql(fabricArray.fabric_type_id)
+                        expect(res.body.brand_id).to.eql(fabricArray.brand_id)
                         expect(res.body.fabric_type).to.eql(fabricTypes.english_name)
-                        expect(res.body.fabric_mill_country).to.eql(fabrics.fabric_mill_country)
-                        expect(res.body.fabric_mill_notes).to.eql(fabrics.fabric_mill_notes)
-                        expect(res.body.dye_print_finish_country).to.eql(fabrics.dye_print_finish_country)
-                        expect(res.body.dye_print_finish_notes).to.eql(fabrics.dye_print_finish_notes)
-                        expect(res.body.approved_by_admin).to.eql(fabrics.approved_by_admin)
+                        expect(res.body.fabric_mill_country).to.eql(fabricArray.fabric_mill_country)
+                        expect(res.body.fabric_mill_notes).to.eql(fabricArray.fabric_mill_notes)
+                        expect(res.body.dye_print_finish_country).to.eql(fabricArray.dye_print_finish_country)
+                        expect(res.body.dye_print_finish_notes).to.eql(fabricArray.dye_print_finish_notes)
+                        expect(res.body.approved_by_admin).to.eql(fabricArray.approved_by_admin)
                     })
             })
         })
@@ -363,8 +383,9 @@ describe('Products Endpoints', () => {
 
     describe('GET /api/products/:product_id/images', () => {
         beforeEach(insertFixtures)
+        beforeEach(() => db.into('product_colors').insert(color))
 
-        const productId = 1
+        const productId = productsPost[0].id
 
         context('when there are images in the database', () => {
             beforeEach(() =>  db.into('product_images').insert(image))
@@ -398,27 +419,25 @@ describe('Products Endpoints', () => {
 
     describe('GET /api/products/:product_id/notions', () => {
         beforeEach(insertFixtures)
-        const productId = 1
+
+        const productId = productsPost[0].id
 
         context('when there are notions in the database', () => {
-            beforeEach(() => {
-                Promise.all([
-                    db.into('brands').insert(brands),
-                    db.into('factories').insert(factories),
-                    db.into('notion_types').insert(notionType),
-                    db.into('fiber_and_material_types').insert(materialTypes),
-                    db.into('categories').insert(categories),
-                    ])
-                    .then(() =>
-                        Promise.all([
-                            db.into('notions').insert(notionsPost),
-                            db.into('fibers_and_materials').insert(materials)
-                    ]))
-                    .then(
-                        Promise.all([
-                            db.into('notions_to_products').insert(productsToNotions),
-                            // db.into('notions_to_fibers_and_materials').insert(notionsToMaterials)
-                    ]))
+            const productsToNotions = { product_id: productId, notion_id: notionsPost.id }
+            const notionsToCerts = { notion_id: notionsPost.id, certification_id: certifications[0].id }
+
+            beforeEach(() => db.into('certifications').insert(certifications))
+            beforeEach(() => db.into('factories').insert(factories))
+            beforeEach(() => db.into('fiber_and_material_types').insert(materialTypes))
+            beforeEach(() => db.into('notion_types').insert(notionType))
+            beforeEach(() => db.into('notions').insert(notionsPost))
+            beforeEach(() => db.into('notions_to_products').insert(productsToNotions))
+            beforeEach(() => db.into('notions_to_certifications').insert(notionsToCerts))
+
+            it('returns all the notions', () => {
+                return supertest(app)
+                    .get(`/api/products/${productId}/notions`)
+                    .expect(200, [ notionsCertsGet ])
             })
         })
 
@@ -432,13 +451,17 @@ describe('Products Endpoints', () => {
         })
 
         context('given a malicious notion', () => {
-            const pTN = { product_id: productId, notion_id: malNotion.id }
-            beforeEach(() =>  db.into('brands').insert(malBrand))
-            beforeEach(() =>  db.into('factories').insert(factories))
-            beforeEach(() =>  db.into('notion_types').insert(malNotionType))
-            beforeEach(() =>  db.into('fiber_and_material_types').insert(malFiberType))
-            beforeEach(() =>  db.into('notions').insert(malNotion))
-            beforeEach(() =>  db.into('notions_to_products').insert(pTN))
+            const productsToNotions = { product_id: productId, notion_id: malNotion.id }
+            const notionsToCerts = { notion_id: malNotion.id, certification_id: 1 }
+
+            beforeEach(() => db.into('brands').insert(malBrand))
+            beforeEach(() => db.into('certifications').insert(certifications))
+            beforeEach(() => db.into('factories').insert(malFactory))
+            beforeEach(() => db.into('fiber_and_material_types').insert(malFiberType))
+            beforeEach(() => db.into('notion_types').insert(malNotionType))
+            beforeEach(() => db.into('notions').insert(malNotion))
+            beforeEach(() => db.into('notions_to_products').insert(productsToNotions))
+            beforeEach(() => db.into('notions_to_certifications').insert(notionsToCerts))
 
             it('removes the attack content', () => {
                 return supertest(app)
@@ -450,7 +473,7 @@ describe('Products Endpoints', () => {
                         expect(res.body[0].material_notes).to.eql(expectedNotion.material_notes)
                     })
             })
-        })            
+        })        
     })
 
     describe('GET /api/products/:product_id/sizes', () => {
@@ -609,12 +632,19 @@ describe('Products Endpoints', () => {
                 cost_in_home_currency: 60,
                 wash_id: 1,
                 dry_id: 1,
+                cmt_notes: '100 employees',
                 color_fieldsets: [
                     {
                         name: 'Daffodil',
-                        descriptionId: 14,
-                        swatchUrl: 'www.swatch.com',
+                        descriptionId: 4,
+                        swatchUrl: 'www.swatch-1.com',
                         imageUrls: ['image-1.com', 'image-2.com']
+                    },
+                    {
+                        name: 'Sky',
+                        descriptionId: 5,
+                        swatchUrl: 'www.swatch-2.com',
+                        imageUrls: ['image-3.com', 'image-4.com']
                     }
                 ],
                 sew_fact: {
@@ -626,7 +656,7 @@ describe('Products Endpoints', () => {
                     factoryId: 1
                 },
                 man_cert_checks: [1],
-                cmt_notes: '100 employees',
+
                 selected_sizes: [1],
                 fabrics: [
                     {
@@ -641,7 +671,6 @@ describe('Products Endpoints', () => {
                         },
                         fiber_array: [
                             {
-                               
                                     fiberTypeId: 1,
                                     percentage: 100,
                                     originId: 1,
@@ -684,7 +713,7 @@ describe('Products Endpoints', () => {
                     expect(res.body.cmt_notes).to.eql(newProduct.cmt_notes)
                     expect(res.body.approved_by_admin).to.eql(newProduct.approved_by_admin)
                     expect(res.body).to.have.property('id')
-                    // expect(res.headers.location).to.have.eql(`/api/products/${res.body.id}`)
+                    expect(res.headers.location).to.have.eql(`/api/products/${res.body.id}`)
                     const expected = new Date().toLocaleString()
                     const actual = new Date(res.body.date_published).toLocaleString()
                     expect(actual).to.eql(expected)
@@ -791,7 +820,8 @@ describe('Products Endpoints', () => {
             product_id: productId,
             color_english_name: 'Lemon',
             color_description_id: 1,
-            swatch_image_url: 'www.lemon-swatch.com'
+            swatch_image_url: 'www.lemon-swatch.com',
+            approved_by_admin: false
         }
 
         it('creates a color, responding with 201 and the new color', () => {           
@@ -799,9 +829,22 @@ describe('Products Endpoints', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/colors`)
                 .send(newColor)
-                .expect(201, {
-                    ...newColor,
-                    id: 1
+                .then(res => {
+                    expect(201)
+                    expect(res.body.approved_by_admin).to.eql(newColor.approved_by_admin)
+                    expect(res.body.color_description_id).to.eql(newColor.color_description_id)
+                    expect(res.body.color_english_name).to.eql(newColor.color_english_name)
+                    expect(res.body.product_id).to.eql(newColor.product_id)
+                    expect(res.body.swatch_image_url).to.eql(newColor.swatch_image_url)
+                    const expected = new Date().toLocaleString()
+                    const actual = new Date(res.body.date_published).toLocaleString()
+                    expect(actual).to.eql(expected)
+                    return res
+                })
+                .then(res => {
+                    supertest(app)
+                        .get(`/api/products/${res.body.id}/colors`)
+                        .expect(res.body)
                 })
         })
 
@@ -832,7 +875,7 @@ describe('Products Endpoints', () => {
     describe('POST /api/products/:product_id/fabrics', () => {
         beforeEach(insertFixtures)
         beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-        beforeEach(() =>  db.into('fabrics').insert(fabrics))
+        beforeEach(() =>  db.into('fabrics').insert(fabricArray))
     
         const productId = 1
 
@@ -845,18 +888,6 @@ describe('Products Endpoints', () => {
             'fabric_id',
             'relationship'
         ]
-
-        // it('creates a product-fabric pair, responding with 201 and the new product-fabric pair', () => {
-        //     return supertest(app)
-        //         .post(`/api/products/${productId}/fabrics`)
-        //         .send(newProductFabricSet)
-        //         .expect(201)
-        //         .expect(res => {
-        //             expect(res.body.product_id).to.eql(productId)
-        //             expect(res.body.fabric_id).to.eql(newProductFabricSet.fabric_id)
-        //             expect(res.body.relationship).to.eql(newProductFabricSet.relationship)
-        //         })
-        // })
 
         requiredFields.forEach(field => {
             const prodFab = {
@@ -1030,7 +1061,7 @@ describe('Products Endpoints', () => {
                     approved_by_admin: true
                 }
                 const expectedProduct = {
-                    ...productsGet[idToUpdate - 1],
+                    ...productsExtendedGet[idToUpdate - 1],
                     ...updateProduct
                 }
 
@@ -1093,7 +1124,7 @@ describe('Products Endpoints', () => {
 
             it('responds with 204 and removes the product', () => {
                 const idToRemove = 1
-                const expectedProducts = productsGet.filter(product => product.id !== idToRemove)
+                const expectedProducts = productsOnlyGet.filter(product => product.id !== idToRemove)
 
                 return supertest(app)
                     .delete(`/api/products/${idToRemove}`)

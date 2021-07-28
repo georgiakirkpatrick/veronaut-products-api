@@ -4,7 +4,7 @@ const { expect } = require('chai')
 const supertest = require('supertest')
 const { makeBrandArray, makeMalBrand } = require('./brands.fixtures')
 const { makeFactoryArray,makeMalFactory } = require('./factories.fixtures')
-const { makeFiberTypeArray,makeFiberArray, makeMalFiber,makeMalFiberType } = require('./fibers.fixtures')
+const { makeFiberTypeArray, makeMalFiberType } = require('./fibers.fixtures')
 const { makeMalNotion, makeNotionArray, makeNotionType, makeMalNotionType, makeNotsToCerts } = require('./notions.fixtures')
 const { makeCertificationArray, makeMalCertification } = require('./certifications.fixtures')
 
@@ -18,7 +18,7 @@ describe('Brands Endpoints', () => {
     const { malFactory } = makeMalFactory()
     const { malFiberType } = makeMalFiberType()
     const { malNotion, expectedNotion } = makeMalNotion()
-    const { notionsPost, notionsGet } = makeNotionArray()
+    const { notionsPost, notionsCertsGet, notionsGet } = makeNotionArray()
     const notsToCerts = makeNotsToCerts()
     const { malNotionType, expectedNotionType } = makeMalNotionType()
     const notionTypes = makeNotionType()
@@ -34,8 +34,18 @@ describe('Brands Endpoints', () => {
     })
 
     after('disconnect from db', () => db.destroy())
-    before('clean the table', () => db.raw('TRUNCATE table fabric_types, brands, fabrics, factories, fiber_and_material_types, fibers_to_factories, fabrics_to_fibers_and_materials, notion_types, certifications, fabrics_to_certifications RESTART IDENTITY CASCADE'))
-    afterEach('cleanup', () => db.raw('TRUNCATE table fabric_types, brands, fabrics, factories, fiber_and_material_types, fibers_to_factories, fabrics_to_fibers_and_materials, notion_types, certifications, fabrics_to_certifications RESTART IDENTITY CASCADE'))
+
+    before('clean the table', () => db.raw(
+        `TRUNCATE table fabric_types, brands, fabrics, factories, fiber_and_material_types, 
+        fibers_to_factories, fabrics_to_fibers_and_materials, notion_types, certifications, 
+        fabrics_to_certifications RESTART IDENTITY CASCADE`
+    ))
+
+    afterEach('cleanup', () => db.raw(
+        `TRUNCATE table fabric_types, brands, fabrics, factories, fiber_and_material_types, 
+        fibers_to_factories, fabrics_to_fibers_and_materials, notion_types, certifications, 
+        fabrics_to_certifications RESTART IDENTITY CASCADE`
+    ))
 
     describe('GET /api/notions', () => {
         context('when there are notions in the database', () => {
@@ -78,7 +88,7 @@ describe('Brands Endpoints', () => {
             beforeEach(() => db.into('brands').insert(malBrand))
             beforeEach(() => db.into('notion_types').insert(malNotionType))
             beforeEach(() => db.into('fiber_and_material_types').insert(malFiberType))
-            beforeEach(() => db.into('factories').insert(factories))
+            beforeEach(() => db.into('factories').insert(malFactory))
             beforeEach(() => db.into('notions').insert(malNotion))
 
             it('removes the XSS attack content', () => (
@@ -116,7 +126,7 @@ describe('Brands Endpoints', () => {
             beforeEach(() => db.into('brands').insert(malBrand))
             beforeEach(() => db.into('notion_types').insert(malNotionType))
             beforeEach(() => db.into('fiber_and_material_types').insert(malFiberType))
-            beforeEach(() => db.into('factories').insert(factories))
+            beforeEach(() => db.into('factories').insert(malFactory))
             beforeEach(() => db.into('notions').insert(malNotion))
 
             it('removes the XSS attack content', () => (
@@ -152,7 +162,7 @@ describe('Brands Endpoints', () => {
             beforeEach(() => db.into('brands').insert(malBrand))
             beforeEach(() => db.into('notion_types').insert(malNotionType))
             beforeEach(() => db.into('fiber_and_material_types').insert(malFiberType))
-            beforeEach(() => db.into('factories').insert(factories))
+            beforeEach(() => db.into('factories').insert(malFactory))
             beforeEach(() => db.into('notions').insert(malNotion))
 
             it('removes the XSS attack content', () => (

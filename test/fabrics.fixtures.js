@@ -1,5 +1,5 @@
-const makeFabricArray = () => (
-    [
+const makeFabricArray = () => {
+    const fabricArray = [
         {
             id: 1,
             brand_id: 1,
@@ -25,7 +25,40 @@ const makeFabricArray = () => (
             date_published: '2020-09-13T07:30:51.564Z'
         }
     ]
-)
+
+    const expectedFabricArray = [
+        {
+            id: 1,
+            brand_id: 1,
+            fabric_mill_country: 1,
+            fabric_mill_id: 1,
+            fabric_mill_notes: 'This is a fabric mill',
+            dye_print_finish_country: 2,
+            dye_print_finish_id: 1,
+            dye_print_finish_notes: 'This is a dye plant',
+            certification_ids: [],
+            fibers: [],
+            approved_by_admin: true,
+            date_published: '2020-09-13T07:30:51.564Z'
+        },
+        {
+            id: 2,
+            brand_id: 1,
+            fabric_mill_country: 2,
+            fabric_mill_id: 1,
+            fabric_mill_notes: 'This is a fabric mill',
+            dye_print_finish_country: 1,
+            dye_print_finish_id: 1,
+            dye_print_finish_notes: 'This is a dye plant',
+            certification_ids: [],
+            fibers: [],
+            approved_by_admin: true,
+            date_published: '2020-09-13T07:30:51.564Z'
+        }
+    ]
+
+    return { fabricArray, expectedFabricArray }
+}
 
 const makeFabricsToCertifications = () => (
     [

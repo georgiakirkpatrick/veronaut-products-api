@@ -20,7 +20,8 @@
 \i seeds/seed.3_notions_to_certifications.sql
 \i seeds/seed.3_notions_to_fibers_and_materials.sql
 \i seeds/seed.3_notions_to_products.sql
+\i seeds/seed.3_product_colors.sql
 \i seeds/seed.3_product_cmts_to_certifications.sql
 \i seeds/seed.3_product_cmts_to_factories.sql
-\i seeds/seed.3_product_images.sql
 \i seeds/seed.3_sizes_to_products.sql
+\i seeds/seed.4_product_images.sql

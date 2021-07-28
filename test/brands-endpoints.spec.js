@@ -44,8 +44,16 @@ describe('Brands Endpoints', () => {
     })
     
     after('disconnect from db', () => db.destroy())
-    before('clean the table', () => db.raw('TRUNCATE table fibers_and_materials, fiber_and_material_types, notions, notion_types, brands, factories RESTART IDENTITY CASCADE'))
-    afterEach('cleanup', () => db.raw('TRUNCATE table fibers_and_materials, fiber_and_material_types, notions, notion_types, brands, factories RESTART IDENTITY CASCADE'))
+
+    before('clean the table', () => db.raw(
+        `TRUNCATE table fibers_and_materials, fiber_and_material_types, notions, notion_types, brands,
+        factories RESTART IDENTITY CASCADE`
+    ))
+
+    afterEach('cleanup', () => db.raw(
+        `TRUNCATE table fibers_and_materials, fiber_and_material_types, notions, notion_types, brands, 
+        factories RESTART IDENTITY CASCADE`
+    ))
 
     describe('GET /api/brands', () => {
         context('Given there are brands in the database', () => {
@@ -83,14 +91,10 @@ describe('Brands Endpoints', () => {
     
     describe('GET /api/brands/:brand_id', () => {
         context('Given brand with id brand_id exists', () => {
-            const brandId = 2
-            const expectedBrand = brands[brandId - 1]
-    
-            beforeEach('insert brands', () => {
-                return db
-                    .into('brands')
-                    .insert(brands)
-            })
+            const brandId = brands[0].id
+            const expectedBrand = brands[0]
+
+            beforeEach(() => db.into('brands').insert(brands))
     
             it('GET /api/brands responds with 200 and the specified brand', () => {
                 return supertest(app)
@@ -208,7 +212,7 @@ describe('Brands Endpoints', () => {
         context('Given a malicious notion', () => {
             const brandId = 666
 
-            beforeEach(() => db.into('factories').insert(factories))
+            beforeEach(() => db.into('factories').insert(malFactory))
             beforeEach(() => db.into('brands').insert(malBrand))
             beforeEach(() => db.into('notion_types').insert(malNotionType))
             beforeEach(() => db.into('fiber_and_material_types').insert(malFiberType))
@@ -219,24 +223,21 @@ describe('Brands Endpoints', () => {
                     .get(`/api/brands/${brandId}/notions`)
                     .expect(200)
                     .then(res => {
-                        expect(res.body[0].notion_factory_notes).to.eql(expectedNotion.notion_factory_notes)
-                        expect(res.body[0].material_notes).to.eql(expectedNotion.material_notes)
+                        expect(res => {
+                            expect(res.body[0].notion_factory_notes).to.eql(expectedNotion.notion_factory_notes)
+                            expect(res.body[0].material_notes).to.eql(expectedNotion.material_notes)
+                        })
                     })
             })
         })
     })
 
-    describe('POST /api/brands', () => {
+    describe('POST /api/brands', () => {          
         it('Creates a brand, responding with 201 and the new brand', () => {
-            const newBrand = {
-                english_name: 'Zara',
-                website: 'www.zara.com',
-                home_currency: 1,
-                size_system: 1,
-                approved_by_admin: true
-            }
-
-            return supertest(app)
+            const newBrand = brands[0]
+            
+            return (
+            supertest(app)
                 .post('/api/brands')
                 .send(newBrand)
                 .expect(201)
@@ -252,10 +253,17 @@ describe('Brands Endpoints', () => {
                     expect(actual).to.eql(expected)
                 })
                 .then(res => {
-                    supertest(app)
+                    return supertest(app)
                         .get(`/api/brands/${res.body.id}`)
-                        .expect(res.body)
+                        .expect(res => {
+                            expect(res.body.english_name).to.eql(newBrand.english_name)
+                            expect(res.body.website).to.eql(newBrand.website)
+                            expect(res.body.home_currency).to.eql(newBrand.home_currency)
+                            expect(res.body.approved_by_admin).to.eql(newBrand.approved_by_admin)
+                        })
                 })
+            )    
+
         })
             
         const requiredFields = [
@@ -323,11 +331,10 @@ describe('Brands Endpoints', () => {
                     .patch(`/api/brands/${idToUpdate}`)
                     .send(updateBrand)
                     .expect(204)
-                    .then(res => {
-                        supertest(app)
-                            .get(`/api/brands/${idToUpdate}`)
-                            .expect(expectedBrand)
-                    })
+                    .then(res => supertest(app)
+                        .get(`/api/brands/${idToUpdate}`)
+                        .expect(expectedBrand)
+                    )
             })
 
             it('responds with 400 when no required fields are supplied', () => {
@@ -355,12 +362,12 @@ describe('Brands Endpoints', () => {
                     .send({
                         ...updateBrand,
                         fieldToIgnore: 'should not be in the GET response'})
-                .expect(204)
-                .then(res => {
-                    supertest(app)
-                        .get(`/api/brands/${idToUpdate}`)
-                        .expect(expectedBrand)
-                })
+                    .expect(204)
+                    .then(res => {
+                        return supertest(app)
+                            .get(`/api/brands/${idToUpdate}`)
+                            .expect(expectedBrand)
+                    })
             })
         })
 

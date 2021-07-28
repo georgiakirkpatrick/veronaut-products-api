@@ -3,5 +3,7 @@ CREATE TABLE product_colors (
     product_id INTEGER REFERENCES products(id) ON DELETE CASCADE NOT NULL,
     color_description_id INTEGER NOT NULL,
     color_english_name TEXT NOT NULL,
-    swatch_image_url TEXT
+    swatch_image_url TEXT,
+    approved_by_admin BOOLEAN DEFAULT false,
+    date_published TIMESTAMPTZ DEFAULT now() NOT NULL
 );

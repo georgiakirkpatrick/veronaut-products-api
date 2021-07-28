@@ -24,7 +24,24 @@ const ProductsService = {
 
     getProductById(knex, id) {
         return knex('products')
-            .select('*')
+            .join('brands', {'products.brand_id': 'brands.id'})
+            .select(
+                'products.id',
+                'products.english_name',
+                'products.brand_id',
+                'brands.english_name as brand_name',
+                'brands.home_currency as brand_currency',
+                'products.category_id',
+                'products.feature_image_url',
+                'products.multiple_color_options',
+                'products.cost_in_home_currency',
+                'products.product_url',
+                'products.wash_id',
+                'products.dry_id',
+                'products.cmt_notes',
+                'products.approved_by_admin',
+                'products.date_published'
+            )
             .where('products.id', id)
             .first()
     },
@@ -49,9 +66,9 @@ const ProductsService = {
         return knex('products')
             .where({ id })
             .update(newProductFields)
-    },  
+    },
 
-//Certifications
+    //Certifications
     getCertificationsForProduct(knex, productId) {
         return knex('product_cmts_to_certifications')
             .join('certifications', {'product_cmts_to_certifications.certification_id': 'certifications.id'})
@@ -69,7 +86,7 @@ const ProductsService = {
             })
     },
 
-// Colors and Images
+    // Colors
     getColorsForProduct(knex, productId) {
         return knex('product_colors')
             .select(
@@ -77,7 +94,9 @@ const ProductsService = {
                 'product_colors.product_id',
                 'product_colors.color_description_id',
                 'product_colors.color_english_name',
-                'product_colors.swatch_image_url'
+                'product_colors.swatch_image_url',
+                'product_colors.approved_by_admin',
+                'product_colors.date_published'
             )
             .where('product_colors.product_id', productId)
     },
@@ -90,6 +109,22 @@ const ProductsService = {
             .then(response => {
                 return response[0]
             })
+    },
+
+    // COLORS AND IMAGES COMBINED
+    getColorsImages(knex, productId) {
+        return knex('product_colors')
+            .join('product_images', {'product_colors.id': 'product_images.color_id'})
+            .select(
+                'product_colors.id as color_id',
+                'product_colors.color_description_id',
+                'product_colors.color_english_name',
+                'product_colors.swatch_image_url',
+                'product_images.product_image_url',
+                'product_images.id as image_id',
+                'product_images.primary_image_for_color'
+            )
+            .where('product_colors.product_id', productId)
     },
 
     // Images
@@ -111,13 +146,19 @@ const ProductsService = {
     // Fabrics
     getFabricsForProduct(knex, productId) {
         return knex('fabrics')
-            .join('fabrics_to_products', {'fabrics.id': 'fabrics_to_products.product_id'})
+            .join('fabrics_to_products', {'fabrics.id': 'fabrics_to_products.fabric_id'})
             .select(
                 'fabrics.id',
+                'fabrics.brand_id',
+                'fabrics_to_products.relationship',
                 'fabrics.fabric_mill_country',
+                'fabrics.fabric_mill_id',
                 'fabrics.fabric_mill_notes',
                 'fabrics.dye_print_finish_country',
-                'fabrics.dye_print_finish_notes'
+                'fabrics.dye_print_finish_id',
+                'fabrics.dye_print_finish_notes',
+                'fabrics.approved_by_admin',
+                'fabrics.date_published'
             )
             .where('product_id', productId)
     },
@@ -195,12 +236,14 @@ const ProductsService = {
         return knex('notions')
             .join('notion_types', {'notions.notion_type_id': 'notion_types.id'})
             .join('notions_to_products', {'notions.id': 'notions_to_products.notion_id'})
+            .join('products', {'notions_to_products.product_id': 'products.id'})
             .join('factories', {'notions.manufacturer_id': 'factories.id'})
             .join('fiber_and_material_types', {'notions.material_type_id': 'fiber_and_material_types.id'})
+            .join('notions_to_certifications', {'notions.id': 'notions_to_certifications.notion_id'})
             .select(
                 'notions.id',
                 'notions.notion_type_id',
-                'notion_types.english_name as type',
+                'notion_types.english_name as notion_type',
                 'notions.brand_id',
                 'notions.manufacturer_country',
                 'notions.manufacturer_id',
@@ -209,6 +252,7 @@ const ProductsService = {
                 'notions.material_origin_id',
                 'notions.material_producer_id',
                 'notions.material_notes',
+                // 'notions_to_certifications.certification_id',
                 'notions.approved_by_admin',
                 'notions.date_published'
             )

@@ -6,7 +6,8 @@ const fibersRouter = express.Router()
 const jsonParser = express.json()
 
 const serializeCertifications = certification => ({
-    id: certification.id,
+    certification_id: certification.certification_id,
+    fiber_id: certification.fiber_id,
     english_name: xss(certification.english_name),
     website: xss(certification.website),
     approved_by_admin: certification.approved_by_admin,
@@ -185,7 +186,6 @@ fibersRouter
             approved_by_admin: res.fiber.approved_by_admin,
             date_published: res.fiber.date_published
         })
-        .catch(next)
     })
     .patch(jsonParser, (req, res, next) => {
         const {
@@ -258,7 +258,7 @@ fibersRouter
     })
     .get((req, res, next) => {
         FibersService
-            .getCertificationsForFiber(
+            .getFibCerts(
                 req.app.get('db'),
                 req.params.fiber_id
             )

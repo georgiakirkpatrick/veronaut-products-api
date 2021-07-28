@@ -15,7 +15,7 @@ describe('Fibers Endpoints', () => {
     const brands = makeBrandArray()
     const certifications = makeCertificationArray()
     const factories = makeFactoryArray()
-    const { malFactory, expectedFactory } = makeMalFactory()
+    const { malFactory } = makeMalFactory()
     const { fibersPost, fibersGet } = makeFiberArray()
     const fibersToCerts = makeFiberToCertArray()
     const fiberToMalCert = makeFiberToMalCertArray()
@@ -180,7 +180,13 @@ describe('Fibers Endpoints', () => {
                     .get(`/api/fibers/${fiberId}/certifications`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body).to.eql(certifications)
+                        expect(res.body.certification_id).to.eql(certifications.id)
+                        expect(res.body.fiber_id).to.eql(fibersPost.id)
+                        expect(res.body.approved_by_admin).to.eql(certifications.approved_by_admin)
+                        expect(res.body.date_published).to.eql(certifications.date_published)
+                        expect(res.body.english_name).to.eql(certifications.english_name)
+                        expect(res.body.website).to.eql(certifications.website)
+
                     })
             })
         })

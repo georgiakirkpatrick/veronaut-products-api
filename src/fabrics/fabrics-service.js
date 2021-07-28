@@ -33,7 +33,8 @@ const FabricsService = {
 
     // Fabric Types
         getAllFabricTypes(knex) {
-            return knex('fabric_types').select('*')
+            return knex('fabric_types')
+                .select('*')
         },
 
         insertFabricType(knex, newFabricType) {
@@ -69,13 +70,14 @@ const FabricsService = {
         },
 
     // Fibers
-        getFibersForFabric(knex, fabricId) {
-
-            return knex('fabrics_to_fibers_and_materials')
+        getFabFibers(knex, fabricId) {
+            return knex('fabrics')
+                .join('fabrics_to_fibers_and_materials', {'fabrics.id': 'fabrics_to_fibers_and_materials.fabric_id'})
                 .join('fibers_and_materials', {'fabrics_to_fibers_and_materials.fiber_or_material_id': 'fibers_and_materials.id'})
                 .join('fiber_and_material_types', {'fibers_and_materials.fiber_or_material_type_id': 'fiber_and_material_types.id'})
                 .join('factories', {'fibers_and_materials.producer_id': 'factories.id'})
                 .select(
+                    'fabrics_to_fibers_and_materials.percent_of_fabric',
                     'fibers_and_materials.id',
                     'fibers_and_materials.brand_id',
                     'fibers_and_materials.fiber_or_material_type_id as fiber_type_id',
@@ -90,7 +92,7 @@ const FabricsService = {
                     'fibers_and_materials.approved_by_admin',
                     'fibers_and_materials.date_published'
                 )
-                .where('fabrics_to_fibers_and_materials.fabric_id', fabricId)
+                .where('fabrics.id', fabricId)
         },
         
         insertFabricFiber(knex, newSet) {
@@ -104,15 +106,28 @@ const FabricsService = {
         },
 
     // Certifications
-        getCertificationsForFabric(knex, fabricId) {
+        // getCertificationsForFabric(knex, fabricId) {
+        //     return knex('fabrics_to_certifications')
+        //         .join('certifications', {'fabrics_to_certifications.certification_id': 'certifications.id'})
+        //         .select(
+        //             'certifications.id',
+        //             'certifications.english_name',
+        //             'certifications.website',
+        //             'approved_by_admin',
+        //             'date_published'
+        //         )
+        //         .where('fabric_id', fabricId)
+        // },
+
+        getFabCerts(knex, fabricId) {
             return knex('fabrics_to_certifications')
                 .join('certifications', {'fabrics_to_certifications.certification_id': 'certifications.id'})
                 .select(
                     'certifications.id',
                     'certifications.english_name',
                     'certifications.website',
-                    'approved_by_admin',
-                    'date_published'
+                    'certifications.approved_by_admin',
+                    'certifications.date_published'
                 )
                 .where('fabric_id', fabricId)
         },

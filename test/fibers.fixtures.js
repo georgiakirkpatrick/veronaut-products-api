@@ -1,26 +1,3 @@
-// const makeBrandsArray = () => {
-//     return [
-//         {
-//             id: 1,
-//             english_name: 'Sezane',
-//             home_currency: 2,
-//             website: 'www.sezane.com',
-//             size_system: 1,
-//             approved_by_admin: true,
-//             date_published: '2020-09-13T07:30:51.564Z'
-//         },
-//         {
-//             id: 2,
-//             english_name: 'Silvania',
-//             home_currency: 1,
-//             website: 'www.silvania.com',
-//             size_system: 1,
-//             approved_by_admin: true,
-//             date_published: '2020-09-13T07:30:51.564Z'
-//         }
-//     ]
-// }
-
 const makeFiberArray = () => {
     const fibersPost = [
         {
@@ -57,7 +34,6 @@ const makeFiberArray = () => {
             fiber_type: 'Cotton',
             class: 'naturally occuring cellulosic fiber',
             producer: 'The Orange Concept',
-            // producer_notes: 'family-owned',
             production_notes: 'Notes',
             producer_website: "www.orange.com"
         },
@@ -73,7 +49,6 @@ const makeFiberArray = () => {
             fiber_type: 'Cotton',
             class: 'naturally occuring cellulosic fiber',
             producer: 'The Orange Concept',
-            // producer_notes: 'family-owned',
             production_notes: 'Notes',
             producer_website: "www.orange.com"
         }

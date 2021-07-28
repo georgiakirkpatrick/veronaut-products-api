@@ -9,7 +9,7 @@ const serializeFactories = factory => ({
     id: factory.id,
     english_name: xss(factory.english_name),
     country: factory.country,
-    website: xss(factory.website),
+    website: factory.website ? xss(factory.website) : null,
     notes: xss(factory.notes),
     approved_by_admin: factory.approved_by_admin,
     date_published: factory.date_published

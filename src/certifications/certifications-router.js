@@ -65,7 +65,6 @@ certificationsRouter
             .catch(next)
     })
 
-
 certificationsRouter
     .route('/:certification_id')
     .all((req, res, next) => {
@@ -86,7 +85,7 @@ certificationsRouter
     })
     .get((req, res, next) => {
         res.json(serializeCertifications(res.certification))
-        .catch(next)
+        next()
     })
     .patch(jsonParser, (req, res, next) => {
         const {

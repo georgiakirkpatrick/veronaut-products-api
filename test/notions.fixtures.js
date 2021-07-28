@@ -4,19 +4,19 @@ const makeMalNotion = () => {
         notion_type_id: 666,
         brand_id: 666,
         manufacturer_country: 1,
-        manufacturer_id: 1,
+        manufacturer_id: 666,
         manufacturer_notes: 'These are the <a href="www.notes.com">notes</a>',
         material_type_id: 666,
         material_origin_id: 1,
-        material_producer_id: 1,
+        material_producer_id: 666,
         material_notes: 'These are the <a href="www.notes.com">notes</a>',
         approved_by_admin: true,
         date_published: '2020-09-13T07:30:51.564Z'
     }
-
+    
     const expectedNotion = {
         ...malNotion,
-        notion_type: "&lt;a&gt;button&lt;/a&gt;",
+        notion_type: '&lt;a&gt;button&lt;/a&gt;',
         manufacturer_notes: 'These are the &lt;a href="www.notes.com"&gt;notes&lt;/a&gt;',
         material_notes: 'These are the &lt;a href="www.notes.com"&gt;notes&lt;/a&gt;'
     }
@@ -30,9 +30,9 @@ const makeMalNotion = () => {
 const makeMalNotionType = () => {
     const malNotionType = {
         id: 666,
-        english_name: "<a>button</a>",
+        english_name: '<a>button</a>',
         approved_by_admin: true,
-        date_published: "2020-10-01T23:47:20.381Z"
+        date_published: '2020-10-01T23:47:20.381Z'
     }
 
     const expectedNotionType = {
@@ -59,24 +59,39 @@ const makeNotionArray = () => {
         material_producer_id: 1,
         material_notes: null,
         approved_by_admin: true,
-        date_published: "2020-10-01T23:47:20.387Z"
+        date_published: '2020-10-01T23:47:20.387Z'
+    }
+
+    const notionsCertsGet = {
+        ...notionsPost,
+        notion_type: 'button',
+        certification_ids: [
+            {
+                approved_by_admin: true,
+                date_published: '2020-09-13T07:30:51.564Z',
+                english_name: 'Organic',
+                id: 1,
+                website: 'www.organic.com'
+            }
+        ]
+      
     }
 
     const notionsGet = {
         ...notionsPost,
-        notion_type: "button"
+        notion_type: 'button'
     }
 
-    return { notionsPost, notionsGet }
+    return { notionsPost, notionsCertsGet, notionsGet }
 }
 
 const makeNotionType = () => (
     [
         {
             id: 1,
-            english_name: "button",
+            english_name: 'button',
             approved_by_admin: true,
-            date_published: "2020-10-01T23:47:20.381Z"
+            date_published: '2020-10-01T23:47:20.381Z'
         }
     ]
 )   

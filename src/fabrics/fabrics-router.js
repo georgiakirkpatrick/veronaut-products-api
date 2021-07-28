@@ -2,6 +2,8 @@ const path = require('path')
 const express = require('express')
 const xss = require('xss').escapeHtml
 const FabricsService = require('./fabrics-service')
+// const FactoriesService = require('../factories/factories-service')
+// const FibersService = require('../fibers/fibers-service')
 const fabricsRouter = express.Router()
 const jsonParser = express.json()
 
@@ -108,7 +110,7 @@ fabricsRouter
             fabric_mill_country,
             fabric_mill_id,
             dye_print_finish_country,
-            dye_print_finish_id,
+            dye_print_finish_id
         }
 
         for (const [key, value] of Object.entries(requiredFields)) {
@@ -133,7 +135,7 @@ fabricsRouter
             })
             .catch(next)
     })
-
+   
 fabricsRouter
     .route('/fabric-types')
     .get((req, res, next) => {
@@ -142,6 +144,7 @@ fabricsRouter
                 req.app.get('db')
             )
             .then(fabricTypes => {
+                console.log('fabricTypes', fabricTypes)
                 res.json(fabricTypes.map(serializeFabricTypes))
             })
             .catch(next)
@@ -178,6 +181,7 @@ fabricsRouter
                 newFabricType
             )
             .then(fabricType => {
+                console.log('fabricType', fabricType)
                 res
                     .status(201)
                     .location(path.posix.join(req.originalUrl + `/${fabricType.id}`))
@@ -186,6 +190,7 @@ fabricsRouter
             })
             .catch(next)
     })
+
 
 fabricsRouter
     .route('/notion-types')
@@ -254,19 +259,73 @@ fabricsRouter
             next()
         })
     })
-    .get((req, res, next) => {
-        res.json({
-            id: res.fabric.id,
-            brand_id: res.fabric.brand_id,
-            fabric_mill_country: res.fabric.fabric_mill_country,
-            fabric_mill_id: res.fabric.fabric_mill_id,
-            fabric_mill_notes: xss(res.fabric.fabric_mill_notes),
-            dye_print_finish_country: res.fabric.dye_print_finish_country,
-            dye_print_finish_id: res.fabric.dye_print_finish_id,
-            dye_print_finish_notes: xss(res.fabric.dye_print_finish_notes),
-            approved_by_admin: res.fabric.approved_by_admin,
-            date_published: res.fabric.date_published
-        })
+    .get(async (req, res, next) => {
+        try {
+            const fabCerts = await FabricsService.getFabCerts(
+                req.app.get('db'),
+                res.fabric.id
+            )
+
+            const fabFibs = await FabricsService.getFabFibers(
+                req.app.get('db'),
+                res.fabric.id
+            )
+
+            const makeFibArray = () => {
+                const newFibArray = []
+                fabFibs.map(fiber => {
+                    console.log('makeFibArray fiber', fiber)
+                    const fibIndex = newFibArray.findIndex(fib => fib.id === fiber.id)
+                    if (fibIndex === -1) {
+                        const newFiber = {
+                            approved_by_admin: fiber.approved_by_admin,
+                            brand_id: fiber.brand_id,
+                            certification_ids: [fiber.certification_id],
+                            class: fiber.class,
+                            date_published: fiber.date_published,
+                            factory_country: fiber.factory_country,
+                            fiber_type: fiber.fiber_type,
+                            fiber_type_id: fiber.fiber_type_id,
+                            id: fiber.id,
+                            percent_of_fabric: fiber.percent_of_fabric,
+                            producer: fiber.producer,
+                            producer_country: fiber.producer_country,
+                            producer_id: fiber.producer_id,
+                            producer_website: fiber.producer_website,
+                            production_notes: fiber.production_notes
+                        }
+
+                        console.log('newFiber', newFiber)
+                        newFibArray.push(newFiber)
+                    } else {
+                        newFibArray[fibIndex].certification_ids.push(fiber.certification_id)
+                    }
+                })
+                return newFibArray
+            }
+            
+            const fabric = {
+                id: res.fabric.id,
+                brand_id: res.fabric.brand_id,
+                relationship: res.fabric.relationship,
+                fabric_mill_country: res.fabric.fabric_mill_country,
+                fabric_mill_id: res.fabric.fabric_mill_id,
+                fabric_mill_notes: xss(res.fabric.fabric_mill_notes),
+                dye_print_finish_country: res.fabric.dye_print_finish_country,
+                dye_print_finish_id: res.fabric.dye_print_finish_id,
+                dye_print_finish_notes: xss(res.fabric.dye_print_finish_notes),
+                certification_ids: fabCerts.map(cert => cert.certification_id),
+                fibers: makeFibArray(),
+                approved_by_admin: res.fabric.approved_by_admin,
+                date_published: res.fabric.date_published
+            }
+
+            res.json(fabric)
+            next()
+        } catch (e) {
+            console.log('catch POST "/:fabric_id" ', e)
+            next(e)
+        }
     })
     .patch(jsonParser, (req, res, next) => {
         const {
@@ -323,75 +382,6 @@ fabricsRouter
     })
 
 fabricsRouter
-    .route('/:fabric_id/fibers')
-    .all((req, res, next) => {
-        FabricsService.getFabricById(
-            req.app.get('db'),
-            req.params.fabric_id
-        )
-        .then(fabric => {
-            if (!fabric) {
-                return res.status(404).json({
-                    error: { message: `Fabric does not exist` }
-                })
-            }
-            res.fabric = fabric
-            next()
-        })
-        .catch(next)
-    })
-    .get((req, res, next) => {
-        FabricsService
-            .getFibersForFabric(
-                req.app.get('db'),
-                req.params.fabric_id
-            )
-            .then(fibers => {
-                res.json(fibers.map(serializeFibers))
-            })
-            .catch(next)
-    })
-    .post(jsonParser, (req, res, next) => {
-        const fabricId = res.fabric.id
-
-        const {
-            fiber_or_material_id, 
-            percent_of_fabric
-        } = req.body
-
-        const newFabricFiber = {
-            fabric_id: fabricId, 
-            fiber_or_material_id, 
-            percent_of_fabric
-        }
-
-        const requiredFields = {            
-            fiber_or_material_id
-        }
-
-        for (const [key, value] of Object.entries(requiredFields)) {
-            if (value === undefined) {
-                return res.status(400).json({
-                    error: { message: `Missing '${key}' in request body`}
-                })
-            }
-        }
-
-        FabricsService
-            .insertFabricFiber(
-                req.app.get('db'),
-                newFabricFiber
-            )
-            .then(fabricFiber => {
-                res
-                    .status(201)
-                    .location(path.posix.join(req.originalUrl))
-                    .json(fabricFiber)
-            })
-            .catch(next)
-    })
-
-fabricsRouter
     .route('/:fabric_id/certifications')
     .all((req, res, next) => {
         FabricsService.getFabricById(
@@ -412,25 +402,27 @@ fabricsRouter
     })
     .get((req, res, next) => {
         FabricsService
-            .getCertificationsForFabric(
+            .getFabCerts(
                 req.app.get('db'),
                 req.params.fabric_id
             )
             .then(certifications => {
+                console.log('certifications', certifications)
                 res.json(certifications.map(serializeCertifications))
             })
             .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
-        const {fabric_id, certification_id} = req.body
-        const newFabricCertification = {fabric_id, certification_id}
+        const {certification_id} = req.body
+        const newFabricCertification = {
+            fabric_id: req.params.fabric_id, 
+            certification_id
+        }
         
-        for (const [key, value] of Object.entries(newFabricCertification)) {
-            if (value === undefined) {
-                return res.status(400).json({
-                    error: { message: `Missing '${key}' in request body`}
-                })
-            }
+        if (certification_id === undefined) {
+            return res.status(400).json({
+                error: { message: `Missing 'certification_id' in request body`}
+            })
         }
 
         FabricsService
@@ -478,8 +470,8 @@ fabricsRouter
             .catch(next)
     })
     .post(jsonParser, (req, res, next) => {
-        const {fabric_id, factory_id} = req.body
-        const newFabricFactory = {fabric_id, factory_id}
+        const {factory_id} = req.body
+        const newFabricFactory = {fabric_id: req.params.fabric_id, factory_id}
         
         for (const [key, value] of Object.entries(newFabricFactory)) {
             if (value === undefined) {
@@ -500,6 +492,81 @@ fabricsRouter
                     .status(201)
                     .location(path.posix.join(req.originalUrl))
                     .json(fabricFactory)
+            })
+            .catch(next)
+
+            
+    })
+
+fabricsRouter
+    .route('/:fabric_id/fibers')
+    .all((req, res, next) => {
+        FabricsService.getFabricById(
+            req.app.get('db'),
+            req.params.fabric_id
+        )
+        .then(fabric => {
+            console.log('fabric', fabric)
+            if (!fabric) {
+                return res.status(404).json({
+                    error: { message: `Fabric does not exist` }
+                })
+            }
+            res.fabric = fabric
+            next()
+        })
+        .catch(next)
+    })
+    .get(async (req, res, next) => {
+        try {
+            const fabFibers = await FabricsService.getFabFibers(
+                req.app.get('db'),
+                req.params.fabric_id
+            )
+  
+            res.json(fabFibers.map(serializeFibers))
+        } catch (e) {
+            console.log('catch /:fabric_id/fibers get', e)
+            next(e)
+        }
+        
+    })
+    .post(jsonParser, (req, res, next) => {
+        const fabricId = res.fabric.id
+
+        const {
+            fiber_or_material_id, 
+            percent_of_fabric
+        } = req.body
+
+        const newFabricFiber = {
+            fabric_id: fabricId, 
+            fiber_or_material_id, 
+            percent_of_fabric
+        }
+
+        const requiredFields = {            
+            fiber_or_material_id
+        }
+
+        for (const [key, value] of Object.entries(requiredFields)) {
+            if (value === undefined) {
+                return res.status(400).json({
+                    error: { message: `Missing '${key}' in request body`}
+                })
+            }
+        }
+
+        FabricsService
+            .insertFabricFiber(
+                req.app.get('db'),
+                newFabricFiber
+            )
+            .then(fabricFiber => {
+                res
+                    .status(201)
+                    .location(path.posix.join(req.originalUrl))
+                    .json(fabricFiber)
             })
             .catch(next)
     })

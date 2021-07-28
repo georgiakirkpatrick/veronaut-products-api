@@ -76,17 +76,18 @@ const FibersService = {
         },
 
     // Certifications
-        getCertificationsForFiber(knex, fiber_id) {
+        getFibCerts(knex, fiber_id) {
             return knex('fibers_to_certifications')
                 .join('certifications', {'fibers_to_certifications.certification_id': 'certifications.id'})
                 .select(
-                    'certifications.id',
+                    'fibers_to_certifications.fiber_or_material_id as fiber_id',
+                    'certifications.id as certification_id',
                     'certifications.english_name',
                     'certifications.website',
                     'certifications.approved_by_admin',
                     'certifications.date_published'
                 )
-                .where('fiber_or_material_id', fiber_id)
+                .where('fibers_to_certifications.fiber_or_material_id', fiber_id)
         },
 
         insertFiberCert(knex, fibCertPair) {

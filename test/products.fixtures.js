@@ -4,7 +4,9 @@ const makeColor = () => (
         product_id: 1,
         color_description_id: 1,
         color_english_name: 'Lemon',
-        swatch_image_url: 'www.lemon-swatch.com'
+        swatch_image_url: 'www.lemon-swatch.com',
+        approved_by_admin: true,
+        date_published: "2020-09-13T07:30:51.564Z"
     }
 )
 
@@ -20,8 +22,10 @@ const makeImage = () => (
         id: 1,
         product_id: 1,
         product_image_url: 'www.brand.com/product/image',
-        color_description_id: 1,
-        primary_image_for_color: true
+        color_id: 1,
+        primary_image_for_color: true,
+        approved_by_admin: true,
+        date_published: "2020-09-13T07:30:51.564Z"
     }
 )
 
@@ -29,9 +33,11 @@ const makeMalImage = () => {
     const malImage = {
         id: 1,
         product_id: 1,
+        color_id: 1,
         product_image_url: '<a href="www.brand.com/product/image">Evil</a>',
-        color_description_id: 1,
-        primary_image_for_color: true
+        primary_image_for_color: true,
+        approved_by_admin: true,
+        date_published: "2020-09-13T07:30:51.564Z"
     }
     
     const expectedImage = {
@@ -151,34 +157,77 @@ const makeProductArray = () => {
         }
     ]
 
-    const productsGet = [
+    const productsOnlyGet = [
         {
             ...productsPost[0],
-            brand_name: 'Sezane',
             brand_currency: 3,
+            brand_name: 'Sezane',
             cmt_notes: null
         },
         {
             ...productsPost[1],
-            brand_name: 'Sezane',
             brand_currency: 3,
-            cmt_notes: null,
+            brand_name: 'Sezane',
+            cmt_notes: null
         },
         {
             ...productsPost[2],
-            brand_name: 'Sezane',
             brand_currency: 3,
+            brand_name: 'Sezane',
             cmt_notes: null
         },
         {
             ...productsPost[3],
-            brand_name: 'Sezane',
             brand_currency: 3,
+            brand_name: 'Sezane',
             cmt_notes: null
         }
     ]
 
-    return { productsPost, productsGet }
+    const productsExtendedGet = [
+        {
+            ...productsPost[0],
+            brand_currency: 3,
+            brand_name: 'Sezane',
+            certification_array: [],
+            cmt_factory_array: [],
+            cmt_notes: null,
+            color_array: [],
+            notion_array: []
+        },
+        {
+            ...productsPost[1],
+            brand_currency: 3,
+            brand_name: 'Sezane',
+            certification_array: [],
+            cmt_factory_array: [],
+            cmt_notes: null,
+            color_array: [],
+            notion_array: []
+        },
+        {
+            ...productsPost[2],
+            brand_currency: 3,
+            brand_name: 'Sezane',
+            certification_array: [],
+            cmt_factory_array: [],
+            cmt_notes: null,
+            color_array: [],
+            notion_array: []
+        },
+        {
+            ...productsPost[3],
+            brand_currency: 3,
+            brand_name: 'Sezane',
+            certification_array: [],
+            cmt_factory_array: [],
+            cmt_notes: null,
+            color_array: [],
+            notion_array: []
+        }
+    ]
+
+    return { productsPost, productsOnlyGet, productsExtendedGet }
 }
 
 const makeProductToCertificationArray = () => (

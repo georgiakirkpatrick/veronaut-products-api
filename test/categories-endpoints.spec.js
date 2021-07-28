@@ -11,7 +11,7 @@ describe('Categories Endpoints', function() {
     const brands = makeBrandArray()
     const wash = makeWash()
     const dry = makeDry()
-    const { productsPost, productsGet } = makeProductArray()
+    const { productsPost, productsExtendedGet } = makeProductArray()
     
     let db
 
@@ -57,14 +57,21 @@ describe('Categories Endpoints', function() {
             beforeEach(() => db.into('wash_instructions').insert(wash))
             beforeEach(() => db.into('dry_instructions').insert(dry))
             beforeEach(() => db.into('products').insert(productsPost))
+            beforeEach(() => db.into('certifications').insert())
+            beforeEach(() => db.into('product_cmts_to_certifications').insert())
+            beforeEach(() => db.into('factories').insert())
+            beforeEach(() => db.into('product_cmts_to_factories').insert())
+            beforeEach(() => db.into('product_colors').insert())
+            beforeEach(() => db.into('product_images').insert())
+            beforeEach(() => db.into('notions').insert())
 
             it('it responds with 200 and all the products for the specified category', () => {
                 const categoryId = 1
 
                 return supertest(app)
                     .get(`/api/categories/${categoryId}/products`)
-                    .expect(200, productsGet)
-            })
+                    .expect(200, productsExtendedGet)
+            })      
         })
 
         context('Given no products', () => {
