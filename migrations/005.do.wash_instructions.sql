@@ -10,8 +10,8 @@ INSERT INTO wash_instructions
 VALUES
     ('Not disclosed', true),
     ('Do not wash', true),
-    ('Machine wash cold (<85°F/<30°C)', true),
-    ('Machine wash warm (<105°F/<40°C)', true),
+    ('Machine wash cold (≤85°F/≤30°C)', true),
+    ('Machine wash warm (≤105°F/≤40°C)', true),
     ('Machine wash hot (≥140°F/≥60°C)', true),
     ('Hand wash', true),
     ('Dry clean only', true),

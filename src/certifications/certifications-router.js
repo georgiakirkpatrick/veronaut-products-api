@@ -5,13 +5,14 @@ const CertificationsService = require('./certifications-service')
 const certificationsRouter = express.Router()
 const jsonParser = express.json()
 
-const serializeCertifications = certification => ({
+const serializeCertifications = certification => {
+    return ({
     id: certification.id,
     english_name: xss(certification.english_name),
     website: xss(certification.website),
     approved_by_admin: certification.approved_by_admin,
     date_published: certification.date_published
-})
+})}
 
 certificationsRouter
     .route('/')
@@ -39,8 +40,7 @@ certificationsRouter
         }
 
         const requiredFields = {
-            english_name,
-            website        
+            english_name
         }
 
         for (const [key, value] of Object.entries(requiredFields)) {

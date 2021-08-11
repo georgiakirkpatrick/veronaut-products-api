@@ -12,13 +12,13 @@ const serializeProductGet = product => {
     return {
         id: product.id,
         english_name: xss(product.english_name),
+        brand_currency: product.brand_currency,
         brand_id: product.brand_id,
         brand_name: product.brand_name,
         category_id: product.category_id,
         product_url: xss(product.product_url),
         feature_image_url: xss(product.feature_image_url),
         multiple_color_options: product.multiple_color_options,
-        brand_currency: product.home_currency,
         cost_in_home_currency: product.cost_in_home_currency,
         wash_id: product.wash_id,
         dry_id: product.dry_id,
@@ -120,6 +120,22 @@ const serializeImages = image => ({
     primary_image_for_color: image.primary_image_for_color,
     approved_by_admin: image.approved_by_admin,
     date_published: image.date_published
+})
+
+const serializeNotions = notion => ({
+    id: notion.id,
+    notion_type_id: notion.notion_type_id,
+    notion_type: notion.type ? xss(notion.type) : null,
+    brand_id: notion.brand_id,
+    manufacturer_country: notion.manufacturer_country,
+    manufacturer_id: notion.manufacturer_id,
+    manufacturer_notes: notion.manufacturer_notes ? xss(notion.manufacturer_notes) : null,
+    material_type_id: notion.material_type_id,
+    material_origin_id: notion.material_origin_id,
+    material_producer_id: notion.material_producer_id,
+    material_notes: notion.material_notes ? xss(notion.material_notes) : null,
+    approved_by_admin: notion.approved_by_admin,
+    date_published: notion.date_published
 })
 
 const serializeSizes = size => ({
@@ -295,6 +311,7 @@ productsRouter
 
                 // INSERT COLORS AND IMAGES
                 if (colorFieldsets.length > 0) {
+
                     for (const colorFieldset of colorFieldsets) {
                         const colorDetails = {
                             'product_id': product.id,
@@ -388,17 +405,17 @@ productsRouter
 
                 // INSERT FABRICS
                 fabricArray.forEach(async fabric => {
-                    const fabricDetails = {
-                        "brand_id": product.brand_id,
-                        "fabric_mill_country": fabric.fabric_details.wovKnitCountryId,
-                        "fabric_mill_id": fabric.fabric_details.wovKnitId,
-                        "fabric_mill_notes": fabric.fabric_details.wovKnitNotes, 
-                        "dye_print_finish_country": fabric.fabric_details.dyeFinCountryId,
-                        "dye_print_finish_id": fabric.fabric_details.dyeFinId,
-                        "dye_print_finish_notes": fabric.fabric_details.dyeFinNotes
-                    }
-
                     try {
+                        const fabricDetails = {
+                            "brand_id": product.brand_id,
+                            "fabric_mill_country": fabric.fabric_details.wovKnitCountryId,
+                            "fabric_mill_id": fabric.fabric_details.wovKnitId,
+                            "fabric_mill_notes": fabric.fabric_details.wovKnitNotes, 
+                            "dye_print_finish_country": fabric.fabric_details.dyeFinCountryId,
+                            "dye_print_finish_id": fabric.fabric_details.dyeFinId,
+                            "dye_print_finish_notes": fabric.fabric_details.dyeFinNotes
+                        }
+
                         const fabricPromise = await FabricsService.insertFabric(
                             req.app.get('db'),
                             fabricDetails
@@ -495,29 +512,29 @@ productsRouter
                                     promises.push(fibCertPromise)
                                 })
                             } catch (e) {
-                                console.log('catch 2', e)
+                                console.log('catch fabric.fiber_array.forEach error:', e)
                                 next(e)
                             }    
                         })
                     } catch (e) {
-                        console.log('catch 1', e)
+                        console.log('catch fabricArray.forEach error:', e)
                         next(e)
                     }
                 })
 
                 notionsArray.forEach(async notion => {
-                    const notionDetails = {
-                        "notion_type_id": notion.typeId,
-                        "brand_id": product.brand_id,
-                        "manufacturer_country": notion.countryId,
-                        "manufacturer_id": notion.factoryId,
-                        "manufacturer_notes": notion.notes,
-                        "material_type_id": notion.materialTypeId,
-                        "material_origin_id": notion.materialOriginId,
-                        "material_producer_id": notion.materialProducerId
-                    }
-
                     try {
+                        const notionDetails = {
+                            "notion_type_id": notion.typeId,
+                            "brand_id": product.brand_id,
+                            "manufacturer_country": notion.countryId,
+                            "manufacturer_id": notion.factoryId,
+                            "manufacturer_notes": notion.notes,
+                            "material_type_id": notion.materialTypeId,
+                            "material_origin_id": notion.materialOriginId,
+                            "material_producer_id": notion.materialProducerId
+                        }
+
                         const notionPromise = await NotionsService.insertNotion(
                             req.app.get('db'),
                             notionDetails
@@ -553,7 +570,7 @@ productsRouter
                             promises.push(notCertPromise)
                         })
                     } catch (e) {
-                        console.log('catch 4', e)
+                        console.log('catch notionsArray.forEach error:', e)
                         next(e)
                     }
                 })
@@ -566,7 +583,7 @@ productsRouter
                     .location(`/api/products/${product.id}`)
                     .json(serializeProductPost(product))
             } catch (e) {
-                console.log('catch 3', e)
+                console.log('catch req.app.get("db").transaction error:', e)
                 trx.rollback()
                 next(e)
             }
@@ -591,135 +608,113 @@ productsRouter
         })
         .catch(next)
     })
-    .get(async (req, res, next) => {
-        try {
-            const productCerts = await ProductsService.getCertificationsForProduct(
-                req.app.get('db'),
-                res.product.id
-            )
+    .get((req, res, next) => {
+        const getProductData = async () => {
+            try {
+                const prodPromises = []
 
-            const productColorsImages = await ProductsService.getColorsImages(
-                req.app.get('db'),
-                res.product.id
-            )
+                const productCerts = await ProductsService.getCertificationsForProduct(
+                    req.app.get('db'),
+                    res.product.id
+                )
 
-            const cmtFactories = await ProductsService.getFactoriesForProduct(
-                req.app.get('db'),
-                res.product.id
-            )
+                prodPromises.push(productCerts.map(serializeCertification))
 
-            const productNotions = await ProductsService.getNotionsForProduct(
-                req.app.get('db'),
-                res.product.id
-            )
+                const productColorsImages = await ProductsService.getColorsImages(
+                    req.app.get('db'),
+                    res.product.id
+                )
 
-            const makeImageArray = colorId => {
-                const newImageArray = []
-                productColorsImages.map(colorImage => {
-                    if (colorImage.color_id === colorId) {
-                        const newImage = {
-                            id: colorImage.image_id,
-                            image_url: colorImage.product_image_url,
-                            primary_image_for_color: colorImage.primary_image_for_color
-                        }
-        
-                        if (colorImage.primary_image_for_color === true) {
-                            newImageArray.splice(0, 0, newImage)
-                        } else {
-                            newImageArray.push(newImage)
-                        }
-                    }
-                })
+                prodPromises.push(productColorsImages.map(serializeColorsImages))
 
-                return newImageArray
+                const cmtFactories = await ProductsService.getFactoriesForProduct(
+                    req.app.get('db'),
+                    res.product.id
+                )
+
+                prodPromises.push(cmtFactories.map(serializeFactories))
+
+                const productNotions = await ProductsService.getNotionsForProduct(
+                    req.app.get('db'),
+                    res.product.id
+                )
+
+                prodPromises.push(productNotions.map(serializeNotions))
+
+                await Promise.all(prodPromises)
+
+                const productData = {
+                    productObject: serializeProductGet(res.product),
+                    prodCertArray: productCerts,
+                    prodColorArray: productColorsImages,
+                    cmtFactArray: cmtFactories,
+                    prodNotArray: productNotions
+                }
+
+                return productData
+            } catch (e) {
+                console.log('catch GET /:product_id', e)
+                next(e)
             }
-
-            const makeColorArray = () => {
-                const newColorArray = []
-
-                productColorsImages.forEach(colorImage => {
-                    const colorIndex = newColorArray.findIndex(color => color.id === colorImage.color_id)
-
-                    if (colorIndex === -1) {
-                        const newColorImage = {
-                            id: colorImage.color_id,
-                            color_description_id: colorImage.color_description_id,
-                            color_english_name: colorImage.color_english_name,
-                            swatch_image_url: colorImage.swatch_image_url,
-                            image_array: makeImageArray(colorImage.color_id)
-                        }
-
-                        newColorArray.push(newColorImage)
-                    }
-                })    
-
-                return newColorArray
-            }
-
-            const makeNotionArray = () => {
-                const newNotionArray = []
-
-                productNotions.forEach(async notion => {
-                    try {
-                        const notionCerts = await NotionsService.getCertsForNot(
-                            req.app.get('db'),
-                            notion.id
-                        )
-                            const newNotion = {
-                                id: notion.id,
-                                notion_type_id: notion.notion_type_id,
-                                notion_type: notion.notion_type,
-                                brand_id: notion.brand_id,
-                                manufacturer_country: notion.manufacturer_country,
-                                manufacturer_id: notion.manufacturer_id,
-                                manufacturer_notes: notion.manufacturer_notes ? xss(notion.manufacturer_notes) : null,
-                                material_type_id: notion.material_type_id,
-                                material_origin_id: notion.material_origin_id,
-                                material_producer_id: notion.material_producer_id,
-                                material_notes: notion.material_notes ? xss(notion.material_notes) : null,
-                                certification_ids: notionCerts,
-                                approved_by_admin: notion.approved_by_admin,
-                                date_published: notion.date_published
-                            }
-
-                            newNotionArray.push(newNotion)
-
-                    } catch (e) {
-                        console.log('catch 9', e)
-                    }
-                    next()
-                })
-
-                return newNotionArray
-            }
-
-            const product = {
-                id: res.product.id,
-                english_name: res.product.english_name ? xss(res.product.english_name) : null,
-                brand_id: res.product.brand_id,
-                brand_name: res.product.brand_name ? xss(res.product.brand_name) : null,
-                brand_currency: res.product.brand_currency,
-                certification_array: productCerts,
-                category_id: res.product.category_id,
-                product_url: res.product.product_url ? xss(res.product.product_url) : null,
-                feature_image_url: res.product.feature_image_url ? xss(res.product.feature_image_url) : null,
-                multiple_color_options: res.product.multiple_color_options,
-                cost_in_home_currency: res.product.cost_in_home_currency,
-                wash_id: res.product.wash_id,
-                dry_id: res.product.dry_id,
-                cmt_notes: res.product.cmt_notes ? xss(res.product.cmt_notes) : null,
-                color_array: makeColorArray(),
-                cmt_factory_array: cmtFactories,
-                notion_array: makeNotionArray(),
-                approved_by_admin: res.product.approved_by_admin,
-                date_published: res.product.date_published
-            }
-
-            res.json(product)
-        } catch (e) {
-            console.log('catch 5', e)
         }
-        next()
+
+        getProductData()
+            .then(async productData => {
+                try {
+                    const getNotCerts = productData.prodNotArray.map(async notion => {
+                        try {
+
+                            const notCerts = await NotionsService.getCertsForNot(
+                                req.app.get('db'),
+                                notion.id
+                            )
+
+                            return notCerts
+                        } catch (e) {
+                            console.log('catch getNotCerts error:', e)
+                            next(e)
+                        }
+                    })
+
+                    const awaitNotCerts = await Promise.all(getNotCerts)
+
+                    const unnestNotCerts = () => {
+                        const unnestedNotCerts = []
+
+                        awaitNotCerts.forEach(array => {
+                            array.forEach(object => {
+                                unnestedNotCerts.push(object)
+                            })
+                        })
+
+                        return unnestedNotCerts
+                    }
+
+                    const newProductData = {
+                        ...productData,
+                        notCertArray: unnestNotCerts()
+                    }
+
+                    return newProductData
+                } catch (e) {
+                    console.log('catch getProductData().then() error:', e)
+                    next(e)
+                }
+            })
+            .then(newProductData => {
+                const notsWithCerts = newProductData.prodNotArray.map(notion => {
+                    const certsForNot = newProductData.notCertArray.filter(cert => cert.notion_id === notion.id)
+                   
+                    const notionWithCert = {
+                        ...notion,
+                        certArray: certsForNot.map(cert => cert.id)
+                    }
+                    return notionWithCert
+                })
+
+                res.json(newProductData)
+            })
+            .catch(next)
     })
     .patch(jsonParser, (req, res, next) => {
         const {
@@ -986,17 +981,34 @@ productsRouter
                                 fiber.id
                             )
 
-                            return fibCerts[0]
+                            return fibCerts
                         } catch (e) {
+                            console.log('catch allFibCerts error:', e)
+                            next(e)
                         }
                     })
 
                     const fabFibsWithCerts = fabFibs.map(async fiber => {
                         try {
                             const fibCertArray = await Promise.all(allFibCerts)
-                            const filteredCertArray = fibCertArray.filter(cert => cert.fiber_id === fiber.id)
-                            const fibCertIds = filteredCertArray.map(cert => cert.certification_id)
 
+                            const fibFilter = () => {
+                                const container = []
+
+                                fibCertArray.forEach(array => {
+                                    if (array.length > 0) {
+                                        array.forEach(certSet => {
+                                            if (certSet.fiber_id == fiber.id){
+                                                container.push(certSet)
+                                            }
+                                        })
+                                    }
+                                })
+
+                                return container
+                            }
+
+                            const fibCertIds = fibFilter().map(cert => cert.certification_id)
                             const newFiber = {
                                 approved_by_admin: fiber.approved_by_admin,
                                 brand_id: fiber.brand_id,
@@ -1033,7 +1045,7 @@ productsRouter
                         dye_print_finish_country: fabric.dye_print_finish_country,
                         dye_print_finish_id: fabric.dye_print_finish_id,
                         dye_print_finish_notes: xss(fabric.dye_print_finish_notes),
-                        certification_ids: fabCerts.map(cert => cert.certification_id),
+                        certification_ids: fabCerts.map(cert => cert.id),
                         fibers: await Promise.all(fabFibsWithCerts),
                         approved_by_admin: fabric.approved_by_admin,
                         date_published: fabric.date_published
@@ -1042,7 +1054,8 @@ productsRouter
                     return newFabric
 
                 } catch (e) {
-                    console.log('catch 6', e)
+                    console.log('catch newFabricArray error:', e)
+                    next(e)
                 }
             })
 
@@ -1051,7 +1064,7 @@ productsRouter
                 .json(await Promise.all(newFabricArray))
 
         } catch (e) {
-            console.log('catch 7', e)
+            console.log('catch GET /:product_id/fabrics', e)
         }
     })
     .post(jsonParser, (req, res, next) => {
@@ -1341,20 +1354,20 @@ productsRouter
                         approved_by_admin: notion.approved_by_admin,
                         date_published: notion.date_published
                     }
-                    
+
                     return newNotion
 
                 } catch (e) {
-                    console.log('catch 9', e)
-                    next()
+                    console.log('catch newNotionArray error:', e)
+                    next(e)
                 }
             })
 
             res.json(await Promise.all(newNotionArray))
             
         } catch (e) {
-            console.log('catch 10', e)
-            next()
+            console.log('catch GET /:product_id/notions error:', e)
+            next(e)
         }
     })
     .post(jsonParser, (req, res, next) => {

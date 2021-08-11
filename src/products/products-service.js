@@ -8,6 +8,7 @@ const ProductsService = {
                 'products.english_name',
                 'products.brand_id',
                 'brands.english_name as brand_name',
+                'brands.home_currency as brand_currency',
                 'products.category_id',
                 'products.feature_image_url',
                 'products.multiple_color_options',
@@ -239,7 +240,7 @@ const ProductsService = {
             .join('products', {'notions_to_products.product_id': 'products.id'})
             .join('factories', {'notions.manufacturer_id': 'factories.id'})
             .join('fiber_and_material_types', {'notions.material_type_id': 'fiber_and_material_types.id'})
-            .join('notions_to_certifications', {'notions.id': 'notions_to_certifications.notion_id'})
+            // .join('notions_to_certifications', {'notions.id': 'notions_to_certifications.notion_id'})
             .select(
                 'notions.id',
                 'notions.notion_type_id',

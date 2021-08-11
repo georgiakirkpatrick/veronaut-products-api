@@ -71,6 +71,7 @@ const makeNotionArray = () => {
                 date_published: '2020-09-13T07:30:51.564Z',
                 english_name: 'Organic',
                 id: 1,
+                notion_id: 1,
                 website: 'www.organic.com'
             }
         ]

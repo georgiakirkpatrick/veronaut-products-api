@@ -122,9 +122,7 @@ describe('Certifications Endpoints', function() {
         })    
 
         const requiredFields = [
-            'english_name',
-            'website'
-
+            'english_name'
         ]
 
         requiredFields.forEach(field => {

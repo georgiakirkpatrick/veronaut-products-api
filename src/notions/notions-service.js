@@ -64,10 +64,12 @@ const NotionsService = {
 
     // Certifications
         getCertsForNot(knex, notionId) {
+            console.log('getCertsForNot', notionId)
             return knex('notions')
                 .join('notions_to_certifications', {'notions.id': 'notions_to_certifications.notion_id'})
                 .join('certifications', {'notions_to_certifications.certification_id': 'certifications.id'})
                 .select(
+                    'notions.id as notion_id',
                     'certifications.id',
                     'certifications.english_name',
                     'certifications.website',

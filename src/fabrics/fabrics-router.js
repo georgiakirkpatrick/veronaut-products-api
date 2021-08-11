@@ -144,7 +144,6 @@ fabricsRouter
                 req.app.get('db')
             )
             .then(fabricTypes => {
-                console.log('fabricTypes', fabricTypes)
                 res.json(fabricTypes.map(serializeFabricTypes))
             })
             .catch(next)
@@ -181,7 +180,6 @@ fabricsRouter
                 newFabricType
             )
             .then(fabricType => {
-                console.log('fabricType', fabricType)
                 res
                     .status(201)
                     .location(path.posix.join(req.originalUrl + `/${fabricType.id}`))
@@ -274,7 +272,6 @@ fabricsRouter
             const makeFibArray = () => {
                 const newFibArray = []
                 fabFibs.map(fiber => {
-                    console.log('makeFibArray fiber', fiber)
                     const fibIndex = newFibArray.findIndex(fib => fib.id === fiber.id)
                     if (fibIndex === -1) {
                         const newFiber = {
@@ -295,7 +292,6 @@ fabricsRouter
                             production_notes: fiber.production_notes
                         }
 
-                        console.log('newFiber', newFiber)
                         newFibArray.push(newFiber)
                     } else {
                         newFibArray[fibIndex].certification_ids.push(fiber.certification_id)
@@ -407,7 +403,6 @@ fabricsRouter
                 req.params.fabric_id
             )
             .then(certifications => {
-                console.log('certifications', certifications)
                 res.json(certifications.map(serializeCertifications))
             })
             .catch(next)
@@ -506,7 +501,6 @@ fabricsRouter
             req.params.fabric_id
         )
         .then(fabric => {
-            console.log('fabric', fabric)
             if (!fabric) {
                 return res.status(404).json({
                     error: { message: `Fabric does not exist` }
