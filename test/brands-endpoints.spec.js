@@ -3,12 +3,14 @@ const app = require('../src/app')
 const { expect } = require('chai')
 const supertest = require('supertest')
 
-const { makeBrandArray, makeMalBrand } = require('./brands.fixtures')
-const { makeFactoryArray,makeMalFactory } = require('./factories.fixtures')
-const { makeFiberTypeArray,makeFiberArray, makeMalFiber,makeMalFiberType } = require('./fibers.fixtures')
+const { makeBrandArray, makeMalBrand, seedBrandTable } = require('./brands.fixtures')
+const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
+const { makeFiberTypeArray, makeFiberArray, makeMalFiber, makeMalFiberType } = require('./fibers.fixtures')
 const { makeMalNotion, makeMalNotionType, makeNotionArray, makeNotionType } = require('./notions.fixtures')
+const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
  
 describe('Brands Endpoints', () => {
+    const adminArray = makeAdmin()
     const brands = makeBrandArray()
     const factories = makeFactoryArray()
     const notionTypes = makeNotionType()
@@ -20,7 +22,9 @@ describe('Brands Endpoints', () => {
     const { malFiberType } = makeMalFiberType()
     const { malNotion, expectedNotion } = makeMalNotion()
     const { malNotionType, expectedNotionType } = makeMalNotionType()
+    const { malUser, expectedUser } = makeMalUser()
     const { notionsPost, notionsGet } = makeNotionArray()
+    const users = makeUsers()
     
     let db
     
@@ -35,6 +39,11 @@ describe('Brands Endpoints', () => {
         )
     )
 
+    const makeAuthHeader = user => {
+        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
+        return `Basic ${token}`
+    }
+
     before('make knex instance', () => {
         db = knex({
             client: 'pg',
@@ -46,13 +55,11 @@ describe('Brands Endpoints', () => {
     after('disconnect from db', () => db.destroy())
 
     before('clean the table', () => db.raw(
-        `TRUNCATE table fibers_and_materials, fiber_and_material_types, notions, notion_types, brands,
-        factories RESTART IDENTITY CASCADE`
+        `TRUNCATE table fibers_and_materials, fiber_and_material_types, notions, notion_types, brands, users, factories, users RESTART IDENTITY CASCADE`
     ))
 
     afterEach('cleanup', () => db.raw(
-        `TRUNCATE table fibers_and_materials, fiber_and_material_types, notions, notion_types, brands, 
-        factories RESTART IDENTITY CASCADE`
+        `TRUNCATE table fibers_and_materials, fiber_and_material_types, notions, notion_types, brands, users, factories, users RESTART IDENTITY CASCADE`
     ))
 
     describe('GET /api/brands', () => {
@@ -74,7 +81,7 @@ describe('Brands Endpoints', () => {
             })
         })
     
-        context('Given an XSS attack brand', () => {    
+        context('Given an XSS attack brand', () => {
             before(() => db.into('brands').insert(malBrand))
     
             it('removes XSS attack content', () => {
@@ -133,14 +140,14 @@ describe('Brands Endpoints', () => {
         context('Given there are fibers for the brand with id brand_id', () => {
             beforeEach(insertFixtures)
 
-            it('GET /api/brands/:brand_id/fibers responds with 200 and all of the fibers for the brand', () => {
+            it('responds with 200 and all of the fibers for the brand', () => {
                 const brandId = 1
 
                 return supertest(app)
                     .get(`/api/brands/${brandId}/fibers`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body[0].fiber_or_material_type_id).to.eql(fibersGet[0].fiber_type_id)
+                        expect(res.body[0].fiber_or_material_type_id).to.eql(fibersGet[0].fiber_or_material_type_id)
                         expect(res.body[0].fiber_type).to.eql(fibersGet[0].fiber_type)
                         expect(res.body[0].fiber_type_class).to.eql(fibersGet[0].class)
                         expect(res.body[0].brand_id).to.eql(fibersGet[0].brand_id)
@@ -232,36 +239,183 @@ describe('Brands Endpoints', () => {
         })
     })
 
-    describe('POST /api/brands', () => {          
+    describe('Protected endpoints', () => {
+        const newBrand = brands[0]
+        beforeEach(() => db.into('users').insert(users)) 
+
+        describe('POST /api/brands/', () => {
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .post('/api/brands')
+                    .send(newBrand)
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+                return supertest(app)
+                    .post(`/api/brands`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .send(newBrand)
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .post(`/api/brands`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .send(newBrand)
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: users[0].email, password: 'wrong' }
+
+                return supertest(app)
+                    .post('/api/brands')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .send(newBrand)
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+
+        describe('PATCH /api/brands/:brand_id', () => {
+            beforeEach(() => db.into('brands').insert(brands))
+
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .patch('/api/brands/1')
+                    .send({ english_name: newBrand.english_name})
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+
+                return supertest(app)
+                    .patch('/api/brands/1')
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .send({ english_name: newBrand.english_name })
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .patch(`/api/brands/1`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .send({ english_name: newBrand.english_name })
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: adminArray[0].email, password: 'wrong' }
+
+                return supertest(app)
+                    .patch('/api/brands/1')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .send({ english_name: newBrand.english_name })
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
+                const notAnAdmin = { email: adminArray[0].email, password: adminArray[0].password }
+
+                return supertest(app)
+                    .patch('/api/brands/1')
+                    .set('Authorization', makeAuthHeader(notAnAdmin))
+                    .send({ english_name: newBrand.english_name })
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+
+        describe('DELETE /api/brands/:brand_id', () => {
+            beforeEach(() => db.into('brands').insert(brands))       
+            
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .delete('/api/brands/1')
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+                return supertest(app)
+                    .delete(`/api/brands/1`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .delete(`/api/brands/1`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: adminArray[0].email, password: 'wrong' }
+
+                return supertest(app)
+                    .delete('/api/brands/1')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
+                const notAnAdmin = { email: adminArray[0].email, password: adminArray[0].password }
+
+                return supertest(app)
+                    .patch('/api/brands/1')
+                    .set('Authorization', makeAuthHeader(notAnAdmin))
+                    .send({ english_name: newBrand.english_name })
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+    })
+
+    describe('POST /api/brands', () => { 
+        beforeEach(() => db.into('users').insert(users)) 
+     
         it('Creates a brand, responding with 201 and the new brand', () => {
             const newBrand = brands[0]
             
             return (
-            supertest(app)
-                .post('/api/brands')
-                .send(newBrand)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(newBrand.english_name)
-                    expect(res.body.website).to.eql(newBrand.website)
-                    expect(res.body.home_currency).to.eql(newBrand.home_currency)
-                    expect(res.body.approved_by_admin).to.eql(newBrand.approved_by_admin)
-                    expect(res.body).to.have.property('id')
-                    expect(res.headers.location).to.eql(`/api/brands/${res.body.id}`)
-                    const expected = new Date().toLocaleString()
-                    const actual = new Date(res.body.date_published).toLocaleString()
-                    expect(actual).to.eql(expected)
-                })
-                .then(res => {
-                    return supertest(app)
-                        .get(`/api/brands/${res.body.id}`)
-                        .expect(res => {
-                            expect(res.body.english_name).to.eql(newBrand.english_name)
-                            expect(res.body.website).to.eql(newBrand.website)
-                            expect(res.body.home_currency).to.eql(newBrand.home_currency)
-                            expect(res.body.approved_by_admin).to.eql(newBrand.approved_by_admin)
-                        })
-                })
+                supertest(app)
+                    .post('/api/brands')
+                    .set('Authorization', makeAuthHeader(users[0]))
+                    .send(newBrand)
+                    .expect(201)
+                    .expect(res => {
+                        expect(res.body.english_name).to.eql(newBrand.english_name)
+                        expect(res.body.website).to.eql(newBrand.website)
+                        expect(res.body.home_currency).to.eql(newBrand.home_currency)
+                        expect(res.body.approved_by_admin).to.eql(newBrand.approved_by_admin)
+                        expect(res.body).to.have.property('id')
+                        expect(res.headers.location).to.eql(`/api/brands/${res.body.id}`)
+                        const expected = new Date().toLocaleString()
+                        const actual = new Date(res.body.date_published).toLocaleString()
+                        expect(actual).to.eql(expected)
+                    })
+                    .then(res => {
+                        return supertest(app)
+                            .get(`/api/brands/${res.body.id}`)
+                            .expect(res => {
+                                expect(200)
+                                expect(res.body.english_name).to.eql(newBrand.english_name)
+                                expect(res.body.website).to.eql(newBrand.website)
+                                expect(res.body.home_currency).to.eql(newBrand.home_currency)
+                                expect(res.body.approved_by_admin).to.eql(newBrand.approved_by_admin)
+                            })
+                            .catch(error => {
+                                console.log(error)
+                            })
+                    })
             )    
 
         })
@@ -286,6 +440,7 @@ describe('Brands Endpoints', () => {
 
                 return supertest(app)
                     .post('/api/brands')
+                    .set('Authorization', makeAuthHeader(users[0]))
                     .send(newBrand)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -298,6 +453,7 @@ describe('Brands Endpoints', () => {
 
             return supertest(app)
                 .post('/api/brands')
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(malBrand)
                 .expect(201)
                 .expect(res => {
@@ -308,6 +464,10 @@ describe('Brands Endpoints', () => {
     })
 
     describe('PATCH /api/brands/:brand_id', () => {
+        beforeEach(() => db.into('users').insert(adminArray)) 
+
+        const adminUser = adminArray[0]
+
         context('Given there are brands in the database', () => {
             beforeEach(() => db.into('brands').insert(brands))
 
@@ -329,6 +489,7 @@ describe('Brands Endpoints', () => {
 
                 return supertest(app)
                     .patch(`/api/brands/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .send(updateBrand)
                     .expect(204)
                     .then(res => supertest(app)
@@ -341,6 +502,7 @@ describe('Brands Endpoints', () => {
                 const idToUpdate = 1
                 return supertest(app)
                     .patch(`/api/brands/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .send({irrelevantField: 'bar'})
                     .expect(400, {
                         error: { message: `Request body must include 'english_name', 'website', 'home_currency', 'size_system', and/or 'approved_by_admin'`}
@@ -359,6 +521,7 @@ describe('Brands Endpoints', () => {
 
                 return supertest(app)
                     .patch(`/api/brands/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .send({
                         ...updateBrand,
                         fieldToIgnore: 'should not be in the GET response'})
@@ -376,12 +539,17 @@ describe('Brands Endpoints', () => {
                 const brandId = 654
                 return supertest(app)
                     .patch(`/api/brands/${brandId}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(404, { error: { message: `Brand does not exist.` } })
             })
         })
     })
     
     describe('DELETE /api/brands/:brand_id', () => {
+        beforeEach(() => db.into('users').insert(adminArray)) 
+
+        const adminUser = adminArray[0]
+
         context('Given there are products in the database', () => {
             beforeEach(() => db.into('brands').insert(brands))
 
@@ -391,11 +559,15 @@ describe('Brands Endpoints', () => {
 
                 return supertest(app)
                     .delete(`/api/brands/${idToRemove}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(204)
                     .then(res => 
                         supertest(app)
                             .get('/api/brands')
                             .expect(expectedBrands)
+                            .catch(error => {
+                                console.log(error)
+                            })
                     )
             })
         })
@@ -405,6 +577,7 @@ describe('Brands Endpoints', () => {
                 const brandId = 432
                 return supertest(app)
                     .delete(`/api/brands/${brandId}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(404, { error: { message: 'Brand does not exist.' } })
             })
         })

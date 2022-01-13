@@ -1,9 +1,10 @@
-const path = require('path')
 const express = require('express')
-const BrandsService = require('./brands-service')
+const { requireAuth, requireAdmin } = require('../middleware/basic-auth')
 const brandsRouter = express.Router()
-const xss = require('xss').escapeHtml
+const BrandsService = require('./brands-service')
 const jsonParser = express.json()
+const path = require('path')
+const xss = require('xss').escapeHtml
 
 const serializeBrands = brand => ({
     id: brand.id,
@@ -56,7 +57,7 @@ brandsRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const {
             english_name,
             website,
@@ -123,7 +124,7 @@ brandsRouter
     .get((req, res, next) => {
         res.json(serializeBrands(res.brand)) 
     })
-    .patch(jsonParser, (req, res, next) => {
+    .patch(requireAdmin, jsonParser, (req, res, next) => {
         const {english_name, website, size_system, home_currency, approved_by_admin} = req.body
         
         const brandToUpdate = {english_name, website, size_system, home_currency, approved_by_admin}
@@ -142,7 +143,7 @@ brandsRouter
             })
             .catch(next)
     })
-    .delete((req, res, next) => {
+    .delete(requireAdmin, (req, res, next) => {
         BrandsService
             .deleteBrand(
                 req.app.get('db'), 

@@ -53,7 +53,20 @@ const makeMalBrand = () => {
     }
 }
 
+const seedBrandTable = (db, brands) => (
+    db.transaction(async trx => {
+        await trx.into('brands').insert(brands)
+        await Promise.all([
+            trx.raw(
+                `SELECT setval('brands_id_seq', ?)`,
+                [brands[brands.length - 1].id],
+            )
+        ])
+    })
+)
+
 module.exports = {
     makeBrandArray,
-    makeMalBrand
+    makeMalBrand,
+    seedBrandTable
 }

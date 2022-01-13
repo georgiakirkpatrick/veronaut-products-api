@@ -1,9 +1,10 @@
-const path = require('path')
+const { requireAuth, requireAdmin } = require('../middleware/basic-auth')
 const express = require('express')
-const xss = require('xss').escapeHtml
 const FactoriesService = require('./factories-service')
 const factoriesRouter = express.Router()
 const jsonParser = express.json()
+const path = require('path')
+const xss = require('xss').escapeHtml
 
 const serializeFactories = factory => ({
     id: factory.id,
@@ -27,7 +28,7 @@ factoriesRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const { 
             english_name,
             country,
@@ -100,10 +101,9 @@ factoriesRouter
             approved_by_admin: res.factory.approved_by_admin,
             date_published: res.factory.date_published
         })
-        .catch(next)
+        next()
     })
-
-    .patch(jsonParser, (req, res, next) => {
+    .patch(requireAdmin, jsonParser, (req, res, next) => {
         const {
             english_name,
             country,
@@ -138,9 +138,12 @@ factoriesRouter
             .then(numRowsAffected => {
                 res.status(204).end()
             })
-            .catch(next)
+            .catch(error => {
+                console.log(error)
+                next()
+            })
     })
-    .delete((req, res, next) => {
+    .delete(requireAdmin, (req, res, next) => {
         FactoriesService
             .deleteFactory(
                 req.app.get('db'),

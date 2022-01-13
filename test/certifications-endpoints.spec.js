@@ -3,12 +3,21 @@ const app = require('../src/app')
 const supertest = require('supertest')
 const { expect } = require('chai')
 const { makeCertificationArray, makeMalCertification  } = require('./certifications.fixtures')
+const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
 
 describe('Certifications Endpoints', function() {
+    const adminArray = makeAdmin()
     const certifications = makeCertificationArray()
     const { malCertification, expectedCertification } = makeMalCertification()
-    
+    const { malUser, expectedUser } = makeMalUser()
+    const users = makeUsers()
+
     let db
+
+    const makeAuthHeader = user => {
+        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
+        return `Basic ${token}`
+    }
 
     before('make knex instance', () => {
         db = knex({
@@ -19,8 +28,8 @@ describe('Certifications Endpoints', function() {
     })
 
     after('disconnect from db', () => db.destroy())
-    before('clean the table', () => db.raw('TRUNCATE table certifications RESTART IDENTITY CASCADE'))
-    afterEach('cleanup', () => db.raw('TRUNCATE table certifications RESTART IDENTITY CASCADE'))
+    before('clean the table', () => db.raw('TRUNCATE table certifications, users RESTART IDENTITY CASCADE'))
+    afterEach('cleanup', () => db.raw('TRUNCATE table certifications, users RESTART IDENTITY CASCADE'))
 
     describe('GET /api/certifications', () => {
         context('when there are certifications in the database', () => {
@@ -94,7 +103,130 @@ describe('Certifications Endpoints', function() {
         })
     })
 
+    describe('Protected endpoints', () => {
+        const newCert = certifications[0]
+
+        describe('POST /api/certifications/', () => {
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .post('/api/certifications')
+                    .send(newCert)
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+                return supertest(app)
+                    .post(`/api/certifications`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .send(newCert)
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .post(`/api/certifications`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .send(newCert)
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: users[0].email, password: 'wrong' }
+
+                return supertest(app)
+                    .post('/api/certifications')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .send(newCert)
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+
+        describe('PATCH /api/certifications/:certification_id', () => {
+            beforeEach(() => db.into('certifications').insert(certifications))
+            afterEach('cleanup', () => db.raw('TRUNCATE table certifications RESTART IDENTITY CASCADE'))
+
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .patch('/api/certifications/1')
+                    .send({ english_name: newCert.english_name})
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+
+                return supertest(app)
+                    .patch('/api/certifications/1')
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .send({ english_name: newCert.english_name })
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .patch(`/api/certifications/1`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .send({ english_name: newCert.english_name })
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: users[0].email, password: 'wrong' }
+
+                return supertest(app)
+                    .patch('/api/certifications/1')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .send({ english_name: newCert.english_name })
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+
+        describe('DELETE /api/certifications/:certification_id', () => {
+            beforeEach(() => db.into('certifications').insert(certifications))
+            afterEach('cleanup', () => db.raw('TRUNCATE table certifications RESTART IDENTITY CASCADE'))
+
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .delete('/api/certifications/1')
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+                return supertest(app)
+                    .delete(`/api/certifications/1`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .delete(`/api/certifications/1`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: users[0].email, password: 'wrong' }
+
+                return supertest(app)
+                    .delete('/api/certifications/1')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+    })
+
     describe('POST /api/certifications', () => {
+        beforeEach(() => db.into('users').insert(users))
+
         const newCertification = {
             english_name: 'Organic',
             website: 'www.organic.com',
@@ -104,6 +236,7 @@ describe('Certifications Endpoints', function() {
         it('creates a certification, responding with 201 and the new certification', () => {
             return supertest(app)
                 .post('/api/certifications')
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(newCertification)
                 .expect(201)
                 .expect(res => {
@@ -114,10 +247,13 @@ describe('Certifications Endpoints', function() {
                     const actual = new Date(res.body.date_published).toLocaleString()
                     expect(actual).to.eql(expected)
                 })
-                .then(res => {
-                    supertest(app)
+                .then(async res => {
+                    await supertest(app)
                         .get(`/api/certifications/${res.body.id}`)
-                        .expect(res.body)
+                        .expect(200)
+                        .catch(error => {
+                            console.log(error)
+                        })
                 })
         })    
 
@@ -136,6 +272,7 @@ describe('Certifications Endpoints', function() {
 
                 return supertest(app)
                     .post('/api/certifications')
+                    .set('Authorization', makeAuthHeader(users[0]))
                     .send(newCertification)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -148,6 +285,7 @@ describe('Certifications Endpoints', function() {
 
             return supertest(app)
                 .post('/api/certifications')
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(malCertification)
                 .expect(201)
                 .expect(res => {
@@ -159,6 +297,7 @@ describe('Certifications Endpoints', function() {
 
     describe('PATCH /api/certifications/:certification_id', () => {
         beforeEach(() => db.into('certifications').insert(certifications))
+        beforeEach(() => db.into('users').insert(adminArray))
 
         context('given there the certification exists', () => {
             const idToUpdate = 1
@@ -171,6 +310,7 @@ describe('Certifications Endpoints', function() {
             it('updates the certification and responds 204', () => {
                 return supertest(app)
                     .patch(`/api/certifications/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminArray[0]))
                     .send(updateCertification)
                     .expect(204)
                     .then(res => {
@@ -181,12 +321,16 @@ describe('Certifications Endpoints', function() {
                                 expect(res.body.website).to.eql(updateCertification.website)
                                 expect(res.body.approved_by_admin).to.eql(updateCertification.approved_by_admin)
                             })
+                            .catch(error => {
+                                console.log(error)
+                            })
                     })
             })
 
             it('responds with 400 when no required fields are supplied', () => {
                 return supertest(app)
                     .patch(`/api/certifications/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminArray[0]))
                     .send({ irreleventField: 'foo' })
                     .expect(400, { error: { message: `Request body must contain 'english_name', 'website', and/or 'approved_by_admin'` } } )
             })
@@ -194,6 +338,7 @@ describe('Certifications Endpoints', function() {
             it('responds with 204 when updating only a subset of fields', () => {
                 return supertest(app)    
                     .patch(`/api/certifications/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminArray[0]))
                     .send({ english_name: 'Moganic' })
                     .expect(204)
                     .then(res => {
@@ -201,6 +346,9 @@ describe('Certifications Endpoints', function() {
                             .get(`/api/certifications/${idToUpdate}`)
                             .expect(res => {
                                 expect(res.body.english_name).to.eql(updateCertification.english_name)
+                            })
+                            .catch(error => {
+                                console.log(error)
                             })
                     })
             })
@@ -211,6 +359,7 @@ describe('Certifications Endpoints', function() {
                 const idToUpdate = 123456
                 return supertest(app)
                     .patch(`/api/certifications/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminArray[0]))
                     .expect(404, { error: { message: 'Certification does not exist' } })
             })
         })
@@ -218,6 +367,8 @@ describe('Certifications Endpoints', function() {
 
     describe('DELETE /api/certifications/:certification_id', () => {
         beforeEach(() => db.into('certifications').insert(certifications))
+        beforeEach(() => db.into('users').insert(adminArray[0]))
+
         const idToDelete = 1
         const expectedCertifications = certifications.filter(certification => certification.id !== idToDelete)
 
@@ -225,11 +376,15 @@ describe('Certifications Endpoints', function() {
             it('removes the certification and responds 204', () => {
                 return supertest(app)
                     .delete(`/api/certifications/${idToDelete}`)
+                    .set('Authorization', makeAuthHeader(adminArray[0]))
                     .expect(204)
-                    .then(res => {
-                        supertest(app)
+                    .then(async res => {
+                        await supertest(app)
                             .get('/api/certifications')
                             .expect(expectedCertifications)
+                            .catch(error => {
+                                console.log(error)
+                            })
                     })
             })
         })
@@ -240,6 +395,7 @@ describe('Certifications Endpoints', function() {
 
                 return supertest(app)
                     .delete(`/api/certifications/${idToDelete}`)
+                    .set('Authorization', makeAuthHeader(adminArray[0]))
                     .expect(404, { error: { message: `Certification does not exist` } })
             })
         })

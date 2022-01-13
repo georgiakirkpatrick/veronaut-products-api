@@ -14,8 +14,10 @@ const {
     makeColor, makeDry, makeImage, makeProductArray, makeProductToCertificationArray, makeProductToFactoriesArray,
     makeProductToFiberArray, makeSize, makeSizeToProduct, makeWash, makeMalImage, makeMalProduct
 } = require('./products.fixtures')
+const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
 
 describe('Products Endpoints', () => {
+    const adminArray = makeAdmin()
     const brands = makeBrandArray()
     const categories = makeCategoryArray()
     const certifications = makeCertificationArray()
@@ -37,6 +39,7 @@ describe('Products Endpoints', () => {
     const { malNotion, expectedNotion } = makeMalNotion()
     const { malNotionType} = makeMalNotionType()
     const { malProduct, expectedProduct } = makeMalProduct()
+    const { malUser, expectedUser } = makeMalUser()
     const materialTypes = makeFiberTypeArray()
     const { notionsPost, notionsCertsGet, notionsGet } = makeNotionArray()
     const notionType = makeNotionType()
@@ -46,17 +49,24 @@ describe('Products Endpoints', () => {
     const productsToCertifications = makeProductToCertificationArray()
     const size = makeSize()
     const sizeToProduct = makeSizeToProduct()
+    const users = makeUsers()
     const washInstructions = [ makeWash() ]      
 
     let db
 
-
+    const makeAuthHeader = user => {
+        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
+        return `Basic ${token}`
+    }
+    
     const insertFixtures = () => (
         Promise.all([
             db.into('brands').insert(brands),
             db.into('categories').insert(categories),
             db.into('dry_instructions').insert(dryInstructions),
-            db.into('wash_instructions').insert(washInstructions)
+            db.into('factories').insert(factories),
+            db.into('wash_instructions').insert(washInstructions),
+            db.into('users').insert(users)
         ])
         .then(() => db.into('products').insert(productsPost))
     )
@@ -72,29 +82,30 @@ describe('Products Endpoints', () => {
 
     const cleanUpTables = () => db.raw(
         `TRUNCATE table 
+        fabrics_to_products, 
+        fibers_to_products,
         notions_to_certifications,
+        notions_to_fibers_and_materials,
+        notions_to_products, 
+        product_cmts_to_certifications, 
+        product_cmts_to_factories, 
+        sizes_to_products, 
+        products,
+        product_colors, 
+        fabrics, 
+        notions,
+        fibers_and_materials, 
         brands,
         categories,
         certifications, 
         dry_instructions, 
         fabric_types, 
-        fabrics, 
-        fabrics_to_products, 
         factories,
-        notions_to_fibers_and_materials,
-        fibers_and_materials, 
         fiber_and_material_types, 
-        fibers_to_products, 
-        notions_to_products, 
         notion_types,
-        notions,
-        product_cmts_to_certifications, 
-        product_cmts_to_factories, 
-        products, 
-        product_colors, 
         sizes, 
-        sizes_to_products, 
-        wash_instructions 
+        wash_instructions,
+        users
         RESTART IDENTITY CASCADE`
     )
 
@@ -151,26 +162,7 @@ describe('Products Endpoints', () => {
                     .get(`/api/products/${productId}`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body.productObject.id).to.eql(productsExtendedGet[productId - 1].id)
-                        expect(res.body.productObject.english_name).to.eql(productsExtendedGet[productId - 1].english_name)
-                        expect(res.body.productObject.brand_id).to.eql(productsExtendedGet[productId - 1].brand_id)
-                        expect(res.body.productObject.brand_currency).to.eql(productsExtendedGet[productId - 1].brand_currency)
-                        expect(res.body.productObject.brand_name).to.eql(productsExtendedGet[productId - 1].brand_name)
-                        expect(res.body.productObject.category_id).to.eql(productsExtendedGet[productId - 1].category_id)
-                        expect(res.body.productObject.product_url).to.eql(productsExtendedGet[productId - 1].product_url)
-                        expect(res.body.productObject.feature_image_url).to.eql(productsExtendedGet[productId - 1].feature_image_url)
-                        expect(res.body.productObject.multiple_color_options).to.eql(productsExtendedGet[productId - 1].multiple_color_options)
-                        expect(res.body.productObject.cost_in_home_currency).to.eql(productsExtendedGet[productId - 1].cost_in_home_currency)
-                        expect(res.body.productObject.wash_id).to.eql(productsExtendedGet[productId - 1].wash_id)
-                        expect(res.body.productObject.dry_id).to.eql(productsExtendedGet[productId - 1].dry_id)
-                        expect(res.body.productObject.cmt_country).to.eql(productsExtendedGet[productId - 1].cmt_country)
-                        expect(res.body.productObject.cmt_notes).to.eql(productsExtendedGet[productId - 1].cmt_notes)
-                        expect(res.body.productObject.approved_by_admin).to.eql(productsExtendedGet[productId - 1].approved_by_admin)
-                        expect(res.body.productObject.date_published).to.eql(productsExtendedGet[productId - 1].date_published)
-                        expect(res.body.prodCertArray).to.eql(productsExtendedGet[productId - 1].certification_array)
-                        expect(res.body.prodColorArray).to.eql(productsExtendedGet[productId - 1].color_array)
-                        expect(res.body.cmtFactArray).to.eql(productsExtendedGet[productId - 1].cmt_factory_array)
-                        expect(res.body.prodNotArray).to.eql(productsExtendedGet[productId - 1].notion_array)
+                        expect(res.body).to.eql(productsExtendedGet[productId - 1])
                     })
             })
         })
@@ -296,7 +288,6 @@ describe('Products Endpoints', () => {
         productId = 1
 
         context('when there are factories in the database', () => {
-            beforeEach(() =>  db.into('factories').insert(factories))
             beforeEach(() =>  db.into('product_cmts_to_factories').insert(productsToFactories))
 
             it('returns all the factories', () => {
@@ -318,10 +309,8 @@ describe('Products Endpoints', () => {
         })
 
         context('given a malicious factory', () => {
-            beforeEach(() =>  db.into('factories').insert(malFactory))
-
             const pTF = [{ product_id: productId, factory_id: malFactory.id, stage: 'sew' }]
-
+            beforeEach(() =>  db.into('factories').insert(malFactory))
             beforeEach(() =>  db.into('product_cmts_to_factories').insert(pTF))
 
             it('removes the attack content', () => {
@@ -346,7 +335,6 @@ describe('Products Endpoints', () => {
         const productId = 1
 
         context('when there are fibers in the database', () => {
-            beforeEach(() =>  db.into('factories').insert(factories))
             beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
             beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
             beforeEach(() =>  db.into('fibers_to_products').insert(productsToFibers))
@@ -369,7 +357,6 @@ describe('Products Endpoints', () => {
 
         context('given a malicious fiber', () => {
             beforeEach(() =>  db.into('brands').insert(malBrand))
-            beforeEach(() =>  db.into('factories').insert(factories))
             beforeEach(() =>  db.into('factories').insert(malFactory))
             beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
             beforeEach(() =>  db.into('fiber_and_material_types').insert(malFiberType))
@@ -432,7 +419,6 @@ describe('Products Endpoints', () => {
             const notionsToCerts = { notion_id: notionsPost.id, certification_id: certifications[0].id }
 
             beforeEach(() => db.into('certifications').insert(certifications))
-            beforeEach(() => db.into('factories').insert(factories))
             beforeEach(() => db.into('fiber_and_material_types').insert(materialTypes))
             beforeEach(() => db.into('notion_types').insert(notionType))
             beforeEach(() => db.into('notions').insert(notionsPost))
@@ -509,13 +495,8 @@ describe('Products Endpoints', () => {
         })
     })
 
-    describe('POST /api/products', () => {
-        beforeEach(() =>  db.into('brands').insert(brands))
-        beforeEach(() =>  db.into('wash_instructions').insert(washInstructions))
-        beforeEach(() =>  db.into('dry_instructions').insert(dryInstructions))
-        beforeEach(() =>  db.into('categories').insert(categories))
-
-        it(`Creates a product, responding with 201 and the new product`, () => {
+    describe('Protected endpoints', () => {
+        describe('POST /api/products/', () => {
             const newProduct = {
                 english_name: 'Yellow Shirt',
                 brand_id: 1,
@@ -526,14 +507,176 @@ describe('Products Endpoints', () => {
                 wash_id: 1,
                 dry_id: 1,
                 cost_in_home_currency: 60,
+                cmt_sew_country: 1,
+                cmt_cut_country: 1,
                 cmt_notes: '100 employees',
+                featured: false,
+                approved_by_admin: true
+            }
+
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .post('/api/products')
+                    .send(newProduct)
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+                return supertest(app)
+                    .post(`/api/products`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .send(newProduct)
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .post(`/api/products`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .send(newProduct)
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: users[0].name, password: 'wrong' }
+
+                return supertest(app)
+                    .post('/api/products')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .send(newProduct)
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+
+        describe('PATCH /api/products/:product_id', () => {
+            beforeEach(insertFixtures)
+
+            const newProduct = {
+                english_name: 'Yellow Shirt',
+                brand_id: 1,
+                category_id: 1,
+                product_url: 'https://canopyandunderstory.com',
+                feature_image_url: "http://test-url-feature-image.com",
+                multiple_color_options: true,
+                wash_id: 1,
+                dry_id: 1,
+                cost_in_home_currency: 60,
+                cmt_sew_country: 1,
+                cmt_cut_country: 1,
+                cmt_notes: '100 employees',
+                featured: false,
+                approved_by_admin: true
+            }
+
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .patch('/api/products/1')
+                    .send({ english_name: newProduct.english_name})
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+
+                return supertest(app)
+                    .patch('/api/products/1')
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .send({ english_name: newProduct.english_name })
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .patch(`/api/products/1`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .send({ english_name: newProduct.english_name })
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: users[0].name, password: 'wrong' }
+
+                return supertest(app)
+                    .patch('/api/products/1')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .send({ english_name: newProduct.english_name })
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+
+        describe('DELETE /api/products/:product_id', () => {
+            beforeEach(insertFixtures)
+            
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .delete('/api/products/1')
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+                return supertest(app)
+                    .delete(`/api/products/1`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .delete(`/api/products/1`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: users[0].name, password: 'wrong' }
+
+                return supertest(app)
+                    .delete('/api/products/1')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+    })
+
+    describe('POST /api/products', () => {
+        beforeEach(() =>  db.into('brands').insert(brands))
+        beforeEach(() =>  db.into('wash_instructions').insert(washInstructions))
+        beforeEach(() =>  db.into('dry_instructions').insert(dryInstructions))
+        beforeEach(() =>  db.into('categories').insert(categories))
+        beforeEach(() =>  db.into('users').insert(users))
+
+        it(`creates a product, responding with 201 and the new product`, () => {
+            const newProduct = {
+                english_name: 'Yellow Shirt',
+                brand_id: 1,
+                category_id: 1,
+                product_url: 'https://canopyandunderstory.com',
+                feature_image_url: "http://test-url-feature-image.com",
+                multiple_color_options: true,
+                wash_id: 1,
+                dry_id: 1,
+                cost_in_home_currency: 60,
+                cmt_sew_country: 1,
+                cmt_cut_country: 1,
+                cmt_notes: '100 employees',
+                featured: false,
                 approved_by_admin: true
             }
             
             return supertest(app)
                 .post('/api/products')
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(newProduct)
-                .then(res => {
+                .expect(201)
+                .expect(res => {
                     expect(res.body.english_name).to.eql(newProduct.english_name)
                     expect(res.body.brand_id).to.eql(newProduct.brand_id)
                     expect(res.body.category_id).to.eql(newProduct.category_id)
@@ -552,10 +695,41 @@ describe('Products Endpoints', () => {
                     expect(actual).to.eql(expected)
                    return res
                 })
-                .then(postRes => {
-                    supertest(app)
+                .then(async postRes => {
+                    const expectedProduct = {
+                        productObject: {
+                            id: postRes.body.id,
+                            english_name: postRes.body.english_name,
+                            brand_currency: 3,
+                            brand_name: 'Sezane',
+                            brand_id: postRes.body.brand_id,
+                            category_id: postRes.body.category_id,
+                            product_url: postRes.body.product_url,
+                            feature_image_url: postRes.body.feature_image_url,
+                            multiple_color_options: postRes.body.multiple_color_options,
+                            cost_in_home_currency: postRes.body.cost_in_home_currency,
+                            wash_id: postRes.body.wash_id,
+                            dry_id: postRes.body.dry_id,
+                            cmt_sew_country: postRes.body.cmt_sew_country,
+                            cmt_cut_country: postRes.body.cmt_cut_country,
+                            cmt_notes: postRes.body.cmt_notes,
+                            featured: postRes.body.featured,
+                            approved_by_admin: postRes.body.approved_by_admin,
+                            date_published: postRes.body.date_published
+                        },
+                        prodCertArray: [],
+                        prodColorArray: [],
+                        cmtFactArray: [],
+                        prodNotArray: [],
+                        notCertArray: []
+                    }
+
+                    await supertest(app)
                     .get(`/api/products/${postRes.body.id}`)
-                    .expect(postRes.body)
+                    .expect(expectedProduct)
+                    .catch(error => {
+                        console.log(error)
+                    })
                 })
                 
         })
@@ -584,6 +758,8 @@ describe('Products Endpoints', () => {
                 cost_in_home_currency: 60,
                 wash_id: 1,
                 dry_id: 1,
+                cmt_sew_country: 1,
+                cmt_cut_country: 1,
                 cmt_country: 'US',
                 cmt_factory_notes: '100 employees',
                 approved_by_admin: true
@@ -594,6 +770,7 @@ describe('Products Endpoints', () => {
 
                 return supertest(app)
                     .post('/api/products')
+                    .set('Authorization', makeAuthHeader(users[0]))
                     .send(newProduct)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -601,9 +778,10 @@ describe('Products Endpoints', () => {
             })
         })
 
-        it(`Removes XSS attack content from response`, () => {
+        it(`removes XSS attack content from response`, () => {
             return supertest(app)
                 .post('/api/products')
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(malProduct)
                 .expect(201)
                 .expect(res => {
@@ -617,16 +795,16 @@ describe('Products Endpoints', () => {
     describe('POST /api/products/product-form', () => {
         beforeEach(() =>  db.into('brands').insert(brands))
         beforeEach(() =>  db.into('categories').insert(categories))
-        beforeEach(() =>  db.into('certifications').insert(certifications))
         beforeEach(() =>  db.into('dry_instructions').insert(dryInstructions))
         beforeEach(() =>  db.into('factories').insert(factories))
+        beforeEach(() =>  db.into('wash_instructions').insert(washInstructions))
+        beforeEach(() =>  db.into('users').insert(users))
+        beforeEach(() =>  db.into('certifications').insert(certifications))
         beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
-        beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
         beforeEach(() =>  db.into('notion_types').insert(notionType))
         beforeEach(() =>  db.into('sizes').insert(size))
-        beforeEach(() =>  db.into('wash_instructions').insert(washInstructions))
 
-        it(`Creates a product, responding with 201 and the new product`, () => {
+        it(`Creates a product from the product form, responding with 201 and the new product`, () => {
             const newProduct = {
                 english_name: 'Yellow Shirt',
                 brand_id: 1,
@@ -637,7 +815,10 @@ describe('Products Endpoints', () => {
                 cost_in_home_currency: 60,
                 wash_id: 1,
                 dry_id: 1,
+                cmt_cut_country: 1,
+                cmt_sew_country: 1,
                 cmt_notes: '100 employees',
+                featured: false,
                 color_fieldsets: [
                     {
                         name: 'Daffodil',
@@ -676,12 +857,13 @@ describe('Products Endpoints', () => {
                         },
                         fiber_array: [
                             {
-                                    fiberTypeId: 1,
-                                    percentage: 100,
-                                    originId: 1,
-                                    producerId: 1,
-                                    producerNotes: 'Notes',
-                                    certIds: [1]
+                                id: 3,
+                                fiberTypeId: 1,
+                                percentage: 100,
+                                originId: 1,
+                                producerId: 1,
+                                producerNotes: 'Notes',
+                                certIds: [1]
                             }
                         ],
                         relationship: 'primary'
@@ -704,7 +886,12 @@ describe('Products Endpoints', () => {
 
             return supertest(app)
                 .post('/api/products/product-form')
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(newProduct)
+                .expect(201)
+                .catch(error => {
+                    console.log(error)
+                })
                 .then(res => {
                     expect(res.body.english_name).to.eql(newProduct.english_name)
                     expect(res.body.brand_id).to.eql(newProduct.brand_id)
@@ -715,19 +902,25 @@ describe('Products Endpoints', () => {
                     expect(res.body.wash_id).to.eql(newProduct.wash_id)
                     expect(res.body.dry_id).to.eql(newProduct.dry_id)
                     expect(res.body.cost_in_home_currency).to.eql(newProduct.cost_in_home_currency)
+                    expect(res.body.cmt_cut_country).to.eql(newProduct.cmt_cut_country)
+                    expect(res.body.cmt_sew_country).to.eql(newProduct.cmt_sew_country)
                     expect(res.body.cmt_notes).to.eql(newProduct.cmt_notes)
+                    expect(res.body.featured).to.eql(newProduct.featured)
                     expect(res.body.approved_by_admin).to.eql(newProduct.approved_by_admin)
                     expect(res.body).to.have.property('id')
                     expect(res.headers.location).to.have.eql(`/api/products/${res.body.id}`)
                     const expected = new Date().toLocaleString()
                     const actual = new Date(res.body.date_published).toLocaleString()
                     expect(actual).to.eql(expected)
-                   return res
+                    return res
                 })
-                .then(postRes => {
+                .then(res => {
                     supertest(app)
-                    .get(`/api/products/${postRes.body.id}`)
-                    .expect(postRes.body)
+                    .get(`/api/products/${res.body.id}`)
+                    .catch(error => {
+                        console.log(error)
+                    })
+                    
                 })
                 
         })
@@ -766,6 +959,7 @@ describe('Products Endpoints', () => {
 
                 return supertest(app)
                     .post('/api/products')
+                    .set('Authorization', makeAuthHeader(users[0]))
                     .send(newProduct)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -776,6 +970,7 @@ describe('Products Endpoints', () => {
         it(`Removes XSS attack content from response`, () => {
             return supertest(app)
                 .post('/api/products')
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(malProduct)
                 .expect(201)
                 .expect(res => {
@@ -799,6 +994,7 @@ describe('Products Endpoints', () => {
         it('creates a product-certification pair, responding with 201 and the new product-certification pair', () => {            
             return supertest(app)
                 .post(`/api/products/${productId}/certifications`)
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(prodCert)
                 .expect(201, {
                     product_id: productId,
@@ -809,10 +1005,11 @@ describe('Products Endpoints', () => {
         it(`responds with 400 and an error message when the 'certification_id' is missing`, () => {
             return supertest(app)
                 .post(`/api/products/${productId}/certifications`)
-                    .send({})
-                    .expect(400, {
-                        error: { message: `Missing 'certification_id' in request body`}
-                    })
+                .set('Authorization', makeAuthHeader(users[0]))
+                .send({})
+                .expect(400, {
+                    error: { message: `Missing 'certification_id' in request body`}
+                })
         })
     })
 
@@ -829,10 +1026,10 @@ describe('Products Endpoints', () => {
             approved_by_admin: false
         }
 
-        it('creates a color, responding with 201 and the new color', () => {           
-
+        it('creates a color, responding with 201 and the new color', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/colors`)
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(newColor)
                 .then(res => {
                     expect(201)
@@ -846,10 +1043,13 @@ describe('Products Endpoints', () => {
                     expect(actual).to.eql(expected)
                     return res
                 })
-                .then(res => {
-                    supertest(app)
-                        .get(`/api/products/${res.body.id}/colors`)
-                        .expect(res.body)
+                .then(async res => {
+                    await supertest(app)
+                        .get(`/api/products/${res.body.color_id}/colors`)
+                        .expect([res.body])
+                        .catch(error => {
+                            console.log(error)
+                        })
                 })
         })
 
@@ -869,10 +1069,11 @@ describe('Products Endpoints', () => {
             it(`responds with 400 and an error message when the '${field}' is missing`, () => {
                 return supertest(app)
                     .post(`/api/products/${productId}/colors`)
-                        .send(color)
-                        .expect(400, {
-                            error: { message: `Missing '${field}' in request body`}
-                        })
+                    .set('Authorization', makeAuthHeader(users[0]))
+                    .send(color)
+                    .expect(400, {
+                        error: { message: `Missing '${field}' in request body`}
+                    })
             })
         })
     })
@@ -904,6 +1105,7 @@ describe('Products Endpoints', () => {
             it(`responds with 400 and an error message when the 'fabric_id' is missing`, () => {
                 return supertest(app)
                     .post(`/api/products/${productId}/fabrics`)
+                    .set('Authorization', makeAuthHeader(users[0]))
                     .send(prodFab)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -914,7 +1116,6 @@ describe('Products Endpoints', () => {
 
     describe('POST /api/products/:product_id/factories', () => {
             beforeEach(insertFixtures)
-            beforeEach(() =>  db.into('factories').insert(factories))
 
             const productId = 1
 
@@ -926,6 +1127,7 @@ describe('Products Endpoints', () => {
         it('creates a product-factory set, responding with 201 and the new product-factory set', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/factories`)
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(newProdFactSet)
                 .expect(201, {
                     ...newProdFactSet,
@@ -948,6 +1150,7 @@ describe('Products Endpoints', () => {
             it(`responds with 400 and an error message when the '${field}' is missing`, () => {
                 return supertest(app)
                     .post(`/api/products/${productId}/factories`)
+                    .set('Authorization', makeAuthHeader(users[0]))
                     .send(prodFact)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -958,7 +1161,6 @@ describe('Products Endpoints', () => {
 
     describe('POST /api/products/:product_id/fibers', () => {
         beforeEach(insertFixtures)
-        beforeEach(() =>  db.into('factories').insert(factories))
         beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
         beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
     
@@ -972,6 +1174,7 @@ describe('Products Endpoints', () => {
         it('creates a product-fiber pair, responding with 201 and the new product-fiber pair', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/fibers`)
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(newProductFiberPair)
                 .expect(201, newProductFiberPair)
         })
@@ -979,6 +1182,7 @@ describe('Products Endpoints', () => {
         it(`responds with 400 and an error message when the 'fiber_or_material_id' is missing`, () => {
             return supertest(app)
                 .post(`/api/products/${productId}/fibers`)
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send({})
                 .expect(400, {
                     error: { message: `Missing 'fiber_or_material_id' in request body`}
@@ -988,7 +1192,6 @@ describe('Products Endpoints', () => {
 
     describe('POST /api/products/:product_id/notions', () => {
         beforeEach(insertFixtures)
-        beforeEach(() =>  db.into('factories').insert(factories))
         beforeEach(() =>  db.into('notion_types').insert(notionType))
         beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
         beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
@@ -1004,6 +1207,7 @@ describe('Products Endpoints', () => {
         it('creates a product-notion pair, responding with 201 and the new product-notion pair', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/notions`)
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(newProductNotionPair)
                 .expect(201, newProductNotionPair)
         })
@@ -1011,6 +1215,7 @@ describe('Products Endpoints', () => {
         it(`responds with 400 and an error message when the 'notion_id' is missing`, () => {
             return supertest(app)
                 .post(`/api/products/${productId}/notions`)
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send({})
                 .expect(400, {
                     error: { message: `Missing 'notion_id' in request body`}
@@ -1032,6 +1237,7 @@ describe('Products Endpoints', () => {
         it('creates a product-size pair, responding with 201 and the new product-size pair', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/sizes`)
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(newProductSizePair)
                 .expect(201, newProductSizePair)
         })
@@ -1039,6 +1245,7 @@ describe('Products Endpoints', () => {
         it(`responds with 400 and an error message when the 'size_id' is missing`, () => {
             return supertest(app)
                 .post(`/api/products/${productId}/sizes`)
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send({})
                 .expect(400, {
                     error: { message: `Missing 'size_id' in request body`}
@@ -1047,6 +1254,10 @@ describe('Products Endpoints', () => {
     })
 
     describe('PATCH /api/products/:product_id', () => {
+        beforeEach(() => db.into('users').insert(adminArray))
+
+        const adminUser = adminArray[0]
+
         context('Given there are products in the database', () => {
             beforeEach(insertFixtures)
             const idToUpdate = 1
@@ -1065,65 +1276,94 @@ describe('Products Endpoints', () => {
                     cmt_notes: 'Updated Notes',
                     approved_by_admin: true
                 }
+
                 const expectedProduct = {
-                    ...productsExtendedGet[idToUpdate - 1],
-                    ...updateProduct
+                    productObject: {
+                        ...productsExtendedGet[idToUpdate - 1].productObject,
+                        ...updateProduct
+                    },
+                    prodCertArray: productsExtendedGet[idToUpdate - 1].prodCertArray,
+                    prodColorArray: productsExtendedGet[idToUpdate - 1].prodColorArray,
+                    cmtFactArray: productsExtendedGet[idToUpdate - 1].cmtFactArray,
+                    prodNotArray: productsExtendedGet[idToUpdate - 1].prodNotArray,
+                    notCertArray: productsExtendedGet[idToUpdate - 1].notCertArray
                 }
 
                 return supertest(app)
                     .patch(`/api/products/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .send(updateProduct)
                     .expect(204)
                     .then(res => {
                         supertest(app)
                             .get(`/api/products/${idToUpdate}`)
                             .expect(expectedProduct)
+                            .catch(error => {
+                                console.log(error)
+                            })
                     })
             })
 
             it('responds with 400 when no required fields are supplied', () => {
                 return supertest(app)
                     .patch(`/api/products/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .send({ irrelevantField: 'foo' })
                     .expect(400, {
-                        error: { message: `Request body must contain 'english_name', 'brand_id', 'category_id', 'product_url', 'feature_image_url', 'multiple_color_options', 'cost_in_home_currency', 'wash_id', 'dry_id', 'cmt_notes', or 'approved_by_admin'`}
+                        error: { message: `Request body must contain 'english_name', 'brand_id', 'category_id', 'product_url', 'feature_image_url', 'multiple_color_options', 'cost_in_home_currency', 'wash_id', 'dry_id', 'cmt_sew_country', 'cmt_cut_country', 'cmt_notes', 'featured', or 'approved_by_admin'`}
                     })
             })
 
             it(`responds with 204 when updating only a subset of fields`, () => {
                 const updateProduct = {
-                    english_name: 'Updated Product Name'
+                    english_name: 'Updated Product Name',
+                    fieldToIgnore: 'should not be in the GET response'
                 }
-                const expectedProduct = {
-                    ...productsPost[idToUpdate - 1],
-                    ...updateProduct
+
+                const expectedResponse = {
+                    productObject: {
+                        ...productsOnlyGet[0],
+                        english_name: 'Updated Product Name'
+                    },    
+                    prodCertArray: [],
+                    prodColorArray: [],
+                    cmtFactArray: [],
+                    prodNotArray: [],
+                    notCertArray: []  
                 }
 
                 return supertest(app)
                     .patch(`/api/products/${idToUpdate}`)
-                    .send({
-                        ...updateProduct,
-                        fieldToIgnore: 'should not be in the GET response'})
-                .expect(204)
-                .then(res => {
-                    supertest(app)
-                        .get(`/api/products/${idToUpdate}`)
-                        .expect(expectedProduct)
+                    .set('Authorization', makeAuthHeader(adminUser))
+                    .send(updateProduct)
+                    .expect(204)
+                    .then(async res => {
+                        await supertest(app)
+                            .get(`/api/products/${idToUpdate}`)
+                            .expect(expectedResponse)
+                            .catch(error => {
+                                console.log(error)
+                            })
+                    })
                 })
             })
-        })
         
         context(`Given no products`, () => {
             it(`responds with 404`, () => {
                 const productId = 123456
                 return supertest(app)
                     .patch(`/api/products/${productId}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(404, { error: { message: `Product does not exist`}})
             })
         })
     })
 
     describe('DELETE /api/products/:product_id', () => {
+        beforeEach(() => db.into('users').insert(adminArray))
+
+        const adminUser = adminArray[0]
+
         context('Given there are products in the database', () => {
             beforeEach(insertFixtures)
 
@@ -1133,11 +1373,15 @@ describe('Products Endpoints', () => {
 
                 return supertest(app)
                     .delete(`/api/products/${idToRemove}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(204)
                     .then(res => 
                         supertest(app)
                             .get('/api/products')
                             .expect(expectedProducts)
+                            .catch(error => {
+                                console.log(error)
+                            })
                     )
             })
         })
@@ -1147,8 +1391,11 @@ describe('Products Endpoints', () => {
                 const productId = 234567
                 return supertest(app)
                     .delete(`/api/products/${productId}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(404, { error: { message: `Product does not exist` } })
             })
         })
     })
+
+
 })

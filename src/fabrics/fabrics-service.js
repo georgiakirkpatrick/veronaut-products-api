@@ -32,18 +32,18 @@ const FabricsService = {
         },
 
     // Fabric Types
-        getAllFabricTypes(knex) {
-            return knex('fabric_types')
-                .select('*')
-        },
+        // getAllFabricTypes(knex) {
+        //     return knex('fabric_types')
+        //         .select('*')
+        // },
 
-        insertFabricType(knex, newFabricType) {
-            return knex
-                .insert(newFabricType)
-                .into('fabric_types')
-                .returning('*')
-                .then(response => response[0])
-        },
+        // insertFabricType(knex, newFabricType) {
+        //     return knex
+        //         .insert(newFabricType)
+        //         .into('fabric_types')
+        //         .returning('*')
+        //         .then(response => response[0])
+        // },
 
     // Factories
         getFactoriesForFabric(knex, fabricId) {

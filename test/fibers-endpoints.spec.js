@@ -10,8 +10,10 @@ const {
     makeFiberArray, makeFiberToCertArray, makeFiberToMalCertArray, makeFiberTypeArray, 
     makeMalFiberType, makeMalFiber 
 } = require('./fibers.fixtures')
+const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
 
 describe('Fibers Endpoints', () => {
+    const adminArray = makeAdmin()
     const brands = makeBrandArray()
     const certifications = makeCertificationArray()
     const factories = makeFactoryArray()
@@ -24,8 +26,14 @@ describe('Fibers Endpoints', () => {
     const { malCertification, expectedCertification } = makeMalCertification()
     const { malFiber, expectedFiber } = makeMalFiber()
     const { malFiberType, expectedFiberType } = makeMalFiberType()
+    const users = makeUsers()
 
     let db
+
+    const makeAuthHeader = user => {
+        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
+        return `Basic ${token}`
+    }
 
     before('make knex instance', () => {
         db = knex({
@@ -36,8 +44,10 @@ describe('Fibers Endpoints', () => {
     })
     
     after('disconnect from db', () => db.destroy())
-    before('clean the table', () => db.raw('TRUNCATE table fiber_and_material_types, brands, certifications, factories, fibers_and_materials, fiber_and_material_types, fibers_to_certifications RESTART IDENTITY CASCADE'))
-    afterEach('cleanup', () => db.raw('TRUNCATE table fiber_and_material_types, brands, certifications, factories, fibers_and_materials, fiber_and_material_types, fibers_to_certifications RESTART IDENTITY CASCADE'))
+    before('clean the table', () => db.raw('TRUNCATE table fiber_and_material_types, brands, certifications, factories, fibers_and_materials, fiber_and_material_types, fibers_to_certifications, users RESTART IDENTITY CASCADE'))
+    afterEach('cleanup', () => db.raw('TRUNCATE table fiber_and_material_types, brands, certifications, factories, fibers_and_materials, fiber_and_material_types, fibers_to_certifications, users RESTART IDENTITY CASCADE'))
+
+    const user = users[0]
 
     describe('GET /api/fibers', () => {
         context('when there are fibers in the database', () => {
@@ -227,6 +237,150 @@ describe('Fibers Endpoints', () => {
         })
     })
 
+    describe('Protected endpoints', () => {
+        const protectedEndpoints = [
+            {
+                name: 'POST /api/fibers',
+                path: '/api/fibers'
+            },
+            {
+                name: 'POST /api/fibers/fiber-types',
+                path: '/api/fibers/fiber-types'
+            },
+            {
+                name: 'POST /api/fibers/:fiber_id/certifications',
+                path: '/api/fibers/1/certifications'
+            }
+        ]
+
+        protectedEndpoints.forEach(endpoint => {
+            describe(endpoint.name, () => {
+                beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
+                beforeEach(() =>  db.into('brands').insert(brands))
+                beforeEach(() =>  db.into('factories').insert(factories))
+                beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
+
+                it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                    supertest(app)
+                        .post(endpoint.path)
+                        .send({})
+                        .expect(401, { error: `Missing basic token`})
+                ))
+    
+                it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                    const userNoCreds = { email: '', password: '' }
+                    return supertest(app)
+                        .post(endpoint.path)
+                        .set('Authorization', makeAuthHeader(userNoCreds))
+                        .send({})
+                        .expect(401, { error: `Unauthorized request` })
+                })
+    
+                it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                    const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                    
+                    return supertest(app)
+                        .post(endpoint.path)
+                        .set('Authorization', makeAuthHeader(invalidUserCreds))
+                        .send({})
+                        .expect(401, { error: 'Unauthorized request' })
+                })
+    
+                it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                    const incorrectPassword = { email: user.email, password: 'wrong' }
+    
+                    return supertest(app)
+                        .post(endpoint.path)
+                        .set('Authorization', makeAuthHeader(incorrectPassword))
+                        .send({})
+                        .expect(401, { error: 'Unauthorized request' })
+                })
+            })
+        })
+
+        describe('PATCH /api/fibers/:fiber_id', () => {
+            beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('factories').insert(factories))
+            beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
+
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .patch('/api/fibers/1')
+                    .send({ fiber_or_material_type_id: fibersPost.fiber_or_material_type_id })
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+                return supertest(app)
+                    .patch(`/api/fibers/1`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .send({ fiber_or_material_type_id: fibersPost.fiber_or_material_type_id })
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .patch(`/api/fibers/1`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .send({ fiber_or_material_type_id: fibersPost.fiber_or_material_type_id })
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: user.email, password: 'wrong' }
+
+                return supertest(app)
+                    .patch('/api/fibers/1')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .send({ fiber_or_material_type_id: fibersPost.fiber_or_material_type_id })
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+
+        describe('DELETE /api/fibers/:fiber_id', () => {
+            beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
+            beforeEach(() =>  db.into('brands').insert(brands))
+            beforeEach(() =>  db.into('factories').insert(factories))
+            beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
+
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .delete('/api/fibers/1')
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+                return supertest(app)
+                    .delete(`/api/fibers/1`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .delete(`/api/fibers/1`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: user.email, password: 'wrong' }
+
+                return supertest(app)
+                    .delete('/api/fibers/1')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+    })    
+
     describe('POST /api/fibers', () => {
         beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
         beforeEach(() =>  db.into('fiber_and_material_types').insert(malFiberType))
@@ -234,6 +388,7 @@ describe('Fibers Endpoints', () => {
         beforeEach(() =>  db.into('brands').insert(malBrand))
         beforeEach(() =>  db.into('factories').insert(factories))
         beforeEach(() =>  db.into('factories').insert(malFactory))
+        beforeEach(() => db.into('users').insert(users))
 
         it('creates a fiber, responding with 201 and the new fiber', () => {
             const newFiber = {
@@ -246,10 +401,11 @@ describe('Fibers Endpoints', () => {
 
             return supertest(app)
                 .post('/api/fibers')
+                .set('Authorization', makeAuthHeader(user))
                 .send(newFiber)
                 .expect(201)
                 .expect(res => {
-                    expect(res.body.fiber_type_id).to.eql(newFiber.fiber_or_material_type_id)
+                    expect(res.body.fiber_or_material_type_id).to.eql(newFiber.fiber_or_material_type_id)
                     expect(res.body.brand_id).to.eql(newFiber.brand_id)
                     expect(res.body.producer_country).to.eql(newFiber.producer_country)
                     expect(res.body.producer_id).to.eql(newFiber.producer_id)
@@ -259,10 +415,21 @@ describe('Fibers Endpoints', () => {
                     const actual = new Date(res.body.date_published).toLocaleString()
                     expect(actual).to.eql(expected)
                 })
-                .then(res => {
-                    supertest(app)
-                        .get(`/api/fabrics/${res.body.id}`)
-                        .expect(res.body)
+                .then(async res => {
+                    const expectedFiber = {
+                        ...res.body,
+                        fiber_type: 'Cotton',
+                        class: 'naturally occuring cellulosic fiber',
+                        producer: 'The Orange Concept',
+                        producer_website: 'www.orange.com'
+                    }
+
+                    await supertest(app)
+                        .get(`/api/fibers/${res.body.id}`)
+                        .expect(expectedFiber)
+                        .catch(error => {
+                            console.log(error)
+                        })
                 })
         })
 
@@ -286,6 +453,7 @@ describe('Fibers Endpoints', () => {
 
                 return supertest(app)
                     .post('/api/fibers')
+                    .set('Authorization', makeAuthHeader(user))
                     .send(newFiber)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -296,6 +464,7 @@ describe('Fibers Endpoints', () => {
         it('removes XSS attack content from the response', () => {
             return supertest(app)
                 .post('/api/fibers')
+                .set('Authorization', makeAuthHeader(user))
                 .send(malFiber)
                 .expect(201)
                 .expect(res => {
@@ -305,6 +474,8 @@ describe('Fibers Endpoints', () => {
     })
 
     describe('POST /api/fibers/fiber-types', () => {
+        beforeEach(() => db.into('users').insert(user))
+
         it('creates a fiber type, responding with 201 and the new fiber type', () => {
             const newFiberType = {
                 english_name: 'Cotton',
@@ -314,6 +485,7 @@ describe('Fibers Endpoints', () => {
             return supertest(app)
                 .post('/api/fibers/fiber-types')
                 .send(newFiberType)
+                .set('Authorization', makeAuthHeader(user))
                 .expect(201)
                 .expect(res => {
                     expect(res.body.english_name).to.eql(newFiberType.english_name)
@@ -323,10 +495,16 @@ describe('Fibers Endpoints', () => {
                     const actual = new Date(res.body.date_published).toLocaleString()
                     expect(actual).to.eql(expected)
                 })
-                .then(res => {
-                    supertest(app)
-                        .get(`/api/fabrics/${res.body.id}`)
-                        .expect(res.body)
+                .then(async res => {
+                    const expectedFiberArray = [{...res.body}]
+
+                    await supertest(app)
+                        .get(`/api/fibers/fiber-types`)
+                        .expect(200)
+                        .expect(expectedFiberArray)
+                        .catch(error => {
+                            console.log(error)
+                        })
                 })
         })
 
@@ -344,6 +522,7 @@ describe('Fibers Endpoints', () => {
 
                 return supertest(app)
                     .post('/api/fibers/fiber-types')
+                    .set('Authorization', makeAuthHeader(user))
                     .send(fiberType)
                     .expect(400, { 
                         error: { message: `Missing '${field}' in request body`}
@@ -358,6 +537,7 @@ describe('Fibers Endpoints', () => {
 
             return supertest(app)
                 .post('/api/fibers/fiber-types')
+                .set('Authorization', makeAuthHeader(user))
                 .send(malFiberType)
                 .expect(201)
                 .expect(res => {
@@ -372,6 +552,7 @@ describe('Fibers Endpoints', () => {
         beforeEach(() =>  db.into('factories').insert(factories))
         beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
         beforeEach(() =>  db.into('certifications').insert(certifications))
+        beforeEach(() =>  db.into('users').insert(users))
 
         it('pairs a fiber and certification, responding with 201 and the fiber-certification pair', () => {
             const fiberId = 1
@@ -383,6 +564,7 @@ describe('Fibers Endpoints', () => {
             
             return supertest(app)
                 .post(`/api/fibers/${fiberId}/certifications`)
+                .set('Authorization', makeAuthHeader(user))
                 .send(fiberCertPair)
                 .expect(201, fiberCertPair)
         })
@@ -399,6 +581,7 @@ describe('Fibers Endpoints', () => {
 
             return supertest(app)
                 .post(`/api/fibers/${fiberId}/certifications`)
+                .set('Authorization', makeAuthHeader(user))
                 .send(fiberCertPair)
                 .expect(400, {
                     error: { message: `Missing 'certification_id' in request body`}
@@ -407,11 +590,14 @@ describe('Fibers Endpoints', () => {
     })
 
     describe('PATCH /api/fibers/:fiber_id', () => {
+        const adminUser = adminArray[0]
+
         context('when the fiber with id fiber_id exists', () => {
             beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
             beforeEach(() =>  db.into('brands').insert(brands))
             beforeEach(() =>  db.into('factories').insert(factories))
             beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
+            beforeEach(() => db.into('users').insert(adminArray))
 
             it('updates the fiber and responds 204', () => {
                 const idToUpdate = 1
@@ -427,7 +613,7 @@ describe('Fibers Endpoints', () => {
     
                 const expectedFiber = {
                     ...fibersGet[idToUpdate - 1],
-                    fiber_type_id: updateFiber.fiber_or_material_type_id,
+                    fiber_or_material_type_id: updateFiber.fiber_or_material_type_id,
                     brand_id: updateFiber.brand_id,
                     producer_country: updateFiber.producer_country,
                     producer_id: updateFiber.producer_id,
@@ -437,12 +623,16 @@ describe('Fibers Endpoints', () => {
     
                 return supertest(app)
                     .patch(`/api/fibers/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .send(updateFiber)
                     .expect(204)
                     .then(res => {
                         supertest(app)
                             .get(`/api/fibers/${idToUpdate}`)
                             .expect(expectedFiber)
+                            .catch(error => {
+                                console.log(error)
+                            })
                     })
             })
 
@@ -450,6 +640,7 @@ describe('Fibers Endpoints', () => {
                     const idToUpdate = 1
                     return supertest(app)
                         .patch(`/api/fibers/${idToUpdate}`)
+                        .set('Authorization', makeAuthHeader(adminUser))
                         .send({irrelevantField: 'bar'})
                         .expect(400, {
                             error: { message: `Request body must contain 'fiber_or_material_type_id', 'brand_id', 'producer_country', 'producer_id', 'production_notes', and/or 'approved_by_admin'`}
@@ -464,17 +655,23 @@ describe('Fibers Endpoints', () => {
         
                     const expectedFiber = {
                         ...fibersGet[idToUpdate - 1],
-                        ...updateFiber
+                        fiber_or_material_type_id: 2,
+                        fiber_type: 'Wool',
+                        class: 'protein fiber',
                     }
         
                     return supertest(app)
                         .patch(`/api/fibers/${idToUpdate}`)
+                        .set('Authorization', makeAuthHeader(adminUser))
                         .send(updateFiber)
                         .expect(204)
                         .then(res => {
                             supertest(app)
                                 .get(`/api/fibers/${idToUpdate}`)
                                 .expect(expectedFiber)
+                                .catch(error => {
+                                    console.log(error)
+                                })
                         })
             })
         })
@@ -494,6 +691,7 @@ describe('Fibers Endpoints', () => {
             it('responds with 404', () => {
                 return supertest(app)
                     .patch(`/api/fabrics/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .send(updateFabric)
                     .expect(404, {
                         error: { message: `Fabric does not exist.`} } )
@@ -502,35 +700,30 @@ describe('Fibers Endpoints', () => {
     })
 
     describe('DELETE /api/fibers/:fiber_id', () => {
+        beforeEach(() => db.into('users').insert(adminArray))
+
+        const adminUser = adminArray[0]
+        
         context('when the fiber with id fiber_id exists', () => {
             beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
             beforeEach(() =>  db.into('brands').insert(brands))
             beforeEach(() =>  db.into('factories').insert(factories))
             beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
 
-
             it('removes the fiber and responds 204', () => {
                 const idToRemove = 1
-                const expectedFibers = fibersGet.filter(fabric => fabric.id !== idToRemove)
+                const expectedFibers = fibersGet.filter(fiber => fiber.id !== idToRemove)
 
                 return supertest(app)
                     .delete(`/api/fibers/${idToRemove}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(204)
                     .then(res => {
                         supertest(app)
                             .get('/api/fibers')
-                            .expect(res => {
-                                expect(res.body.fiber_type_id).to.eql(expectedFibers[0].fiber_type_id === undefined)
-                                expect(res.body.fiber_type).to.eql(expectedFibers[0].fiber_type === undefined)
-                                expect(res.body.class).to.eql(expectedFibers[0].class === undefined)
-                                expect(res.body.brand_id).to.eql(expectedFibers[0].brand_id === undefined)
-                                expect(res.body.producer_country).to.eql(expectedFibers[0].producer_country === undefined)
-                                expect(res.body.producer_id).to.eql(expectedFibers[0].producer_id === undefined)
-                                expect(res.body.production_notes).to.eql(expectedFibers[0].production_notes === undefined)
-                                expect(res.body.producer).to.eql(expectedFibers[0].producer === undefined)
-                                expect(res.body.producer_website).to.eql(expectedFibers[0].producer_website === undefined)
-                                expect(res.body.approved_by_admin).to.eql(expectedFibers[0].approved_by_admin === undefined)
-                                expect(res.body.date_published).to.eql(expectedFibers[0].date_published === undefined)
+                            .expect(expectedFibers)
+                            .catch(error => {
+                                console.log(error)
                             })
                     })    
             })
@@ -541,12 +734,14 @@ describe('Fibers Endpoints', () => {
             beforeEach(() =>  db.into('brands').insert(brands))
             beforeEach(() =>  db.into('factories').insert(factories))
             beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
+            beforeEach(() => db.into('users').insert(users))
 
             it('responds with 404', () => {
                 const idToRemove = 222
 
                 return supertest(app)
                     .delete(`/api/fabrics/${idToRemove}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(404, {
                         error: { message: `Fabric does not exist.`} } )
             })

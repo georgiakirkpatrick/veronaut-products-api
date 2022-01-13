@@ -63,6 +63,8 @@ const makeMalProduct = () => {
         cost_in_home_currency: 666,
         wash_id: 1,
         dry_id: 1,
+        cmt_sew_country: 1,
+        cmt_cut_country: 1,
         cmt_notes: 'This is a bad image for testing purposes <img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);">.',
         approved_by_admin: true,
         date_published: "2020-09-13T07:30:51.564Z"
@@ -71,12 +73,17 @@ const makeMalProduct = () => {
     const expectedProduct = {
         id: 666,
         brand_id: 1,
+        brand_currency: 3,
+        brand_name: 'Sezane',
         category_id: 1,
         feature_image_url: 'https://silvaniaperu.com/silvania-dress',
+        featured: false,
         multiple_color_options: true,
         cost_in_home_currency: 666,
         wash_id: 1,
         dry_id: 1,
+        cmt_sew_country: 1,
+        cmt_cut_country: 1,
         approved_by_admin: true,
         date_published: "2020-09-13T07:30:51.564Z",
         english_name: 'mal product &lt;script&gt;alert("xss");&lt;/script&gt;',
@@ -110,6 +117,9 @@ const makeProductArray = () => {
             cost_in_home_currency: 148.00,
             wash_id: 1,
             dry_id: 1,
+            cmt_cut_country: 1,
+            cmt_sew_country: 1,
+            cmt_notes: null,
             approved_by_admin: true,
             date_published: "2020-09-13T07:30:51.564Z"
         },
@@ -124,6 +134,9 @@ const makeProductArray = () => {
             cost_in_home_currency: 148.00,
             wash_id: 1,
             dry_id: 1,
+            cmt_cut_country: 1,
+            cmt_sew_country: 1,
+            cmt_notes: null,
             approved_by_admin: true,
             date_published: "2020-09-13T07:30:51.564Z"
         },
@@ -138,6 +151,9 @@ const makeProductArray = () => {
             cost_in_home_currency: 148.00,
             wash_id: 1,
             dry_id: 1,
+            cmt_cut_country: 1,
+            cmt_sew_country: 1,
+            cmt_notes: null,
             approved_by_admin: true,
             date_published: "2020-09-13T07:30:51.564Z"
         },
@@ -152,6 +168,9 @@ const makeProductArray = () => {
             cost_in_home_currency: 148.00,
             wash_id: 1,
             dry_id: 1,
+            cmt_cut_country: 1,
+            cmt_sew_country: 1,
+            cmt_notes: null,
             approved_by_admin: true,
             date_published: "2020-09-13T07:30:51.564Z"
         }
@@ -162,68 +181,60 @@ const makeProductArray = () => {
             ...productsPost[0],
             brand_currency: 3,
             brand_name: 'Sezane',
-            cmt_notes: null
+            featured: false
         },
         {
             ...productsPost[1],
             brand_currency: 3,
             brand_name: 'Sezane',
-            cmt_notes: null
+            featured: false
         },
         {
-            ...productsPost[2],
+            ...productsPost[2],                                                                                                                                                                                                                                                                                                                                                                                      
             brand_currency: 3,
             brand_name: 'Sezane',
-            cmt_notes: null
+            featured: false
         },
         {
             ...productsPost[3],
             brand_currency: 3,
             brand_name: 'Sezane',
-            cmt_notes: null
+            featured: false
         }
     ]
 
     const productsExtendedGet = [
         {
-            ...productsPost[0],
-            brand_currency: 3,
-            brand_name: 'Sezane',
-            certification_array: [],
-            cmt_factory_array: [],
-            cmt_notes: null,
-            color_array: [],
-            notion_array: []
+            productObject: productsOnlyGet[0],
+            cmtFactArray: [],
+            notCertArray: [],
+            prodCertArray: [],
+            prodColorArray: [],
+            prodNotArray: []
         },
         {
-            ...productsPost[1],
-            brand_currency: 3,
-            brand_name: 'Sezane',
-            certification_array: [],
-            cmt_factory_array: [],
-            cmt_notes: null,
-            color_array: [],
-            notion_array: []
+            productObject: productsOnlyGet[1],
+            cmtFactArray: [],
+            notCertArray: [],
+            prodCertArray: [],
+            prodColorArray: [],
+            prodNotArray: []
         },
         {
-            ...productsPost[2],
-            brand_currency: 3,
-            brand_name: 'Sezane',
-            certification_array: [],
-            cmt_factory_array: [],
-            cmt_notes: null,
-            color_array: [],
-            notion_array: []
+            productObject: productsOnlyGet[2],
+            cmtFactArray: [],
+            notCertArray: [],
+            prodCertArray: [],
+            prodColorArray: [],
+            prodNotArray: []
         },
         {
-            ...productsPost[3],
-            brand_currency: 3,
-            brand_name: 'Sezane',
-            certification_array: [],
-            cmt_factory_array: [],
-            cmt_notes: null,
-            color_array: [],
-            notion_array: []
+            productObject: productsOnlyGet[3],
+            cmtFactArray: [],
+            notCertArray: [],
+            prodCertArray: [],
+            prodColorArray: [],
+            prodNotArray: []
         }
     ]
 

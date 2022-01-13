@@ -8,11 +8,15 @@ CREATE TABLE users (
     profile_pic TEXT,
     bio TEXT,
     public BOOLEAN DEFAULT false,
+    admin BOOLEAN DEFAULT false,
+    editor BOOLEAN DEFAULT false,
+    can_submit BOOLEAN DEFAULT false,
+    org_affiliation TEXT,
     account_created TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
 insert into users 
-(email, password, handle, name, website, profile_pic, bio, public)
+(email, password, handle, name, website, profile_pic, bio)
 values
     (
         'georgia.kirkpatrick@gmail.com', 
@@ -21,6 +25,5 @@ values
         'Georgia Kirkpatrick', 
         'georgiakirkpatrick.com', 
         'https://www.talk-business.co.uk/wp-content/uploads/2016/05/shutterstock_128709044.jpg', 
-        'Georgia is a computer programmer from Portland, Oregon.',
-        false
+        'Georgia is a computer programmer from Portland, Oregon.'
     );

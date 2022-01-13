@@ -1,11 +1,10 @@
-const path = require('path')
+const { requireAuth, requireAdmin } = require('../middleware/basic-auth')
 const express = require('express')
-const xss = require('xss').escapeHtml
-const FabricsService = require('./fabrics-service')
-// const FactoriesService = require('../factories/factories-service')
-// const FibersService = require('../fibers/fibers-service')
 const fabricsRouter = express.Router()
+const FabricsService = require('./fabrics-service')
 const jsonParser = express.json()
+const path = require('path')
+const xss = require('xss').escapeHtml
 
 const serializeCertifications = certification => ({
     id: certification.id,
@@ -82,7 +81,7 @@ fabricsRouter
             .catch(next)
             
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const { 
             brand_id, 
             fabric_mill_country,
@@ -136,58 +135,58 @@ fabricsRouter
             .catch(next)
     })
    
-fabricsRouter
-    .route('/fabric-types')
-    .get((req, res, next) => {
-        FabricsService
-            .getAllFabricTypes(
-                req.app.get('db')
-            )
-            .then(fabricTypes => {
-                res.json(fabricTypes.map(serializeFabricTypes))
-            })
-            .catch(next)
-    })
-    .post(jsonParser, (req, res, next) => {
-        const { 
-            english_name, 
-            fabric_type_class,
-            approved_by_admin
-        } = req.body
+// fabricsRouter
+//     .route('/fabric-types')
+//     .get((req, res, next) => {
+//         FabricsService
+//             .getAllFabricTypes(
+//                 req.app.get('db')
+//             )
+//             .then(fabricTypes => {
+//                 res.json(fabricTypes.map(serializeFabricTypes))
+//             })
+//             .catch(next)
+//     })
+//     .post(requireAuth, jsonParser, (req, res, next) => {
+//         const { 
+//             english_name, 
+//             fabric_type_class,
+//             approved_by_admin
+//         } = req.body
 
-        const newFabricType = { 
-            english_name, 
-            fabric_type_class,
-            approved_by_admin
-        }
+//         const newFabricType = { 
+//             english_name, 
+//             fabric_type_class,
+//             approved_by_admin
+//         }
 
-        const requiredFields = {
-            english_name, 
-            fabric_type_class
-        }
+//         const requiredFields = {
+//             english_name, 
+//             fabric_type_class
+//         }
 
-        for (const [key, value] of Object.entries(requiredFields)) {
-            if (value === undefined) {
-                return res.status(400).json({
-                    error: { message: `Missing '${key}' in request body`}
-                })
-            }
-        }
+//         for (const [key, value] of Object.entries(requiredFields)) {
+//             if (value === undefined) {
+//                 return res.status(400).json({
+//                     error: { message: `Missing '${key}' in request body`}
+//                 })
+//             }
+//         }
 
-        FabricsService
-            .insertFabricType(
-                req.app.get('db'),
-                newFabricType
-            )
-            .then(fabricType => {
-                res
-                    .status(201)
-                    .location(path.posix.join(req.originalUrl + `/${fabricType.id}`))
-                    .json(serializeFabricTypes(fabricType))
+//         FabricsService
+//             .insertFabricType(
+//                 req.app.get('db'),
+//                 newFabricType
+//             )
+//             .then(fabricType => {
+//                 res
+//                     .status(201)
+//                     .location(path.posix.join(req.originalUrl + `/${fabricType.id}`))
+//                     .json(serializeFabricTypes(fabricType))
                     
-            })
-            .catch(next)
-    })
+//             })
+//             .catch(next)
+//     })
 
 
 fabricsRouter
@@ -202,7 +201,7 @@ fabricsRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const { 
             english_name,
             approved_by_admin
@@ -323,7 +322,7 @@ fabricsRouter
             next(e)
         }
     })
-    .patch(jsonParser, (req, res, next) => {
+    .patch(requireAdmin, jsonParser, (req, res, next) => {
         const {
             brand_id,
             fabric_mill_country,
@@ -365,7 +364,7 @@ fabricsRouter
             })
             .catch(next)
     })
-    .delete((req, res, next) => {
+    .delete(requireAdmin, (req, res, next) => {
         FabricsService
             .deleteFabric(
                 req.app.get('db'),
@@ -407,7 +406,7 @@ fabricsRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const {certification_id} = req.body
         const newFabricCertification = {
             fabric_id: req.params.fabric_id, 
@@ -464,7 +463,7 @@ fabricsRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const {factory_id} = req.body
         const newFabricFactory = {fabric_id: req.params.fabric_id, factory_id}
         
@@ -525,7 +524,7 @@ fabricsRouter
         }
         
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const fabricId = res.fabric.id
 
         const {

@@ -25,7 +25,12 @@ const FactoriesService = {
         return knex('factories')
         .where({ id })
         .update(fieldsToUpdate)
-        .then(response => response[0])
+        .then(response => {
+            return response[0]
+        })
+        .catch(error => {
+            console.log(error)
+        })
     },
 
     deleteFactory(knex, id) {

@@ -9,7 +9,10 @@ CREATE TABLE products (
     product_url TEXT NOT NULL,
     wash_id INTEGER REFERENCES wash_instructions(id) ON DELETE CASCADE,
     dry_id INTEGER REFERENCES dry_instructions(id) ON DELETE CASCADE,
+    cmt_sew_country INTEGER DEFAULT 1,
+    cmt_cut_country INTEGER DEFAULT 1,
     cmt_notes TEXT,
+    featured BOOLEAN DEFAULT false,
     approved_by_admin BOOLEAN DEFAULT false,
     date_published TIMESTAMPTZ DEFAULT now() NOT NULL
 );

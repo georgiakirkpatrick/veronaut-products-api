@@ -1,9 +1,10 @@
-const path = require('path')
+const { requireAuth, requireAdmin } = require('../middleware/basic-auth')
 const express = require('express')
-const xss = require('xss').escapeHtml
-const NotionsService = require('./notions-service')
-const notionsRouter = express.Router()
 const jsonParser = express.json()
+const notionsRouter = express.Router()
+const NotionsService = require('./notions-service')
+const path = require('path')
+const xss = require('xss').escapeHtml
 
 const serializeNotions = notion => ({
     id: notion.id,
@@ -46,7 +47,7 @@ notionsRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const {
             notion_type_id,
             brand_id,
@@ -99,6 +100,7 @@ notionsRouter
                     .location(path.posix.join(req.originalUrl + `/${notion.id}`))
                     .json(serializeNotions(notion))
             })
+            .catch(next)
     })
 
 notionsRouter
@@ -113,7 +115,7 @@ notionsRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const { 
             english_name, 
             approved_by_admin
@@ -138,7 +140,7 @@ notionsRouter
             .then(notionType => {
                 res
                     .status(201)
-                    .location(path.posix.join(req.originalUrl + `/${notionType.id}`))
+                    // .location(path.posix.join(req.originalUrl + `/${notionType.id}`))
                     .json(serializeNotTypes(notionType))
                     
             })
@@ -173,12 +175,16 @@ notionsRouter
             manufacturer_country: res.notion.manufacturer_country,
             manufacturer_id: res.notion.manufacturer_id,
             manufacturer_notes: res.notion.manufacturer_notes ? xss(res.notion.manufacturer_notes) : null,
+            material_type_id: res.notion.material_type_id,
+            material_origin_id: res.notion.material_origin_id,
+            material_producer_id: res.notion.material_producer_id,
+            material_notes: res.notion.material_notes ? xss(res.notion.material_notes) : null,
             approved_by_admin: res.notion.approved_by_admin,
             date_published: res.notion.date_published
         })
-        .catch(next)
+        next()
     })
-    .patch(jsonParser, (req, res, next) => {
+    .patch(requireAdmin, jsonParser, (req, res, next) => {
         const {
             notion_type_id,
             brand_id,
@@ -225,7 +231,7 @@ notionsRouter
             })
             .catch(next)
     })
-    .delete((req, res, next) => {
+    .delete(requireAdmin, (req, res, next) => {
         NotionsService
             .deleteNotion(
                 req.app.get('db'),
@@ -266,7 +272,7 @@ notionsRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const { certification_id } = req.body
         const notCertPair = {
             notion_id: req.params.notion_id,

@@ -30,7 +30,7 @@ const makeFiberArray = () => {
             producer_id: 1,
             approved_by_admin: true,
             date_published: '2020-10-05T18:32:57.458Z',
-            fiber_type_id: 1,
+            fiber_or_material_type_id: 1,
             fiber_type: 'Cotton',
             class: 'naturally occuring cellulosic fiber',
             producer: 'The Orange Concept',
@@ -45,7 +45,7 @@ const makeFiberArray = () => {
             production_notes: 'Notes',
             approved_by_admin: false,
             date_published: '2020-10-05T18:32:57.458Z',
-            fiber_type_id: 1,
+            fiber_or_material_type_id: 1,
             fiber_type: 'Cotton',
             class: 'naturally occuring cellulosic fiber',
             producer: 'The Orange Concept',
@@ -134,7 +134,7 @@ const makeMalFiber = () => {
 
     const expectedFiber = {
         id: 666,
-        fiber_type_id: 666,
+        fiber_or_material_type_id: 666,
         fiber_type: '&lt;a&gt;Bad fiber type&lt;/a&gt;',
         class: 'undetermined',
         brand_id: 666,

@@ -6,7 +6,7 @@ const FibersService = {
                 .join('factories', {'fibers_and_materials.producer_id': 'factories.id'})
                 .select(
                     'fibers_and_materials.id',
-                    'fibers_and_materials.fiber_or_material_type_id as fiber_type_id',
+                    'fibers_and_materials.fiber_or_material_type_id',
                     'fiber_and_material_types.english_name as fiber_type',
                     'fiber_and_material_types.fiber_type_class as class',
                     'fibers_and_materials.brand_id',
@@ -26,7 +26,7 @@ const FibersService = {
                 .join('factories', {'fibers_and_materials.producer_id': 'factories.id'})
                 .select(
                     'fibers_and_materials.id',
-                    'fibers_and_materials.fiber_or_material_type_id as fiber_type_id',
+                    'fibers_and_materials.fiber_or_material_type_id',
                     'fiber_and_material_types.english_name as fiber_type',
                     'fiber_and_material_types.fiber_type_class as class',
                     'fibers_and_materials.brand_id',

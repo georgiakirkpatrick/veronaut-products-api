@@ -31,10 +31,10 @@ const NotionsService = {
                     'notions.manufacturer_country',
                     'notions.manufacturer_id',
                     'notions.manufacturer_notes',
-                    'material_type_id',
-                    'material_origin_id',
-                    'material_producer_id',
-                    'material_notes',
+                    'notions.material_type_id',
+                    'notions.material_origin_id',
+                    'notions.material_producer_id',
+                    'notions.material_notes',
                     'notions.approved_by_admin',
                     'notions.date_published'
                 )
@@ -64,7 +64,6 @@ const NotionsService = {
 
     // Certifications
         getCertsForNot(knex, notionId) {
-            console.log('getCertsForNot', notionId)
             return knex('notions')
                 .join('notions_to_certifications', {'notions.id': 'notions_to_certifications.notion_id'})
                 .join('certifications', {'notions_to_certifications.certification_id': 'certifications.id'})

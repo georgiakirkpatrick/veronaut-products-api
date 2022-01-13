@@ -17,10 +17,40 @@ const ProductsService = {
                 'products.product_url',
                 'products.wash_id',
                 'products.dry_id',
+                'products.cmt_sew_country',
+                'products.cmt_cut_country',
                 'products.cmt_notes',
+                'products.featured',
                 'products.approved_by_admin',
                 'products.date_published'
             )
+    },
+
+    getFeaturedProducts(knex) {
+        return knex('products')
+            .join('brands', {'products.brand_id': 'brands.id'})
+            .select(
+                'products.id',
+                'products.english_name',
+                'products.brand_id',
+                'brands.english_name as brand_name',
+                'brands.home_currency as brand_currency',
+                'products.category_id',
+                'products.feature_image_url',
+                'products.multiple_color_options',
+                'brands.home_currency',
+                'products.cost_in_home_currency',
+                'products.product_url',
+                'products.wash_id',
+                'products.dry_id',
+                'products.cmt_sew_country',
+                'products.cmt_cut_country',
+                'products.cmt_notes',
+                'products.featured',
+                'products.approved_by_admin',
+                'products.date_published'
+            )
+            .where('products.featured', true)
     },
 
     getProductById(knex, id) {
@@ -39,7 +69,10 @@ const ProductsService = {
                 'products.product_url',
                 'products.wash_id',
                 'products.dry_id',
+                'products.cmt_sew_country',
+                'products.cmt_cut_country',
                 'products.cmt_notes',
+                'products.featured',
                 'products.approved_by_admin',
                 'products.date_published'
             )
@@ -207,7 +240,7 @@ const ProductsService = {
             .join('factories', {'fibers_and_materials.producer_id': 'factories.id'})
             .select(
                 'fibers_and_materials.id',
-                'fibers_and_materials.fiber_or_material_type_id as fiber_type_id',
+                'fibers_and_materials.fiber_or_material_type_id',
                 'fiber_and_material_types.english_name as fiber_type',
                 'fiber_and_material_types.fiber_type_class as class',
                 'fibers_and_materials.brand_id',
@@ -250,6 +283,7 @@ const ProductsService = {
                 'notions.manufacturer_id',
                 'notions.manufacturer_notes',
                 'notions.material_type_id',
+                'fiber_and_material_types.english_name as material_type',
                 'notions.material_origin_id',
                 'notions.material_producer_id',
                 'notions.material_notes',

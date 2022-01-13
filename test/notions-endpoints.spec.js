@@ -7,8 +7,11 @@ const { makeFactoryArray,makeMalFactory } = require('./factories.fixtures')
 const { makeFiberTypeArray, makeMalFiberType } = require('./fibers.fixtures')
 const { makeMalNotion, makeNotionArray, makeNotionType, makeMalNotionType, makeNotsToCerts } = require('./notions.fixtures')
 const { makeCertificationArray, makeMalCertification } = require('./certifications.fixtures')
+const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
+const { describe } = require('mocha')
 
-describe('Brands Endpoints', () => {
+describe('Notions Endpoints', () => {
+    const adminArray = makeAdmin()
     const brands = makeBrandArray()
     const certifications = makeCertificationArray()
     const factories = makeFactoryArray()
@@ -21,9 +24,16 @@ describe('Brands Endpoints', () => {
     const { notionsPost, notionsCertsGet, notionsGet } = makeNotionArray()
     const notsToCerts = makeNotsToCerts()
     const { malNotionType, expectedNotionType } = makeMalNotionType()
+    const { malUser, expectedUser } = makeMalUser()
     const notionTypes = makeNotionType()
+    const users = makeUsers()
 
     let db
+
+    const makeAuthHeader = user => {
+        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
+        return `Basic ${token}`
+    }
 
     before('make knex instance', () => {
         db = knex({
@@ -36,15 +46,17 @@ describe('Brands Endpoints', () => {
     after('disconnect from db', () => db.destroy())
 
     before('clean the table', () => db.raw(
-        `TRUNCATE table fabric_types, brands, fabrics, factories, fiber_and_material_types, 
-        fibers_to_factories, fabrics_to_fibers_and_materials, notion_types, certifications, 
-        fabrics_to_certifications RESTART IDENTITY CASCADE`
+        `TRUNCATE table notions, fabric_types, brands, fabrics, factories, fiber_and_material_types, 
+        fibers_to_factories, fabrics_to_fibers_and_materials, notion_types,  certifications, 
+        fabrics_to_certifications, users RESTART IDENTITY CASCADE`
     ))
 
+    beforeEach(() => db.into('users').insert(users))
+
     afterEach('cleanup', () => db.raw(
-        `TRUNCATE table fabric_types, brands, fabrics, factories, fiber_and_material_types, 
+        `TRUNCATE table notions, fabric_types, brands, fabrics, factories, fiber_and_material_types, 
         fibers_to_factories, fabrics_to_fibers_and_materials, notion_types, certifications, 
-        fabrics_to_certifications RESTART IDENTITY CASCADE`
+        fabrics_to_certifications, users RESTART IDENTITY CASCADE`
     ))
 
     describe('GET /api/notions', () => {
@@ -140,37 +152,49 @@ describe('Brands Endpoints', () => {
     })
 
     describe('GET /api/notions/:notion_id', () => {
-        context('when the notion types in the database', () => {
+        context('when the notion with id notion_id exists', () => {
+            beforeEach(() => db.into('brands').insert(brands))
             beforeEach(() => db.into('notion_types').insert(notionTypes))
+            beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
+            beforeEach(() => db.into('factories').insert(factories))
+            beforeEach(() => db.into('notions').insert(notionsPost))
+            
+            const notionId = notionsPost.id
 
-            it('returns 200 and all the notion types', () => (
+            it('returns the notion with id notion_id', () => (
                 supertest(app)
-                    .get('/api/notions/notion-types')
-                    .expect(200, notionTypes)
+                    .get(`/api/notions/${notionId}`)
+                    .expect(200, notionsGet)
             ))
         })
 
-        context('when there are no notion types in the database', () => {
-            it('responds with 200 and an empty list', () => (
+        context('when the notion does not exist', () => {
+            const notionId = notionsPost.id
+
+            it('responds with 404 and an error message', () => (
                 supertest(app)
-                    .get('/api/notions/notion-types')
-                    .expect(200, [])
+                    .get(`/api/notions/${notionId}`)
+                    .expect(404, { error: { message: 'Notion does not exist' } })
             ))
         })
 
-        context('given an XSS attack notion type', () => {
+        context('given an XSS attack notion', () => {
             beforeEach(() => db.into('brands').insert(malBrand))
             beforeEach(() => db.into('notion_types').insert(malNotionType))
             beforeEach(() => db.into('fiber_and_material_types').insert(malFiberType))
             beforeEach(() => db.into('factories').insert(malFactory))
             beforeEach(() => db.into('notions').insert(malNotion))
 
+            const malNotionId = malNotion.id
+
             it('removes the XSS attack content', () => (
                 supertest(app)
-                    .get('/api/notions/notion-types')
+                    .get(`/api/notions/${malNotionId}`)
                     .expect(res => {
-                        expect(res.body[0].english_name).to.eql(expectedNotionType.english_name)
-                    })
+                        expect(res.body.notion_type).to.eql(expectedNotion.notion_type)
+                        expect(res.body.manufacturer_notes).to.eql(expectedNotion.manufacturer_notes)
+                        expect(res.body.material_notes).to.eql(expectedNotion.material_notes)
+                    })   
             ))
         })
     })
@@ -230,16 +254,117 @@ describe('Brands Endpoints', () => {
         })
     })
 
+    describe('Protected endpoints', () => {
+        const protectedEndpoints = [
+            {
+                name: 'POST /api/notions',
+                path: '/api/notions'
+            },
+            {
+                name: 'POST /api/notions/notion-types',
+                path: '/api/notions/notion-types'
+            },
+            {
+                name: 'POST /api/notions/:notion_id/certifications',
+                path: '/api/notions/1/certifications'
+            },
+            {
+                name: 'PATCH /api/notions/:notion_id',
+                path: '/api/notions/1/certifications'
+            },
+            {
+                name: 'DELETE /api/notions/:notion_id',
+                path: '/api/notions/1/certifications'
+            }
+        ]
+
+        protectedEndpoints.forEach(endpoint => {
+            describe(endpoint.name, () => {
+                beforeEach(() => db.into('brands').insert(brands))
+                beforeEach(() => db.into('notion_types').insert(notionTypes))
+                beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
+                beforeEach(() => db.into('factories').insert(factories))
+                beforeEach(() => db.into('notions').insert(notionsPost))                
+
+                it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                    supertest(app)
+                        .post(endpoint.path)
+                        .send({})
+                        .expect(401, { error: `Missing basic token`})
+                ))
+    
+                it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                    const userNoCreds = { email: '', password: '' }
+                    return supertest(app)
+                        .post(endpoint.path)
+                        .set('Authorization', makeAuthHeader(userNoCreds))
+                        .send({})
+                        .expect(401, { error: `Unauthorized request` })
+                })
+    
+                it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                    const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                    
+                    return supertest(app)
+                        .post(endpoint.path)
+                        .set('Authorization', makeAuthHeader(invalidUserCreds))
+                        .send({})
+                        .expect(401, { error: 'Unauthorized request' })
+                })
+    
+                it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                    const incorrectPassword = { email: users[0].name, password: 'wrong' }
+    
+                    return supertest(app)
+                        .post(endpoint.path)
+                        .set('Authorization', makeAuthHeader(incorrectPassword))
+                        .send({})
+                        .expect(401, { error: 'Unauthorized request' })
+                })
+            })
+
+            const reqAdminEndpoints = [
+                {
+                    name: 'PATCH /api/notions/:notion_id',
+                    path: '/api/notions/1/certifications'
+                },
+                {
+                    name: 'DELETE /api/notions/:notion_id',
+                    path: '/api/notions/1/certifications'
+                }
+            ]
+    
+            reqAdminEndpoints.forEach(endpoint => {
+                describe(endpoint.name, () => {
+                    beforeEach(() => db.into('brands').insert(brands))
+                    beforeEach(() => db.into('notion_types').insert(notionTypes))
+                    beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
+                    beforeEach(() => db.into('factories').insert(factories))
+                    beforeEach(() => db.into('notions').insert(notionsPost))
+                    beforeEach(() => db.into('users').insert(adminArray))
+
+                    it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
+                        return supertest(app)
+                        .patch(`/api/notions/${notionsPost.id}`)
+                        .set('Authorization', makeAuthHeader(users[0]))
+                        .send({ notion_type_id: 1})
+                        .expect(401, { error: 'Unauthorized request' })
+                    })
+                })
+            })
+        })    
+    })
+
     describe('POST /api/notions', () => {
         beforeEach(() => db.into('brands').insert(brands))
         beforeEach(() => db.into('factories').insert(factories))
         beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
         beforeEach(() => db.into('notion_types').insert(notionTypes))
-        
+
         it('creates a new notion, returning 201 and the new notion', () => {
             const newNotion = {
                 notion_type_id: 1,
-                brand_id: 2,
+                brand_id: 1,
                 manufacturer_country: 1,
                 manufacturer_id: 1,
                 manufacturer_notes: 'These are the notes.',
@@ -251,6 +376,7 @@ describe('Brands Endpoints', () => {
             
             return supertest(app)
                 .post(`/api/notions`)
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(newNotion)
                 .expect(201)
                 .expect(res => {
@@ -268,12 +394,31 @@ describe('Brands Endpoints', () => {
                     const expected = new Date().toLocaleString()
                     const actual = new Date(res.body.date_published).toLocaleString()
                     expect(actual).to.eql(expected)
+                    return res
                 })
-                .then(postRes => {
-                    ('postRes', postRes)
-                    supertest(app)
+                .then(async postRes => {
+                    const expectedNotion = {
+                        id: postRes.body.id,
+                        notion_type_id: postRes.body.notion_type_id,
+                        notion_type: 'button',
+                        brand_id: postRes.body.brand_id,
+                        manufacturer_country: postRes.body.manufacturer_country,
+                        manufacturer_id: postRes.body.manufacturer_id,
+                        manufacturer_notes: postRes.body.manufacturer_notes,
+                        material_type_id: postRes.body.material_type_id,
+                        material_origin_id: postRes.body.material_origin_id,
+                        material_producer_id: postRes.body.material_producer_id,
+                        material_notes: postRes.body.material_notes,
+                        approved_by_admin: postRes.body.approved_by_admin,
+                        date_published: postRes.body.date_published
+                    }
+
+                    await supertest(app)
                         .get(`/api/notions/${postRes.body.id}`)
-                        .expect(postRes.body)
+                        .expect(expectedNotion)
+                        .catch(error => {
+                            console.log(error)
+                        })
                 })
         })
 
@@ -305,6 +450,7 @@ describe('Brands Endpoints', () => {
 
                 return supertest(app)
                     .post('/api/notions')
+                    .set('Authorization', makeAuthHeader(users[0]))
                     .send(newNotion)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -320,6 +466,7 @@ describe('Brands Endpoints', () => {
         it('removes XSS attack content from the response', () => (
             supertest(app)
                 .post('/api/notions')
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(malNotion)
                 .expect(201)
                 .expect(res => {
@@ -334,50 +481,61 @@ describe('Brands Endpoints', () => {
             const newNotionType = {
                 english_name: 'zipper'
             }
-            
+
             supertest(app)
                 .post('/api/notions/notion-types')
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(newNotionType)
                 .expect(201)
                 .expect(res => {
                     expect(res.body.english_name).to.eql(newNotionType.english_name)
                     expect(res.body.approved_by_admin).to.eql(false)
                     expect(res.body).to.have.property('id')
-                    expect(res.headers.location).to.eql(`/api/notions/notion-types/${res.body.id}`)
                     const expected = new Date().toLocaleString()
                     const actual = new Date(res.body.date_published).toLocaleString()
                     expect(actual).to.eql(expected)
                 })
-                .then(postRes => {
-                    ('postRes', postRes)
-                    supertest(app)
-                        .get(`/api/notions/notion-types/${postRes.body.id}`)
-                        .expect(postRes.body)
+                .catch(error => {
+                    console.log(error)
                 })
         })
 
         it(`responds with 400 and an error message when the 'english_name' field is missing`, () => {
             supertest(app)
                 .post('/api/notions/notion-types')
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send({})
                 .expect(400, {
                     error: { message: `Missing 'english_name' in request body`}
                 })
+                .catch(error => {
+                    console.log(error)
+                })
         })
-            
+
         it('removes XSS attack content from the response', () => {
             const newMalNotionType = {
-                english_name: "<a>button</a>"
+                english_name: malNotionType.english_name,
+                approved_by_admin: malNotionType.approved_by_admin
             }
 
             supertest(app)
                 .post('/api/notions/notion-types')
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(newMalNotionType)
-                .expect(201, expectedNotionType)
+                .expect(201)
+                .expect(res => {
+                    expect(res.body.english_name).to.eql(expectedNotionType.english_name)
+                    expect(res.body.approved_by_admin).to.eql(expectedNotionType.approved_by_admin)
+                })
+                .catch(error => {
+                    console.log(error)
+                })
         })
     })
 
     describe('POST /api/notions/notion_id/certifications', () => {
+        before('clean the table', () => db.raw(`TRUNCATE table notion_types RESTART IDENTITY CASCADE`))
         beforeEach(() => db.into('brands').insert(brands))
         beforeEach(() => db.into('factories').insert(factories))
         beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
@@ -394,6 +552,7 @@ describe('Brands Endpoints', () => {
 
             return supertest(app)
                 .post(`/api/notions/${notionId}/certifications`)
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send(notCert)
                 .expect(201)
         })
@@ -403,6 +562,7 @@ describe('Brands Endpoints', () => {
 
             return supertest(app)
                 .post(`/api/notions/${notionId}/certifications`)
+                .set('Authorization', makeAuthHeader(users[0]))
                 .send({})
                 .expect(400, {
                     error: { message: `Missing 'certification_id' in request body`}
@@ -411,7 +571,8 @@ describe('Brands Endpoints', () => {
     })
 
     describe('PATCH /api/notions/:notion_id', () => {
-        const idToUpdate = 1
+        const idToUpdate = notionsPost.id
+        const adminUser = adminArray[0]
 
         context(`when the notion with id notion_id' exists`, () => {
             beforeEach(() => db.into('brands').insert(brands))
@@ -419,37 +580,44 @@ describe('Brands Endpoints', () => {
             beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
             beforeEach(() => db.into('notion_types').insert(notionTypes))
             beforeEach(() => db.into('notions').insert(notionsPost))
+            beforeEach(() => db.into('users').insert(adminArray))
 
             it('updates the notion and responds with 204', () => {
                 const updateNotion = {
-                    notion_type_id: 1,
-                    brand_id: 1,
-                    manufacturer_country: 1,
-                    manufacturer_id: 1,
                     manufacturer_notes: 'New notes.',
-                    material_type_id: 1,
-                    material_origin_id: 1,
-                    material_producer_id: 1,
                     material_notes: 'New new new.'
+                }
+
+                const newNotion = {
+                    ...notionsGet,
+                    ...updateNotion
                 }
 
                 return supertest(app)
                     .patch(`/api/notions/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .send(updateNotion)
                     .expect(204)
                     .then(res => {
                         supertest(app)
                             .get(`/api/notions/${idToUpdate}`)
-                            .expect(updateNotion)
+                            .expect(newNotion)
+                            .catch(error => {
+                                console.log(error)
+                            })
                     })
             })
 
             it('responds with 400 and an error message when no required fields are supplied', () => {
                 return supertest(app)
                     .patch(`/api/notions/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .send({})
                     .expect(400, {
                         error : { message : `Request body must contain 'notion_type_id', 'brand_id', 'manufacturer_country', 'manufacturer_id', 'manufacturer_notes', 'material_type_id', 'material_origin_id', 'material_producer_id','material_notes','approved_by_admin'`}
+                    })
+                    .catch(error => {
+                        console.log(error)
                     })
             })
 
@@ -458,9 +626,10 @@ describe('Brands Endpoints', () => {
                     manufacturer_notes: 'New notes.',
                     material_notes: 'New new new.'
                 }
-
+    
                 return supertest(app)
                     .patch(`/api/notions/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .send(updateNotion)
                     .expect(204)
                     .then(res => {
@@ -469,6 +638,9 @@ describe('Brands Endpoints', () => {
                             .expect(newRes => {
                                 expect(newRes.body.manufacturer_notes).to.eql(updateNotion.manufacturer_notes)
                                 expect(newRes.body.material_notes).to.eql(updateNotion.material_notes)
+                            })
+                            .catch(error => {
+                                console.log(error)
                             })
                     })
             })
@@ -495,6 +667,7 @@ describe('Brands Endpoints', () => {
 
                 return supertest(app)
                     .patch(`/api/notions/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .send(updateNotion)
                     .expect(404, {
                         error: { message: `Notion does not exist` }
@@ -505,6 +678,8 @@ describe('Brands Endpoints', () => {
 
     describe('DELETE /api/notions/:notion_id', () => {
         const idToDelete = 1
+        const expectedNotions = []
+        const adminUser = adminArray[0]
 
         context(`when the notion with id notion_id' exists`, () => {
             beforeEach(() => db.into('brands').insert(brands))
@@ -512,11 +687,21 @@ describe('Brands Endpoints', () => {
             beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
             beforeEach(() => db.into('notion_types').insert(notionTypes))
             beforeEach(() => db.into('notions').insert(notionsPost))
+            beforeEach(() => db.into('users').insert(adminArray))
 
             it('responds with 204 and removes the notion', () => {
                 return supertest(app)
                     .delete(`/api/notions/${idToDelete}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(204)
+                    .then(res => {
+                        supertest(app)
+                            .get('/api/notions')
+                            .expect(expectedNotions)
+                            .catch(error => {
+                                console.log(error)
+                            })
+                    })
             })
         })
 
@@ -524,6 +709,7 @@ describe('Brands Endpoints', () => {
             it('responds with 404 and an error message', () => {
                 return supertest(app)
                     .delete(`/api/notions/${idToDelete}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(404, {
                         error: { message: `Notion does not exist` }
                     })

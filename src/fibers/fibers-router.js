@@ -1,9 +1,10 @@
-const path = require('path')
+const { requireAuth, requireAdmin } = require('../middleware/basic-auth')
 const express = require('express')
-const xss = require('xss').escapeHtml
-const FibersService = require('./fibers-service')
 const fibersRouter = express.Router()
+const FibersService = require('./fibers-service')
 const jsonParser = express.json()
+const path = require('path')
+const xss = require('xss').escapeHtml
 
 const serializeCertifications = certification => ({
     certification_id: certification.certification_id,
@@ -16,7 +17,7 @@ const serializeCertifications = certification => ({
 
 const serializeFibers = fiber => ({
     id: fiber.id,
-    fiber_type_id: fiber.fiber_type_id,
+    fiber_or_material_type_id: fiber.fiber_or_material_type_id,
     fiber_type: fiber.fiber_type ? xss(fiber.fiber_type) : null,
     class: fiber.class,
     brand_id: fiber.brand_id,
@@ -25,7 +26,6 @@ const serializeFibers = fiber => ({
     production_notes: fiber.production_notes ? xss(fiber.production_notes) : null,
     producer: fiber.producer,
     producer_website: fiber.producer_website ? xss(fiber.producer_website) : null,
-    // producer_notes: fiber.producer_notes ? xss(fiber.producer_notes) : null,
     approved_by_admin: fiber.approved_by_admin,
     date_published: fiber.date_published
 })
@@ -48,7 +48,7 @@ fibersRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const {
             fiber_or_material_type_id,
             brand_id,
@@ -88,7 +88,7 @@ fibersRouter
                     .location(path.posix.join(req.originalUrl + `/${fiber.id}` ))
                     .json({
                         id: fiber.id,
-                        fiber_type_id: fiber.fiber_or_material_type_id,
+                        fiber_or_material_type_id: fiber.fiber_or_material_type_id,
                         brand_id: fiber.brand_id,
                         producer_country: fiber.producer_country,
                         producer_id: fiber.producer_id,
@@ -111,7 +111,7 @@ fibersRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const { 
             english_name, 
             fiber_type_class,
@@ -173,7 +173,7 @@ fibersRouter
     .get((req, res, next) => {
         res.json({
             id: res.fiber.id,
-            fiber_type_id: res.fiber.fiber_type_id,
+            fiber_or_material_type_id: res.fiber.fiber_or_material_type_id,
             fiber_type: xss(res.fiber.fiber_type),
             class: res.fiber.class,
             brand_id: res.fiber.brand_id,
@@ -187,7 +187,7 @@ fibersRouter
             date_published: res.fiber.date_published
         })
     })
-    .patch(jsonParser, (req, res, next) => {
+    .patch(requireAdmin, jsonParser, (req, res, next) => {
         const {
             fiber_or_material_type_id,
             brand_id,
@@ -226,7 +226,7 @@ fibersRouter
             })
             .catch(next)
     })
-    .delete((req, res, next) => {
+    .delete(requireAdmin, (req, res, next) => {
         FibersService
             .deleteFiber(
                 req.app.get('db'),
@@ -267,7 +267,7 @@ fibersRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const { certification_id } = req.body
 
         const fibCertPair = {

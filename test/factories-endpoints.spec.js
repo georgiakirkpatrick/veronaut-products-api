@@ -4,11 +4,22 @@ const supertest = require('supertest')
 const { expect } = require('chai')
 
 const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
+const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
 
 describe('Factories Endpoints', function() {
+    const adminArray = makeAdmin()
     const factories = makeFactoryArray()
     const { malFactory, expectedFactory } = makeMalFactory()
+    const { malUser, expectedUser } = makeMalUser()
+    const users = makeUsers()
+    const user = users[0]
+
     let db
+
+    const makeAuthHeader = user => {
+        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
+        return `Basic ${token}`
+    }
 
     before('make knex instance', () => {
         db = knex({
@@ -19,8 +30,9 @@ describe('Factories Endpoints', function() {
     })
     
     after('disconnect from db', () => db.destroy())
-    before('clean the table', () => db.raw('TRUNCATE table factories RESTART IDENTITY CASCADE'))
-    afterEach('cleanup', () => db.raw('TRUNCATE table factories RESTART IDENTITY CASCADE'))
+    before('clean the table', () => db.raw('TRUNCATE table factories, users RESTART IDENTITY CASCADE'))
+    before('create users', () => db.into('users').insert(users))
+    afterEach('cleanup', () => db.raw('TRUNCATE table factories, users RESTART IDENTITY CASCADE'))
 
     describe('GET /api/factories', () => {
         context('when there are factories in the database', () => {
@@ -93,9 +105,135 @@ describe('Factories Endpoints', function() {
              
             })
         })
-    })    
+    })
+
+    describe('Protected endpoints', () => {
+        const newFactory = {
+            english_name: 'Blue Factory',
+            country: 1,
+            website: 'www.blue.com',
+            notes: 'it is blue'
+        }
+
+        describe('POST /api/factories/', () => {
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .post('/api/factories')
+                    .send(newFactory)
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+                return supertest(app)
+                    .post(`/api/factories`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .send(newFactory)
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .post(`/api/factories`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .send(newFactory)
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: user.email, password: 'wrong' }
+
+                return supertest(app)
+                    .post('/api/factories')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .send(newFactory)
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+
+        describe('PATCH /api/factories/:brand_id', () => {
+            beforeEach(() => db.into('factories').insert(factories))       
+
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .patch('/api/factories/1')
+                    .send({ english_name: newFactory.english_name})
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+
+                return supertest(app)
+                    .patch('/api/factories/1')
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .send({ english_name: newFactory.english_name })
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .patch(`/api/factories/1`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .send({ english_name: newFactory.english_name })
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: user.email, password: 'wrong' }
+
+                return supertest(app)
+                    .patch('/api/factories/1')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .send({ english_name: newFactory.english_name })
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+
+        describe('DELETE /api/factories/:brand_id', () => {
+            beforeEach(() => db.into('factories').insert(factories))       
+            
+            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                supertest(app)
+                    .delete('/api/factories/1')
+                    .expect(401, { error: `Missing basic token`})
+            ))
+
+            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+                const userNoCreds = { email: '', password: '' }
+                return supertest(app)
+                    .delete(`/api/factories/1`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .expect(401, { error: `Unauthorized request` })
+            })
+
+            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                
+                return supertest(app)
+                    .delete(`/api/factories/1`)
+                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+                const incorrectPassword = { email: user.email, password: 'wrong' }
+
+                return supertest(app)
+                    .delete('/api/factories/1')
+                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+        })
+    })
 
     describe('POST /api/factories', () => {
+        beforeEach(() => db.into('users').insert(users))
+
         it('creates a factory, responding with 201 and the new factory', () => {
             const newFactory = {
                 english_name: 'The Orange Concept',
@@ -108,6 +246,7 @@ describe('Factories Endpoints', function() {
             return supertest(app)
                 .post('/api/factories')
                 .send(newFactory)
+                .set('Authorization', makeAuthHeader(user))
                 .expect(201)
                 .expect(res => {
                     expect(res.body.english_name).to.eql(newFactory.english_name)
@@ -137,6 +276,7 @@ describe('Factories Endpoints', function() {
             it(`responds with 400 and an error message when the '${field}' is missing`, () => {
                 return supertest(app)
                     .post(`/api/factories`)
+                    .set('Authorization', makeAuthHeader(user))
                     .send(newFactory)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -150,6 +290,7 @@ describe('Factories Endpoints', function() {
             return supertest(app)
                 .post(`/api/factories`)
                 .send(malFactory)
+                .set('Authorization', makeAuthHeader(user))
                 .expect(201)
                 .expect(res => {
                     expect(res.body.english_name).to.eql(expectedFactory.english_name)
@@ -163,6 +304,9 @@ describe('Factories Endpoints', function() {
     })
 
     describe('PATCH /api/factories/:factory_id', () => {
+        const adminUser = adminArray[0]
+        beforeEach(() =>  db.into('users').insert(adminUser))
+
         context('when the factory with id factory_id exists', () => {
             beforeEach(() =>  db.into('factories').insert(factories))
 
@@ -184,12 +328,17 @@ describe('Factories Endpoints', function() {
                 return supertest(app)
                     .patch(`/api/factories/${idToUpdate}`)
                     .send(updateFactory)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(204)
                     .then(res => {
                         supertest(app)
                             .get(`/api/factories/${idToUpdate}`)
                             .expect(expectedFactory)
+                            .catch(error => {
+                                console.log(error)
+                            })
                     })
+
             })
 
             it('responds with 400 when no required fields are supplied', () => {
@@ -197,6 +346,7 @@ describe('Factories Endpoints', function() {
                     return supertest(app)
                         .patch(`/api/factories/${idToUpdate}`)
                         .send({irrelevantField: 'bar'})
+                        .set('Authorization', makeAuthHeader(adminUser))
                         .expect(400, {
                             error: { message: `Request body must contain 'english_name', 'country', 'website', 'notes', and/or 'approved_by_admin'`}
                         })
@@ -216,11 +366,15 @@ describe('Factories Endpoints', function() {
                     return supertest(app)
                         .patch(`/api/factories/${idToUpdate}`)
                         .send(updateFactory)
+                        .set('Authorization', makeAuthHeader(adminUser))
                         .expect(204)
                         .then(res => {
                             supertest(app)
                                 .get(`/api/factories/${idToUpdate}`)
                                 .expect(expectedFactory)
+                                .catch(error => {
+                                    console.log(error)
+                                })
                         })
             })
         })
@@ -239,6 +393,7 @@ describe('Factories Endpoints', function() {
                 return supertest(app)
                     .patch(`/api/factories/${idToUpdate}`)
                     .send(updateFactory)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(404, {
                         error: { message: `Factory does not exist`} } )
             })
@@ -246,6 +401,10 @@ describe('Factories Endpoints', function() {
     })
 
     describe('DELETE /api/factories/:factory_id', () => {
+        beforeEach(() => db.into('users').insert(adminArray))
+        
+        const adminUser = adminArray[0]
+
         context('when the factory with id factory_id exists', () => {
             beforeEach(() =>  db.into('factories').insert(factories))
 
@@ -255,16 +414,15 @@ describe('Factories Endpoints', function() {
 
                 return supertest(app)
                     .delete(`/api/factories/${idToRemove}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(204)
                     .then(res => {
                         supertest(app)
                             .get('/api/factories')
-                            .expect(res => {
-                                expect(res.body.english_name).to.eql(expectedFactories.english_name === undefined)
-                                expect(res.body.website).to.eql(expectedFactories.website === undefined)
-                                expect(res.body.country).to.eql(expectedFactories.country === undefined)
-                                expect(res.body.notes).to.eql(expectedFactories.notes === undefined)
-                                expect(res.body.approved_by_admin).to.eql(expectedFactories.approved_by_admin === undefined)
+                            .expect(200)
+                            .expect(expectedFactories)
+                            .catch(error => {
+                                console.log(error)
                             })
                     })    
             })
@@ -278,6 +436,7 @@ describe('Factories Endpoints', function() {
 
                 return supertest(app)
                     .delete(`/api/factories/${idToRemove}`)
+                    .set('Authorization', makeAuthHeader(adminUser))
                     .expect(404, {
                         error: { message: `Factory does not exist`} } )
             })

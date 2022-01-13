@@ -1,18 +1,19 @@
-const path = require('path')
 const express = require('express')
-const xss = require('xss').escapeHtml
+const { requireAuth, requireAdmin } = require('../middleware/basic-auth')
 const CertificationsService = require('./certifications-service')
 const certificationsRouter = express.Router()
 const jsonParser = express.json()
+const path = require('path')
+const xss = require('xss').escapeHtml
 
-const serializeCertifications = certification => {
-    return ({
+
+const serializeCertifications = certification => ({
     id: certification.id,
     english_name: xss(certification.english_name),
     website: xss(certification.website),
     approved_by_admin: certification.approved_by_admin,
     date_published: certification.date_published
-})}
+})
 
 certificationsRouter
     .route('/')
@@ -26,7 +27,7 @@ certificationsRouter
             })
             .catch(next)
     })
-    .post(jsonParser, (req, res, next) => {
+    .post(requireAuth, jsonParser, (req, res, next) => {
         const { 
             english_name,
             website,
@@ -87,7 +88,7 @@ certificationsRouter
         res.json(serializeCertifications(res.certification))
         next()
     })
-    .patch(jsonParser, (req, res, next) => {
+    .patch(requireAdmin, jsonParser, (req, res, next) => {
         const {
             english_name,
             website,
@@ -120,7 +121,7 @@ certificationsRouter
             })
             .catch(next)
     })
-    .delete((req, res, next) => {
+    .delete(requireAdmin, (req, res, next) => {
         CertificationsService
             .deleteCertification(
                 req.app.get('db'),
