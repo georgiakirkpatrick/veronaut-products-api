@@ -1,4 +1,4 @@
-const { requireAuth, requireAdmin } = require('../middleware/basic-auth')
+const { requireAuth, requireAdmin } = require('../middleware/jwt-auth')
 const express = require('express')
 const FabricsService = require('../fabrics/fabrics-service')
 const FibersService = require('../fibers/fibers-service')
@@ -715,16 +715,6 @@ productsRouter
                 }
             })
             .then(newProductData => {
-                // const notsWithCerts = newProductData.prodNotArray.map(notion => {
-                //     const certsForNot = newProductData.notCertArray.filter(cert => cert.notion_id === notion.id)
-                   
-                //     const notionWithCert = {
-                //         ...notion,
-                //         certArray: certsForNot.map(cert => cert.id)
-                //     }
-                //     return notionWithCert
-                // })
-
                 res.json(newProductData)
             })
             .catch(next)

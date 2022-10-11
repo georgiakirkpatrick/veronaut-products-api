@@ -1,4 +1,4 @@
-const { authUserAdmin, confirmUser, requireAuth, requireAdmin } = require('../middleware/basic-auth')
+const { authUserAdmin, confirmUser, requireAuth, requireAdmin } = require('../middleware/jwt-auth')
 const path = require('path')
 const express = require('express')
 const xss = require('xss').escapeHtml
@@ -50,7 +50,7 @@ usersRouter
     .get(requireAdmin, (req, res, next) => {
         UsersService
             .getAllUsers(req.app.get('db'))
-            .then(users => {
+            .then(users => {                
                 res.json(users.map(serializeUser))
             })
             .catch(next)
@@ -105,7 +105,10 @@ usersRouter
 
         UsersService.insertUser(
             req.app.get('db'),
-            newUser
+            {
+                ...newUser,
+                password: password
+            }
         )
         .then(user => {
             res

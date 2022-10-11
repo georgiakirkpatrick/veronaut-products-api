@@ -1,22 +1,25 @@
 const knex = require('knex')
+const jwt = require('jsonwebtoken')
 const app = require('../src/app')
-const supertest = require('supertest')
-const { expect } = require('chai')
 const { makeCertificationArray, makeMalCertification  } = require('./certifications.fixtures')
-const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
+const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray } = require('./users.fixtures')
 
 describe('Certifications Endpoints', function() {
-    const adminArray = makeAdmin()
+    const adminArray = makeAdminArray()
     const certifications = makeCertificationArray()
+    const hashAdminArray = hashedAdminArray()
+    const hashUserArray = hashedUserArray()
     const { malCertification, expectedCertification } = makeMalCertification()
-    const { malUser, expectedUser } = makeMalUser()
-    const users = makeUsers()
+    const userArray = makeUserArray()
 
     let db
 
-    const makeAuthHeader = user => {
-        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
-        return `Basic ${token}`
+    const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
+        const token = jwt.sign({ user_id: user.id }, secret, {
+            subject: user.email,
+            algorithm: 'HS256',
+        })
+        return `Bearer ${token}`
     }
 
     before('make knex instance', () => {
@@ -107,11 +110,11 @@ describe('Certifications Endpoints', function() {
         const newCert = certifications[0]
 
         describe('POST /api/certifications/', () => {
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .post('/api/certifications')
                     .send(newCert)
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -134,7 +137,7 @@ describe('Certifications Endpoints', function() {
             })
 
             it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: users[0].email, password: 'wrong' }
+                const incorrectPassword = { email: userArray[0].email, password: 'wrong' }
 
                 return supertest(app)
                     .post('/api/certifications')
@@ -148,11 +151,11 @@ describe('Certifications Endpoints', function() {
             beforeEach(() => db.into('certifications').insert(certifications))
             afterEach('cleanup', () => db.raw('TRUNCATE table certifications RESTART IDENTITY CASCADE'))
 
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .patch('/api/certifications/1')
                     .send({ english_name: newCert.english_name})
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -176,7 +179,7 @@ describe('Certifications Endpoints', function() {
             })
 
             it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: users[0].email, password: 'wrong' }
+                const incorrectPassword = { email: userArray[0].email, password: 'wrong' }
 
                 return supertest(app)
                     .patch('/api/certifications/1')
@@ -190,10 +193,10 @@ describe('Certifications Endpoints', function() {
             beforeEach(() => db.into('certifications').insert(certifications))
             afterEach('cleanup', () => db.raw('TRUNCATE table certifications RESTART IDENTITY CASCADE'))
 
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .delete('/api/certifications/1')
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -214,7 +217,7 @@ describe('Certifications Endpoints', function() {
             })
 
             it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: users[0].email, password: 'wrong' }
+                const incorrectPassword = { email: userArray[0].email, password: 'wrong' }
 
                 return supertest(app)
                     .delete('/api/certifications/1')
@@ -225,7 +228,7 @@ describe('Certifications Endpoints', function() {
     })
 
     describe('POST /api/certifications', () => {
-        beforeEach(() => db.into('users').insert(users))
+        beforeEach(() => db.into('users').insert(hashUserArray))
 
         const newCertification = {
             english_name: 'Organic',
@@ -236,7 +239,7 @@ describe('Certifications Endpoints', function() {
         it('creates a certification, responding with 201 and the new certification', () => {
             return supertest(app)
                 .post('/api/certifications')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(newCertification)
                 .expect(201)
                 .expect(res => {
@@ -272,7 +275,7 @@ describe('Certifications Endpoints', function() {
 
                 return supertest(app)
                     .post('/api/certifications')
-                    .set('Authorization', makeAuthHeader(users[0]))
+                    .set('Authorization', makeAuthHeader(userArray[0]))
                     .send(newCertification)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -285,7 +288,7 @@ describe('Certifications Endpoints', function() {
 
             return supertest(app)
                 .post('/api/certifications')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(malCertification)
                 .expect(201)
                 .expect(res => {
@@ -297,7 +300,7 @@ describe('Certifications Endpoints', function() {
 
     describe('PATCH /api/certifications/:certification_id', () => {
         beforeEach(() => db.into('certifications').insert(certifications))
-        beforeEach(() => db.into('users').insert(adminArray))
+        beforeEach(() => db.into('users').insert(hashAdminArray))
 
         context('given there the certification exists', () => {
             const idToUpdate = 1
@@ -367,7 +370,7 @@ describe('Certifications Endpoints', function() {
 
     describe('DELETE /api/certifications/:certification_id', () => {
         beforeEach(() => db.into('certifications').insert(certifications))
-        beforeEach(() => db.into('users').insert(adminArray[0]))
+        beforeEach(() => db.into('users').insert(hashAdminArray[0]))
 
         const idToDelete = 1
         const expectedCertifications = certifications.filter(certification => certification.id !== idToDelete)

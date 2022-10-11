@@ -1,42 +1,49 @@
-// const path = require('path')
-// const express = require('express')
-// const AuthService = require('../authentication/auth-service')
-// const authRouter = express.Router()
-// const xss = require('xss').escapeHtml
-// const jsonParser = express.json()
+const express = require('express')
+const AuthService = require('../authentication/auth-service')
+const authRouter = express.Router()
+const jsonParser = express.json()
 
-// console.log('hi')
+authRouter
+    .post('/login', jsonParser, (req, res, next) => {
+        const { email, password } = req.body
+        const loginUser = { email, password }
 
-// authRouter
-//     .route('/')
-//     .post(jsonParser, (req, res, next) => {
-//         const {
-//             email,
-//             password
-//         } = req.body
+        for (const [key, value] of Object.entries(loginUser)) {
+            if (value == null) {
+                return res.status(400).json({
+                    error: `Missing '${key}' in request body`
+                })
+            }
+        }
 
-//         const credentials = {
-//             email,
-//             password
-//         }
+        AuthService.getUserByEmail(
+            req.app.get('db'),
+            loginUser.email
+        )
+            .then(dbUser => {
+                if (!dbUser) {
+                    return res.status(400).json({
+                        error: 'Incorrect email or password'
+                    })
+                }
 
-//         if (!email || !password) { 
-//             return res.status(400).json({ message: 'body must contain email and password'}) 
-//         }
+                return AuthService.comparePasswords(loginUser.password, dbUser.password)
+                    .then(compareMatch => {
+                        if (!compareMatch) {
+                            return res.status(400).json({
+                                error: 'Incorrect email or password'
+                            })
+                        }
 
-//         AuthService
-//             .getUserByEmail(req.app.get('db'), email)
-//             .then(user => {
-//                 console.log('user', user)
-//                 if (!user || user.password !== password) {
-//                     return res.status(401).json({message: 'Wrong email or password'})
-//                 }
-                    
-//                 res.json({
-//                     user: { email: email, id: user.id },
-//                     token: AuthService.makeBasicAuthToken(email, password)
-//                 })
-//             })
-//     })
+                        const sub = dbUser.email
+                        const payload = { user_id: dbUser.id }
 
-// module.exports = authRouter
+                        res.send({
+                            authToken: AuthService.createJwt(sub, payload)
+                        })
+                    })
+            })
+            .catch(next)
+    })
+
+module.exports = authRouter

@@ -1,7 +1,7 @@
 const knex = require('knex')
+const jwt = require('jsonwebtoken')
 const app = require('../src/app')
-const supertest = require('supertest')
-const { expect } = require('chai')
+
 const { makeCategoryArray } = require('./categories.fixtures')
 const { makeCertificationArray } = require('./certifications.fixtures')
 const { makeBrandArray, makeMalBrand } = require('./brands.fixtures')
@@ -14,10 +14,10 @@ const {
     makeColor, makeDry, makeImage, makeProductArray, makeProductToCertificationArray, makeProductToFactoriesArray,
     makeProductToFiberArray, makeSize, makeSizeToProduct, makeWash, makeMalImage, makeMalProduct
 } = require('./products.fixtures')
-const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
+const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray, makeMalUser } = require('./users.fixtures')
 
 describe('Products Endpoints', () => {
-    const adminArray = makeAdmin()
+    const adminArray = makeAdminArray()
     const brands = makeBrandArray()
     const categories = makeCategoryArray()
     const certifications = makeCertificationArray()
@@ -28,6 +28,8 @@ describe('Products Endpoints', () => {
     const factories = makeFactoryArray()
     const { fibersPost, fibersGet} = makeFiberArray()
     const fiberTypes = makeFiberTypeArray()
+    const hashAdminArray = hashedAdminArray()
+    const hashUserArray = hashedUserArray()
     const image = makeImage()
     const { malBrand } = makeMalBrand()
     const { malCertification, expectedCertification } = makeMalCertification()
@@ -49,14 +51,17 @@ describe('Products Endpoints', () => {
     const productsToCertifications = makeProductToCertificationArray()
     const size = makeSize()
     const sizeToProduct = makeSizeToProduct()
-    const users = makeUsers()
+    const userArray = makeUserArray()
     const washInstructions = [ makeWash() ]      
 
     let db
 
-    const makeAuthHeader = user => {
-        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
-        return `Basic ${token}`
+    const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
+        const token = jwt.sign({ user_id: user.id }, secret, {
+            subject: user.email,
+            algorithm: 'HS256',
+        })
+        return `Bearer ${token}`
     }
     
     const insertFixtures = () => (
@@ -66,7 +71,7 @@ describe('Products Endpoints', () => {
             db.into('dry_instructions').insert(dryInstructions),
             db.into('factories').insert(factories),
             db.into('wash_instructions').insert(washInstructions),
-            db.into('users').insert(users)
+            db.into('users').insert(hashUserArray)
         ])
         .then(() => db.into('products').insert(productsPost))
     )
@@ -514,11 +519,11 @@ describe('Products Endpoints', () => {
                 approved_by_admin: true
             }
 
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .post('/api/products')
                     .send(newProduct)
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -541,7 +546,7 @@ describe('Products Endpoints', () => {
             })
 
             it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: users[0].name, password: 'wrong' }
+                const incorrectPassword = { email: userArray[0].name, password: 'wrong' }
 
                 return supertest(app)
                     .post('/api/products')
@@ -571,11 +576,11 @@ describe('Products Endpoints', () => {
                 approved_by_admin: true
             }
 
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .patch('/api/products/1')
                     .send({ english_name: newProduct.english_name})
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -599,7 +604,7 @@ describe('Products Endpoints', () => {
             })
 
             it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: users[0].name, password: 'wrong' }
+                const incorrectPassword = { email: userArray[0].name, password: 'wrong' }
 
                 return supertest(app)
                     .patch('/api/products/1')
@@ -612,10 +617,10 @@ describe('Products Endpoints', () => {
         describe('DELETE /api/products/:product_id', () => {
             beforeEach(insertFixtures)
             
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .delete('/api/products/1')
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -636,7 +641,7 @@ describe('Products Endpoints', () => {
             })
 
             it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: users[0].name, password: 'wrong' }
+                const incorrectPassword = { email: userArray[0].name, password: 'wrong' }
 
                 return supertest(app)
                     .delete('/api/products/1')
@@ -651,7 +656,7 @@ describe('Products Endpoints', () => {
         beforeEach(() =>  db.into('wash_instructions').insert(washInstructions))
         beforeEach(() =>  db.into('dry_instructions').insert(dryInstructions))
         beforeEach(() =>  db.into('categories').insert(categories))
-        beforeEach(() =>  db.into('users').insert(users))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
 
         it(`creates a product, responding with 201 and the new product`, () => {
             const newProduct = {
@@ -673,7 +678,7 @@ describe('Products Endpoints', () => {
             
             return supertest(app)
                 .post('/api/products')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(newProduct)
                 .expect(201)
                 .expect(res => {
@@ -770,7 +775,7 @@ describe('Products Endpoints', () => {
 
                 return supertest(app)
                     .post('/api/products')
-                    .set('Authorization', makeAuthHeader(users[0]))
+                    .set('Authorization', makeAuthHeader(userArray[0]))
                     .send(newProduct)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -781,7 +786,7 @@ describe('Products Endpoints', () => {
         it(`removes XSS attack content from response`, () => {
             return supertest(app)
                 .post('/api/products')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(malProduct)
                 .expect(201)
                 .expect(res => {
@@ -798,7 +803,7 @@ describe('Products Endpoints', () => {
         beforeEach(() =>  db.into('dry_instructions').insert(dryInstructions))
         beforeEach(() =>  db.into('factories').insert(factories))
         beforeEach(() =>  db.into('wash_instructions').insert(washInstructions))
-        beforeEach(() =>  db.into('users').insert(users))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
         beforeEach(() =>  db.into('certifications').insert(certifications))
         beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
         beforeEach(() =>  db.into('notion_types').insert(notionType))
@@ -886,7 +891,7 @@ describe('Products Endpoints', () => {
 
             return supertest(app)
                 .post('/api/products/product-form')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(newProduct)
                 .expect(201)
                 .catch(error => {
@@ -959,7 +964,7 @@ describe('Products Endpoints', () => {
 
                 return supertest(app)
                     .post('/api/products')
-                    .set('Authorization', makeAuthHeader(users[0]))
+                    .set('Authorization', makeAuthHeader(userArray[0]))
                     .send(newProduct)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -970,7 +975,7 @@ describe('Products Endpoints', () => {
         it(`Removes XSS attack content from response`, () => {
             return supertest(app)
                 .post('/api/products')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(malProduct)
                 .expect(201)
                 .expect(res => {
@@ -994,7 +999,7 @@ describe('Products Endpoints', () => {
         it('creates a product-certification pair, responding with 201 and the new product-certification pair', () => {            
             return supertest(app)
                 .post(`/api/products/${productId}/certifications`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(prodCert)
                 .expect(201, {
                     product_id: productId,
@@ -1005,7 +1010,7 @@ describe('Products Endpoints', () => {
         it(`responds with 400 and an error message when the 'certification_id' is missing`, () => {
             return supertest(app)
                 .post(`/api/products/${productId}/certifications`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send({})
                 .expect(400, {
                     error: { message: `Missing 'certification_id' in request body`}
@@ -1029,7 +1034,7 @@ describe('Products Endpoints', () => {
         it('creates a color, responding with 201 and the new color', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/colors`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(newColor)
                 .then(res => {
                     expect(201)
@@ -1069,7 +1074,7 @@ describe('Products Endpoints', () => {
             it(`responds with 400 and an error message when the '${field}' is missing`, () => {
                 return supertest(app)
                     .post(`/api/products/${productId}/colors`)
-                    .set('Authorization', makeAuthHeader(users[0]))
+                    .set('Authorization', makeAuthHeader(userArray[0]))
                     .send(color)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -1105,7 +1110,7 @@ describe('Products Endpoints', () => {
             it(`responds with 400 and an error message when the 'fabric_id' is missing`, () => {
                 return supertest(app)
                     .post(`/api/products/${productId}/fabrics`)
-                    .set('Authorization', makeAuthHeader(users[0]))
+                    .set('Authorization', makeAuthHeader(userArray[0]))
                     .send(prodFab)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -1127,7 +1132,7 @@ describe('Products Endpoints', () => {
         it('creates a product-factory set, responding with 201 and the new product-factory set', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/factories`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(newProdFactSet)
                 .expect(201, {
                     ...newProdFactSet,
@@ -1150,7 +1155,7 @@ describe('Products Endpoints', () => {
             it(`responds with 400 and an error message when the '${field}' is missing`, () => {
                 return supertest(app)
                     .post(`/api/products/${productId}/factories`)
-                    .set('Authorization', makeAuthHeader(users[0]))
+                    .set('Authorization', makeAuthHeader(userArray[0]))
                     .send(prodFact)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -1174,7 +1179,7 @@ describe('Products Endpoints', () => {
         it('creates a product-fiber pair, responding with 201 and the new product-fiber pair', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/fibers`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(newProductFiberPair)
                 .expect(201, newProductFiberPair)
         })
@@ -1182,7 +1187,7 @@ describe('Products Endpoints', () => {
         it(`responds with 400 and an error message when the 'fiber_or_material_id' is missing`, () => {
             return supertest(app)
                 .post(`/api/products/${productId}/fibers`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send({})
                 .expect(400, {
                     error: { message: `Missing 'fiber_or_material_id' in request body`}
@@ -1207,7 +1212,7 @@ describe('Products Endpoints', () => {
         it('creates a product-notion pair, responding with 201 and the new product-notion pair', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/notions`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(newProductNotionPair)
                 .expect(201, newProductNotionPair)
         })
@@ -1215,7 +1220,7 @@ describe('Products Endpoints', () => {
         it(`responds with 400 and an error message when the 'notion_id' is missing`, () => {
             return supertest(app)
                 .post(`/api/products/${productId}/notions`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send({})
                 .expect(400, {
                     error: { message: `Missing 'notion_id' in request body`}
@@ -1237,7 +1242,7 @@ describe('Products Endpoints', () => {
         it('creates a product-size pair, responding with 201 and the new product-size pair', () => {
             return supertest(app)
                 .post(`/api/products/${productId}/sizes`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(newProductSizePair)
                 .expect(201, newProductSizePair)
         })
@@ -1245,7 +1250,7 @@ describe('Products Endpoints', () => {
         it(`responds with 400 and an error message when the 'size_id' is missing`, () => {
             return supertest(app)
                 .post(`/api/products/${productId}/sizes`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send({})
                 .expect(400, {
                     error: { message: `Missing 'size_id' in request body`}
@@ -1254,7 +1259,7 @@ describe('Products Endpoints', () => {
     })
 
     describe('PATCH /api/products/:product_id', () => {
-        beforeEach(() => db.into('users').insert(adminArray))
+        beforeEach(() => db.into('users').insert(hashAdminArray))
 
         const adminUser = adminArray[0]
 
@@ -1360,7 +1365,7 @@ describe('Products Endpoints', () => {
     })
 
     describe('DELETE /api/products/:product_id', () => {
-        beforeEach(() => db.into('users').insert(adminArray))
+        beforeEach(() => db.into('users').insert(hashAdminArray))
 
         const adminUser = adminArray[0]
 
@@ -1396,6 +1401,4 @@ describe('Products Endpoints', () => {
             })
         })
     })
-
-
 })

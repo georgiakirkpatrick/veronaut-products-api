@@ -1,10 +1,11 @@
+const AuthService = require('../authentication/auth-service')
+
 const authUserAdmin = (req, res, next) => {
     const authToken = req.get('Authorization') || ''
 
     let basicToken
 
     if (!authToken.toLowerCase().startsWith('basic ')) {
-        console.log('problem is here')
         return res.status(401).json({ error: 'Missing basic token' })
     } else {
         basicToken = authToken.slice('basic '.length, authToken.length)
@@ -23,15 +24,21 @@ const authUserAdmin = (req, res, next) => {
         .where({ email: tokenUserEmail })
         .first()
         .then(tokenUser => {
-            if (!tokenUser || tokenUser.password !== tokenPassword ) {
-
+            if (!tokenUser) {
                 return res.status(401).json({ error: 'Unauthorized request' })
             } else if ( res.user.id !== tokenUser.id && tokenUser.admin === false ) {
-                console.log('problem is here')
                 return res.status(401).json({ error: 'Unauthorized request' })
             }
+            
+            return AuthService.comparePasswords(tokenPassword, tokenUser.password)
+                .then(passwordsMatch => {
+                    if (!passwordsMatch) {
+                        return res.status(401).json({ error: 'Unauthorized request' })
+                    }
 
-            next()
+                    res.tokenUser = tokenUser
+                    next()
+                })
         })
         .catch(error => {
             console.log(error)
@@ -67,13 +74,19 @@ const confirmUser = (req, res, next) => {
 
             if (!tokenUser) {
                 return res.status(401).json({ error: 'Unauthorized request' })
-            } else if (tokenUser.password !== tokenPassword || userId !== tokenUser.id ) {
+            } else if (userId !== tokenUser.id) {
                 return res.status(401).json({ error: 'Unauthorized request' })
             }
 
-            res.tokenUser = tokenUser
+            return AuthService.comparePasswords(tokenPassword, tokenUser.password)
+                .then(passwordsMatch => {
+                    if (!passwordsMatch) {
+                        return res.status(401).json({ error: 'Unauthorized request' })
+                    }
 
-            next()
+                    res.tokenUser = tokenUser
+                    next()
+                })
         })
         .catch(error => {
             console.log(error)
@@ -104,16 +117,22 @@ const requireAdmin = (req, res, next) => {
     req.app.get('db')('users')
         .where({ email: tokenUserEmail })
         .first()
-        .then(user => {
-            if (!user) {
+        .then(tokenUser => {
+            if (!tokenUser || tokenUser === undefined) {
                 return res.status(401).json({ error: 'Unauthorized request' })
-            } else if (user.password !== tokenPassword) {
-                return res.status(401).json({ error: 'Unauthorized request' })
-            } else if (user.admin === false) {
+            } else if (tokenUser.admin === false) {
                 return res.status(401).json({ error: 'Unauthorized request' })
             }
 
-            next()
+            return AuthService.comparePasswords(tokenPassword, tokenUser.password)
+                .then(passwordsMatch => {
+                    if (!passwordsMatch) {
+                        return res.status(401).json({ error: 'Unauthorized request' })
+                    }
+
+                    res.tokenUser = tokenUser
+                    next()
+                })
         })
         .catch(error => {
             console.log(error)
@@ -145,19 +164,20 @@ const requireAuth = (req, res, next) => {
     req.app.get('db')('users')
         .where({ email: tokenUserEmail })
         .first()
-        .then(user => {
-            if (!user || user.password !== tokenPassword) {
-                // console.log('prob')
-                // console.log('user', user)
-
-                // console.log('user.password', user.password)
-
-                // console.log('tokenPassword', tokenPassword)
-
+        .then(tokenUser => {
+            if (!tokenUser || tokenUser === undefined) {
                 return res.status(401).json({ error: 'Unauthorized request' })
             }
 
-            next()
+            return AuthService.comparePasswords(tokenPassword, tokenUser.password)
+                .then(passwordsMatch => {
+                    if (!passwordsMatch) {
+                        return res.status(401).json({ error: 'Unauthorized request' })
+                    }
+
+                    res.tokenUser = tokenUser
+                    next()
+                })
         })
         .catch(error => {
             console.log(error)

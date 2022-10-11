@@ -1,18 +1,19 @@
 const knex = require('knex')
+const jwt = require('jsonwebtoken')
 const app = require('../src/app')
-const { expect } = require('chai')
-const supertest = require('supertest')
 
 const { makeBrandArray, makeMalBrand, seedBrandTable } = require('./brands.fixtures')
 const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
 const { makeFiberTypeArray, makeFiberArray, makeMalFiber, makeMalFiberType } = require('./fibers.fixtures')
 const { makeMalNotion, makeMalNotionType, makeNotionArray, makeNotionType } = require('./notions.fixtures')
-const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
+const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray, makeMalUser } = require('./users.fixtures')
  
 describe('Brands Endpoints', () => {
-    const adminArray = makeAdmin()
+    const adminArray = makeAdminArray()
     const brands = makeBrandArray()
     const factories = makeFactoryArray()
+    const hashAdminArray = hashedAdminArray()
+    const hashUserArray = hashedUserArray()
     const notionTypes = makeNotionType()
     const { fibersPost, fibersGet } = makeFiberArray()
     const fiberTypes = makeFiberTypeArray()
@@ -24,8 +25,8 @@ describe('Brands Endpoints', () => {
     const { malNotionType, expectedNotionType } = makeMalNotionType()
     const { malUser, expectedUser } = makeMalUser()
     const { notionsPost, notionsGet } = makeNotionArray()
-    const users = makeUsers()
-    
+    const userArray = makeUserArray()
+
     let db
     
     const insertFixtures = () => (
@@ -39,9 +40,12 @@ describe('Brands Endpoints', () => {
         )
     )
 
-    const makeAuthHeader = user => {
-        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
-        return `Basic ${token}`
+    const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
+        const token = jwt.sign({ user_id: user.id }, secret, {
+            subject: user.email,
+            algorithm: 'HS256',
+        })
+        return `Bearer ${token}`
     }
 
     before('make knex instance', () => {
@@ -64,7 +68,7 @@ describe('Brands Endpoints', () => {
 
     describe('GET /api/brands', () => {
         context('Given there are brands in the database', () => {
-            beforeEach('insert brands', () => ( db.into('brands').insert(brands)))
+            beforeEach('insert brands', () => db.into('brands').insert(brands))
 
             it('GET /api/brands responds with 200 and all of the brands', () => {
                 return supertest(app)
@@ -241,14 +245,14 @@ describe('Brands Endpoints', () => {
 
     describe('Protected endpoints', () => {
         const newBrand = brands[0]
-        beforeEach(() => db.into('users').insert(users)) 
+        beforeEach(() => db.into('users').insert(hashUserArray)) 
 
         describe('POST /api/brands/', () => {
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
                 supertest(app)
                     .post('/api/brands')
                     .send(newBrand)
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -269,26 +273,16 @@ describe('Brands Endpoints', () => {
                     .send(newBrand)
                     .expect(401, { error: 'Unauthorized request' })
             })
-
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: users[0].email, password: 'wrong' }
-
-                return supertest(app)
-                    .post('/api/brands')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .send(newBrand)
-                    .expect(401, { error: 'Unauthorized request' })
-            })
         })
 
         describe('PATCH /api/brands/:brand_id', () => {
             beforeEach(() => db.into('brands').insert(brands))
 
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
                 supertest(app)
                     .patch('/api/brands/1')
                     .send({ english_name: newBrand.english_name})
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -311,16 +305,6 @@ describe('Brands Endpoints', () => {
                     .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: adminArray[0].email, password: 'wrong' }
-
-                return supertest(app)
-                    .patch('/api/brands/1')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .send({ english_name: newBrand.english_name })
-                    .expect(401, { error: 'Unauthorized request' })
-            })
-
             it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
                 const notAnAdmin = { email: adminArray[0].email, password: adminArray[0].password }
 
@@ -335,10 +319,10 @@ describe('Brands Endpoints', () => {
         describe('DELETE /api/brands/:brand_id', () => {
             beforeEach(() => db.into('brands').insert(brands))       
             
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
                 supertest(app)
                     .delete('/api/brands/1')
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -358,15 +342,6 @@ describe('Brands Endpoints', () => {
                     .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: adminArray[0].email, password: 'wrong' }
-
-                return supertest(app)
-                    .delete('/api/brands/1')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .expect(401, { error: 'Unauthorized request' })
-            })
-
             it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
                 const notAnAdmin = { email: adminArray[0].email, password: adminArray[0].password }
 
@@ -380,7 +355,7 @@ describe('Brands Endpoints', () => {
     })
 
     describe('POST /api/brands', () => { 
-        beforeEach(() => db.into('users').insert(users)) 
+        beforeEach(() => db.into('users').insert(hashUserArray)) 
      
         it('Creates a brand, responding with 201 and the new brand', () => {
             const newBrand = brands[0]
@@ -388,7 +363,7 @@ describe('Brands Endpoints', () => {
             return (
                 supertest(app)
                     .post('/api/brands')
-                    .set('Authorization', makeAuthHeader(users[0]))
+                    .set('Authorization', makeAuthHeader(hashUserArray[0]))
                     .send(newBrand)
                     .expect(201)
                     .expect(res => {
@@ -440,7 +415,7 @@ describe('Brands Endpoints', () => {
 
                 return supertest(app)
                     .post('/api/brands')
-                    .set('Authorization', makeAuthHeader(users[0]))
+                    .set('Authorization', makeAuthHeader(userArray[0]))
                     .send(newBrand)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -453,7 +428,7 @@ describe('Brands Endpoints', () => {
 
             return supertest(app)
                 .post('/api/brands')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(malBrand)
                 .expect(201)
                 .expect(res => {
@@ -464,7 +439,7 @@ describe('Brands Endpoints', () => {
     })
 
     describe('PATCH /api/brands/:brand_id', () => {
-        beforeEach(() => db.into('users').insert(adminArray)) 
+        beforeEach(() => db.into('users').insert(hashAdminArray)) 
 
         const adminUser = adminArray[0]
 
@@ -546,7 +521,7 @@ describe('Brands Endpoints', () => {
     })
     
     describe('DELETE /api/brands/:brand_id', () => {
-        beforeEach(() => db.into('users').insert(adminArray)) 
+        beforeEach(() => db.into('users').insert(hashAdminArray)) 
 
         const adminUser = adminArray[0]
 

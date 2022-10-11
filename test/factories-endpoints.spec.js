@@ -1,24 +1,28 @@
 const knex = require('knex')
+const jwt = require('jsonwebtoken')
 const app = require('../src/app')
-const supertest = require('supertest')
-const { expect } = require('chai')
 
 const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
-const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
+const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray } = require('./users.fixtures')
 
 describe('Factories Endpoints', function() {
-    const adminArray = makeAdmin()
+    const adminArray = makeAdminArray()
+    const admin = adminArray[0]
     const factories = makeFactoryArray()
+    const hashAdminArray = hashedAdminArray()
+    const hashUserArray = hashedUserArray()
     const { malFactory, expectedFactory } = makeMalFactory()
-    const { malUser, expectedUser } = makeMalUser()
-    const users = makeUsers()
-    const user = users[0]
+    const userArray = makeUserArray()
+    const user = userArray[0]
 
     let db
 
-    const makeAuthHeader = user => {
-        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
-        return `Basic ${token}`
+    const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
+        const token = jwt.sign({ user_id: user.id }, secret, {
+            subject: user.email,
+            algorithm: 'HS256',
+        })
+        return `Bearer ${token}`
     }
 
     before('make knex instance', () => {
@@ -31,7 +35,6 @@ describe('Factories Endpoints', function() {
     
     after('disconnect from db', () => db.destroy())
     before('clean the table', () => db.raw('TRUNCATE table factories, users RESTART IDENTITY CASCADE'))
-    before('create users', () => db.into('users').insert(users))
     afterEach('cleanup', () => db.raw('TRUNCATE table factories, users RESTART IDENTITY CASCADE'))
 
     describe('GET /api/factories', () => {
@@ -108,6 +111,9 @@ describe('Factories Endpoints', function() {
     })
 
     describe('Protected endpoints', () => {
+        before('create users', () => db.into('users').insert(hashUserArray))
+        before('create users', () => db.into('users').insert(hashAdminArray))
+
         const newFactory = {
             english_name: 'Blue Factory',
             country: 1,
@@ -116,11 +122,11 @@ describe('Factories Endpoints', function() {
         }
 
         describe('POST /api/factories/', () => {
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer tokenn' when no basic token`, () => (
                 supertest(app)
                     .post('/api/factories')
                     .send(newFactory)
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -156,11 +162,11 @@ describe('Factories Endpoints', function() {
         describe('PATCH /api/factories/:brand_id', () => {
             beforeEach(() => db.into('factories').insert(factories))       
 
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .patch('/api/factories/1')
                     .send({ english_name: newFactory.english_name})
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -197,10 +203,10 @@ describe('Factories Endpoints', function() {
         describe('DELETE /api/factories/:brand_id', () => {
             beforeEach(() => db.into('factories').insert(factories))       
             
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .delete('/api/factories/1')
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -232,7 +238,7 @@ describe('Factories Endpoints', function() {
     })
 
     describe('POST /api/factories', () => {
-        beforeEach(() => db.into('users').insert(users))
+        beforeEach(() => db.into('users').insert(hashUserArray))
 
         it('creates a factory, responding with 201 and the new factory', () => {
             const newFactory = {
@@ -304,8 +310,7 @@ describe('Factories Endpoints', function() {
     })
 
     describe('PATCH /api/factories/:factory_id', () => {
-        const adminUser = adminArray[0]
-        beforeEach(() =>  db.into('users').insert(adminUser))
+        beforeEach(() => db.into('users').insert(hashAdminArray))
 
         context('when the factory with id factory_id exists', () => {
             beforeEach(() =>  db.into('factories').insert(factories))
@@ -328,7 +333,7 @@ describe('Factories Endpoints', function() {
                 return supertest(app)
                     .patch(`/api/factories/${idToUpdate}`)
                     .send(updateFactory)
-                    .set('Authorization', makeAuthHeader(adminUser))
+                    .set('Authorization', makeAuthHeader(admin))
                     .expect(204)
                     .then(res => {
                         supertest(app)
@@ -342,40 +347,40 @@ describe('Factories Endpoints', function() {
             })
 
             it('responds with 400 when no required fields are supplied', () => {
-                    const idToUpdate = 1
-                    return supertest(app)
-                        .patch(`/api/factories/${idToUpdate}`)
-                        .send({irrelevantField: 'bar'})
-                        .set('Authorization', makeAuthHeader(adminUser))
-                        .expect(400, {
-                            error: { message: `Request body must contain 'english_name', 'country', 'website', 'notes', and/or 'approved_by_admin'`}
-                        })
+                const idToUpdate = 1
+                return supertest(app)
+                    .patch(`/api/factories/${idToUpdate}`)
+                    .send({irrelevantField: 'bar'})
+                    .set('Authorization', makeAuthHeader(admin))
+                    .expect(400, {
+                        error: { message: `Request body must contain 'english_name', 'country', 'website', 'notes', and/or 'approved_by_admin'`}
+                    })
             })
 
             it('responds with 204 when updating only a subset of fields', () => {
-                    const idToUpdate = 1
-                    const updateFactory = {
-                        english_name: 'The Orange Concept',
-                    }
-        
-                    const expectedFactory = {
-                        ...factories[idToUpdate - 1],
-                        ...updateFactory
-                    }
-        
-                    return supertest(app)
-                        .patch(`/api/factories/${idToUpdate}`)
-                        .send(updateFactory)
-                        .set('Authorization', makeAuthHeader(adminUser))
-                        .expect(204)
-                        .then(res => {
-                            supertest(app)
-                                .get(`/api/factories/${idToUpdate}`)
-                                .expect(expectedFactory)
-                                .catch(error => {
-                                    console.log(error)
-                                })
-                        })
+                const idToUpdate = 1
+                const updateFactory = {
+                    english_name: 'The Orange Concept',
+                }
+    
+                const expectedFactory = {
+                    ...factories[idToUpdate - 1],
+                    ...updateFactory
+                }
+    
+                return supertest(app)
+                    .patch(`/api/factories/${idToUpdate}`)
+                    .send(updateFactory)
+                    .set('Authorization', makeAuthHeader(admin))
+                    .expect(204)
+                    .then(res => {
+                        supertest(app)
+                            .get(`/api/factories/${idToUpdate}`)
+                            .expect(expectedFactory)
+                            .catch(error => {
+                                console.log(error)
+                            })
+                    })
             })
         })
 
@@ -393,7 +398,7 @@ describe('Factories Endpoints', function() {
                 return supertest(app)
                     .patch(`/api/factories/${idToUpdate}`)
                     .send(updateFactory)
-                    .set('Authorization', makeAuthHeader(adminUser))
+                    .set('Authorization', makeAuthHeader(admin))
                     .expect(404, {
                         error: { message: `Factory does not exist`} } )
             })
@@ -401,9 +406,7 @@ describe('Factories Endpoints', function() {
     })
 
     describe('DELETE /api/factories/:factory_id', () => {
-        beforeEach(() => db.into('users').insert(adminArray))
-        
-        const adminUser = adminArray[0]
+        before('create users', () => db.into('users').insert(hashAdminArray))
 
         context('when the factory with id factory_id exists', () => {
             beforeEach(() =>  db.into('factories').insert(factories))
@@ -414,7 +417,7 @@ describe('Factories Endpoints', function() {
 
                 return supertest(app)
                     .delete(`/api/factories/${idToRemove}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
+                    .set('Authorization', makeAuthHeader(admin))
                     .expect(204)
                     .then(res => {
                         supertest(app)
@@ -436,7 +439,7 @@ describe('Factories Endpoints', function() {
 
                 return supertest(app)
                     .delete(`/api/factories/${idToRemove}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
+                    .set('Authorization', makeAuthHeader(admin))
                     .expect(404, {
                         error: { message: `Factory does not exist`} } )
             })

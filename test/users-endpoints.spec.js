@@ -1,15 +1,15 @@
 const knex = require('knex')
+const jwt = require('jsonwebtoken')
 const app = require('../src/app')
-const supertest = require('supertest')
-const { expect } = require('chai')
+
 const { makeBrandArray } = require('./brands.fixtures')
 const { makeCategoryArray } = require('./categories.fixtures')
 const { makeFactoryArray } = require('./factories.fixtures')
 const { makeDry, makeMalProduct, makeProductArray, makeWash } = require('./products.fixtures')
-const { makeAdmin, makeUsers, makeMalUser } = require('./users.fixtures')
+const { makeAdminArray, makeUserArray, makeMalUser } = require('./users.fixtures')
 
-describe('Products Endpoints', () => {
-    const adminArray = makeAdmin()
+describe('Users Endpoints', () => {
+    const adminArray = makeAdminArray()
     const brands = makeBrandArray()
     const categories = makeCategoryArray()
     const dryInstructions = [ makeDry() ]
@@ -18,7 +18,7 @@ describe('Products Endpoints', () => {
     const { malUser, expectedUser } = makeMalUser()
     const { productsOnlyGet, productsPost } = makeProductArray()
     const washInstructions = [ makeWash() ]
-    const userArray = makeUsers()
+    const userArray = makeUserArray()
     const relArray = [
         { 
             user_id: 1,
@@ -64,24 +64,27 @@ describe('Products Endpoints', () => {
         wash_instructions RESTART IDENTITY CASCADE`
     )
 
-    const makeAuthHeader = user => {
-        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
-        return `Basic ${token}`
+    const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
+        const token = jwt.sign({ user_id: user.id }, secret, {
+            subject: user.email,
+            algorithm: 'HS256',
+        })
+        return `Bearer ${token}`
     }
 
     before('clean tables', () => cleanUpTables())
-    beforeEach(() => db.into('users').insert(userArray))
     afterEach('clean tables', () => cleanUpTables())
 
     describe('Protected endpoints', () => {
+        beforeEach(() =>  db.into('users').insert(userArray))
+
         describe('GET /api/users/', () => {
-            
             beforeEach(() =>  db.into('users').insert(adminArray))
 
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .get('/api/users')
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -130,10 +133,10 @@ describe('Products Endpoints', () => {
                 relationship_id: 1
             }
             
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .post(`/api/users/${authUserId}/products`)
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -153,15 +156,6 @@ describe('Products Endpoints', () => {
                     .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: currentUser.email, password: 'wrong' }
-
-                return supertest(app)
-                    .post(`/api/users/${authUserId}/products`)
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .expect(401, { error: 'Unauthorized request' })
-            })
-
             it(`responds with 401 when the user is not authorized`, () => {
                 return supertest(app)
                     .post(`/api/users/${unauthUserId}/products`)
@@ -172,8 +166,6 @@ describe('Products Endpoints', () => {
         })
 
         describe('PATCH /api/users/:user_id', () => {
-            
-
             const newUser = {
                 email: 'newemail@gmail.com',
                 password: 'newpassword',
@@ -189,11 +181,11 @@ describe('Products Endpoints', () => {
             const authUserId = currentUser.id
             const unauthUserId = userArray[1].id
 
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .patch(`/api/users/${authUserId}`)
                     .send(newUser)
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -206,22 +198,12 @@ describe('Products Endpoints', () => {
                     .expect(401, { error: `Unauthorized request` })
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+            it(`responds 401 'Unauthorized request' when invalid user`, () => {
                 const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
                 
                 return supertest(app)
                     .patch(`/api/users/${authUserId}`)
                     .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .send(newUser)
-                    .expect(401, { error: 'Unauthorized request' })
-            })
-
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: currentUser.name, password: 'wrong' }
-
-                return supertest(app)
-                    .patch(`/api/users/${authUserId}`)
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
                     .send(newUser)
                     .expect(401, { error: 'Unauthorized request' })
             })
@@ -258,16 +240,14 @@ describe('Products Endpoints', () => {
         })
 
         describe('DELETE /api/users/:user_id', () => {
-            
-
             const currentUser = userArray[0]
             const authUserId = currentUser.id
             const unauthUserId = userArray[1].id
             
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .delete(`/api/users/${authUserId}`)
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -278,21 +258,12 @@ describe('Products Endpoints', () => {
                     .expect(401, { error: `Unauthorized request` })
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+            it(`responds 401 'Unauthorized request' when invalid user`, () => {
                 const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
                 
                 return supertest(app)
                     .delete(`/api/users/${authUserId}`)
                     .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .expect(401, { error: 'Unauthorized request' })
-            })
-
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: userArray[0].email, password: 'wrong' }
-
-                return supertest(app)
-                    .delete(`/api/users/${authUserId}`)
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
                     .expect(401, { error: 'Unauthorized request' })
             })
 
@@ -319,6 +290,7 @@ describe('Products Endpoints', () => {
     })
 
     describe('GET /api/users', () => {
+        beforeEach(() =>  db.into('users').insert(userArray))
         beforeEach(() =>  db.into('users').insert(adminArray))
 
         context('Given there are users in the database', () => {
@@ -362,6 +334,7 @@ describe('Products Endpoints', () => {
         beforeEach(() => db.into('categories').insert(categories))
         beforeEach(() => db.into('dry_instructions').insert(dryInstructions))
         beforeEach(() => db.into('factories').insert(factories))
+        beforeEach(() =>  db.into('users').insert(userArray))
         beforeEach(() => db.into('wash_instructions').insert(washInstructions))
 
         const currentUser = userArray[0]
@@ -522,6 +495,7 @@ describe('Products Endpoints', () => {
         beforeEach(() => db.into('factories').insert(factories))
         beforeEach(() => db.into('wash_instructions').insert(washInstructions))
         beforeEach(() => db.into('products').insert(productsPost))
+        beforeEach(() =>  db.into('users').insert(userArray))
         beforeEach(() => db.into('users_to_products').insert(relArray))
 
         const currentUser = userArray[0]
@@ -571,6 +545,8 @@ describe('Products Endpoints', () => {
     })
 
     describe('PATCH /api/users/:user_id', () => {
+        beforeEach(() =>  db.into('users').insert(userArray))
+
         context('Given there are users in the database', () => {
 
             const currentUser = userArray[1]
@@ -668,8 +644,8 @@ describe('Products Endpoints', () => {
         ]
 
         const adminUser = adminArray[0]
-        
-        beforeEach(() => db.into('users').insert(adminArray))
+        beforeEach(() =>  db.into('users').insert(userArray))
+        beforeEach(() =>  db.into('users').insert(adminArray))
 
         context('Given there are users in the database', () => {
             it('responds with 204 and removes the user', () => {
@@ -716,6 +692,8 @@ describe('Products Endpoints', () => {
             product_id: relArray[0].product_id,
             relationship_id: relArray[0].relationship_id
         }
+
+        beforeEach(() =>  db.into('users').insert(userArray))
 
         context('Given the user and product relationship exist', () => {
             beforeEach(() => db.into('users_to_products').insert(relArray))

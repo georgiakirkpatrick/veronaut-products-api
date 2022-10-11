@@ -1,4 +1,6 @@
-const makeAdmin = () => (
+const bcrypt = require('bcryptjs')
+
+const makeAdminArray = () => (
     [
         {
             id: 3,
@@ -35,7 +37,24 @@ const makeAdmin = () => (
     ]
 )
 
-const makeUsers = () => (
+const hashedAdminArray = () => {
+    const adminArray = makeAdminArray()
+    const georgia = adminArray.find(user => user.id === 3)
+    const charlotte = adminArray.find(user => user.id === 4)
+
+    return [
+            {
+                ...georgia,
+                password: bcrypt.hashSync(georgia.password, 1),
+            },
+            {
+                ...charlotte,
+                password: bcrypt.hashSync(charlotte.password, 1),
+            }
+        ]
+}
+
+const makeUserArray = () => (
     [
         {
             id: 1,
@@ -72,6 +91,23 @@ const makeUsers = () => (
     ]
 )
 
+const hashedUserArray = () => {
+    const userArray = makeUserArray()
+    const georgia = userArray.find(user => user.id === 1)
+    const jonathan = userArray.find(user => user.id === 2)
+
+    return [
+        {
+            ...georgia,
+            password: bcrypt.hashSync(georgia.password, 10),
+        },
+        {
+            ...jonathan,
+            password: bcrypt.hashSync(jonathan.password, 10),
+        }
+    ]
+}
+
 const makeMalUser = () => {
     const malUser = {
         id: 666,
@@ -88,6 +124,11 @@ const makeMalUser = () => {
         can_submit: true,
         org_affiliation: '<a href="bad.com">Bad Organization</a>',
         account_created: "2020-09-13T07:30:51.564Z"
+    }
+
+    const hashedMal = {
+        ...malUser,
+        password: bcrypt.hashSync('<a href="bad.com">badpassword</a>')
     }
 
     const expectedUser = {
@@ -107,7 +148,7 @@ const makeMalUser = () => {
         account_created: '2020-09-13T07:30:51.564Z'
     }
 
-    return { malUser, expectedUser }
+    return { malUser, expectedUser, hashedMal }
 }
 
-module.exports = { makeAdmin, makeUsers, makeMalUser }
+module.exports = { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray, makeMalUser }

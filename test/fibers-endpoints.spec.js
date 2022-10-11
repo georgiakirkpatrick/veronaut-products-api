@@ -1,7 +1,6 @@
 const knex = require('knex')
+const jwt = require('jsonwebtoken')
 const app = require('../src/app')
-const supertest = require('supertest')
-const { expect } = require('chai')
 
 const { makeBrandArray, makeMalBrand } = require('./brands.fixtures')
 const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
@@ -10,13 +9,15 @@ const {
     makeFiberArray, makeFiberToCertArray, makeFiberToMalCertArray, makeFiberTypeArray, 
     makeMalFiberType, makeMalFiber 
 } = require('./fibers.fixtures')
-const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
+const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray, makeMalUser } = require('./users.fixtures')
 
 describe('Fibers Endpoints', () => {
-    const adminArray = makeAdmin()
+    const adminArray = makeAdminArray()
     const brands = makeBrandArray()
     const certifications = makeCertificationArray()
     const factories = makeFactoryArray()
+    const hashAdminArray = hashedAdminArray()
+    const hashUserArray = hashedUserArray()
     const { malFactory } = makeMalFactory()
     const { fibersPost, fibersGet } = makeFiberArray()
     const fibersToCerts = makeFiberToCertArray()
@@ -26,13 +27,17 @@ describe('Fibers Endpoints', () => {
     const { malCertification, expectedCertification } = makeMalCertification()
     const { malFiber, expectedFiber } = makeMalFiber()
     const { malFiberType, expectedFiberType } = makeMalFiberType()
-    const users = makeUsers()
+    const userArray = makeUserArray()
+    const user = userArray[0]
 
     let db
 
-    const makeAuthHeader = user => {
-        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
-        return `Basic ${token}`
+    const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
+        const token = jwt.sign({ user_id: user.id }, secret, {
+                subject: user.email,
+                algorithm: 'HS256',
+            })
+        return `Bearer ${token}`
     }
 
     before('make knex instance', () => {
@@ -46,8 +51,6 @@ describe('Fibers Endpoints', () => {
     after('disconnect from db', () => db.destroy())
     before('clean the table', () => db.raw('TRUNCATE table fiber_and_material_types, brands, certifications, factories, fibers_and_materials, fiber_and_material_types, fibers_to_certifications, users RESTART IDENTITY CASCADE'))
     afterEach('cleanup', () => db.raw('TRUNCATE table fiber_and_material_types, brands, certifications, factories, fibers_and_materials, fiber_and_material_types, fibers_to_certifications, users RESTART IDENTITY CASCADE'))
-
-    const user = users[0]
 
     describe('GET /api/fibers', () => {
         context('when there are fibers in the database', () => {
@@ -260,39 +263,30 @@ describe('Fibers Endpoints', () => {
                 beforeEach(() =>  db.into('factories').insert(factories))
                 beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
 
-                it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
                     supertest(app)
                         .post(endpoint.path)
                         .send({})
-                        .expect(401, { error: `Missing basic token`})
+                        .expect(401, { error: `Missing bearer token`})
                 ))
     
-                it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                    const userNoCreds = { email: '', password: '' }
+                it(`responds 401 'Unauthorized request' when invalid JWT secret`, () => {
+                    const validUser = user
+                    const invalidSecret = 'bad-secret'
+
                     return supertest(app)
                         .post(endpoint.path)
-                        .set('Authorization', makeAuthHeader(userNoCreds))
+                        .set('Authorization', makeAuthHeader(validUser, invalidSecret))
                         .send({})
                         .expect(401, { error: `Unauthorized request` })
                 })
     
-                it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                    const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+                it(`responds 401 'Unauthorized request' when invalid subject in payload`, () => {
+                    const invalidUser =  { email: 'not-a-user', password: 'testpassword' }
                     
                     return supertest(app)
                         .post(endpoint.path)
-                        .set('Authorization', makeAuthHeader(invalidUserCreds))
-                        .send({})
-                        .expect(401, { error: 'Unauthorized request' })
-                })
-    
-                it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                    const incorrectPassword = { email: user.email, password: 'wrong' }
-    
-                    return supertest(app)
-                        .post(endpoint.path)
-                        .set('Authorization', makeAuthHeader(incorrectPassword))
-                        .send({})
+                        .set('Authorization', makeAuthHeader(invalidUser))
                         .expect(401, { error: 'Unauthorized request' })
                 })
             })
@@ -304,11 +298,11 @@ describe('Fibers Endpoints', () => {
             beforeEach(() =>  db.into('factories').insert(factories))
             beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
 
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
                 supertest(app)
                     .patch('/api/fibers/1')
                     .send({ fiber_or_material_type_id: fibersPost.fiber_or_material_type_id })
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -347,10 +341,10 @@ describe('Fibers Endpoints', () => {
             beforeEach(() =>  db.into('factories').insert(factories))
             beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
 
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
                 supertest(app)
                     .delete('/api/fibers/1')
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -361,7 +355,7 @@ describe('Fibers Endpoints', () => {
                     .expect(401, { error: `Unauthorized request` })
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
+            it(`responds 401 'Unauthorized request' when invalid user`, () => {
                 const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
                 
                 return supertest(app)
@@ -388,7 +382,7 @@ describe('Fibers Endpoints', () => {
         beforeEach(() =>  db.into('brands').insert(malBrand))
         beforeEach(() =>  db.into('factories').insert(factories))
         beforeEach(() =>  db.into('factories').insert(malFactory))
-        beforeEach(() => db.into('users').insert(users))
+        beforeEach(() => db.into('users').insert(hashUserArray))
 
         it('creates a fiber, responding with 201 and the new fiber', () => {
             const newFiber = {
@@ -474,7 +468,7 @@ describe('Fibers Endpoints', () => {
     })
 
     describe('POST /api/fibers/fiber-types', () => {
-        beforeEach(() => db.into('users').insert(user))
+        beforeEach(() => db.into('users').insert(hashUserArray))
 
         it('creates a fiber type, responding with 201 and the new fiber type', () => {
             const newFiberType = {
@@ -552,7 +546,7 @@ describe('Fibers Endpoints', () => {
         beforeEach(() =>  db.into('factories').insert(factories))
         beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
         beforeEach(() =>  db.into('certifications').insert(certifications))
-        beforeEach(() =>  db.into('users').insert(users))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
 
         it('pairs a fiber and certification, responding with 201 and the fiber-certification pair', () => {
             const fiberId = 1
@@ -597,7 +591,7 @@ describe('Fibers Endpoints', () => {
             beforeEach(() =>  db.into('brands').insert(brands))
             beforeEach(() =>  db.into('factories').insert(factories))
             beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
-            beforeEach(() => db.into('users').insert(adminArray))
+            beforeEach(() => db.into('users').insert(hashAdminArray))
 
             it('updates the fiber and responds 204', () => {
                 const idToUpdate = 1
@@ -700,7 +694,7 @@ describe('Fibers Endpoints', () => {
     })
 
     describe('DELETE /api/fibers/:fiber_id', () => {
-        beforeEach(() => db.into('users').insert(adminArray))
+        beforeEach(() => db.into('users').insert(hashAdminArray))
 
         const adminUser = adminArray[0]
         
@@ -734,7 +728,7 @@ describe('Fibers Endpoints', () => {
             beforeEach(() =>  db.into('brands').insert(brands))
             beforeEach(() =>  db.into('factories').insert(factories))
             beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
-            beforeEach(() => db.into('users').insert(users))
+            beforeEach(() => db.into('users').insert(hashUserArray))
 
             it('responds with 404', () => {
                 const idToRemove = 222

@@ -1,5 +1,5 @@
 const express = require('express')
-const { requireAuth, requireAdmin } = require('../middleware/basic-auth')
+const { requireAuth, requireAdmin } = require('../middleware/jwt-auth')
 const CertificationsService = require('./certifications-service')
 const certificationsRouter = express.Router()
 const jsonParser = express.json()

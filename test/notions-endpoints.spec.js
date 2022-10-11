@@ -1,21 +1,22 @@
 const knex = require('knex')
+const jwt = require('jsonwebtoken')
 const app = require('../src/app')
-const { expect } = require('chai')
-const supertest = require('supertest')
 const { makeBrandArray, makeMalBrand } = require('./brands.fixtures')
 const { makeFactoryArray,makeMalFactory } = require('./factories.fixtures')
 const { makeFiberTypeArray, makeMalFiberType } = require('./fibers.fixtures')
 const { makeMalNotion, makeNotionArray, makeNotionType, makeMalNotionType, makeNotsToCerts } = require('./notions.fixtures')
 const { makeCertificationArray, makeMalCertification } = require('./certifications.fixtures')
-const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
+const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray, makeMalUser } = require('./users.fixtures')
 const { describe } = require('mocha')
 
 describe('Notions Endpoints', () => {
-    const adminArray = makeAdmin()
+    const adminArray = makeAdminArray()
     const brands = makeBrandArray()
     const certifications = makeCertificationArray()
     const factories = makeFactoryArray()
     const fiberTypes = makeFiberTypeArray()
+    const hashAdminArray = hashedAdminArray()
+    const hashUserArray = hashedUserArray()
     const { malBrand } = makeMalBrand()
     const { malCertification, expectedCertification } = makeMalCertification()
     const { malFactory } = makeMalFactory()
@@ -26,13 +27,16 @@ describe('Notions Endpoints', () => {
     const { malNotionType, expectedNotionType } = makeMalNotionType()
     const { malUser, expectedUser } = makeMalUser()
     const notionTypes = makeNotionType()
-    const users = makeUsers()
+    const userArray = makeUserArray()
 
     let db
 
-    const makeAuthHeader = user => {
-        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
-        return `Basic ${token}`
+    const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
+        const token = jwt.sign({ user_id: user.id }, secret, {
+            subject: user.email,
+            algorithm: 'HS256',
+        })
+        return `Bearer ${token}`
     }
 
     before('make knex instance', () => {
@@ -51,7 +55,7 @@ describe('Notions Endpoints', () => {
         fabrics_to_certifications, users RESTART IDENTITY CASCADE`
     ))
 
-    beforeEach(() => db.into('users').insert(users))
+    beforeEach(() => db.into('users').insert(hashUserArray))
 
     afterEach('cleanup', () => db.raw(
         `TRUNCATE table notions, fabric_types, brands, fabrics, factories, fiber_and_material_types, 
@@ -286,11 +290,11 @@ describe('Notions Endpoints', () => {
                 beforeEach(() => db.into('factories').insert(factories))
                 beforeEach(() => db.into('notions').insert(notionsPost))                
 
-                it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                it(`responds with 401 'Missing bearer tokenn' when no basic token`, () => (
                     supertest(app)
                         .post(endpoint.path)
                         .send({})
-                        .expect(401, { error: `Missing basic token`})
+                        .expect(401, { error: `Missing bearer token`})
                 ))
     
                 it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -313,7 +317,7 @@ describe('Notions Endpoints', () => {
                 })
     
                 it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                    const incorrectPassword = { email: users[0].name, password: 'wrong' }
+                    const incorrectPassword = { email: userArray[0].name, password: 'wrong' }
     
                     return supertest(app)
                         .post(endpoint.path)
@@ -341,12 +345,12 @@ describe('Notions Endpoints', () => {
                     beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
                     beforeEach(() => db.into('factories').insert(factories))
                     beforeEach(() => db.into('notions').insert(notionsPost))
-                    beforeEach(() => db.into('users').insert(adminArray))
+                    beforeEach(() => db.into('users').insert(hashAdminArray))
 
                     it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
                         return supertest(app)
                         .patch(`/api/notions/${notionsPost.id}`)
-                        .set('Authorization', makeAuthHeader(users[0]))
+                        .set('Authorization', makeAuthHeader(userArray[0]))
                         .send({ notion_type_id: 1})
                         .expect(401, { error: 'Unauthorized request' })
                     })
@@ -376,7 +380,7 @@ describe('Notions Endpoints', () => {
             
             return supertest(app)
                 .post(`/api/notions`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(newNotion)
                 .expect(201)
                 .expect(res => {
@@ -450,7 +454,7 @@ describe('Notions Endpoints', () => {
 
                 return supertest(app)
                     .post('/api/notions')
-                    .set('Authorization', makeAuthHeader(users[0]))
+                    .set('Authorization', makeAuthHeader(userArray[0]))
                     .send(newNotion)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -466,7 +470,7 @@ describe('Notions Endpoints', () => {
         it('removes XSS attack content from the response', () => (
             supertest(app)
                 .post('/api/notions')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(malNotion)
                 .expect(201)
                 .expect(res => {
@@ -484,7 +488,7 @@ describe('Notions Endpoints', () => {
 
             supertest(app)
                 .post('/api/notions/notion-types')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(newNotionType)
                 .expect(201)
                 .expect(res => {
@@ -503,7 +507,7 @@ describe('Notions Endpoints', () => {
         it(`responds with 400 and an error message when the 'english_name' field is missing`, () => {
             supertest(app)
                 .post('/api/notions/notion-types')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send({})
                 .expect(400, {
                     error: { message: `Missing 'english_name' in request body`}
@@ -521,7 +525,7 @@ describe('Notions Endpoints', () => {
 
             supertest(app)
                 .post('/api/notions/notion-types')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(newMalNotionType)
                 .expect(201)
                 .expect(res => {
@@ -552,7 +556,7 @@ describe('Notions Endpoints', () => {
 
             return supertest(app)
                 .post(`/api/notions/${notionId}/certifications`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(notCert)
                 .expect(201)
         })
@@ -562,7 +566,7 @@ describe('Notions Endpoints', () => {
 
             return supertest(app)
                 .post(`/api/notions/${notionId}/certifications`)
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send({})
                 .expect(400, {
                     error: { message: `Missing 'certification_id' in request body`}
@@ -580,7 +584,7 @@ describe('Notions Endpoints', () => {
             beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
             beforeEach(() => db.into('notion_types').insert(notionTypes))
             beforeEach(() => db.into('notions').insert(notionsPost))
-            beforeEach(() => db.into('users').insert(adminArray))
+            beforeEach(() => db.into('users').insert(hashAdminArray))
 
             it('updates the notion and responds with 204', () => {
                 const updateNotion = {
@@ -687,7 +691,7 @@ describe('Notions Endpoints', () => {
             beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
             beforeEach(() => db.into('notion_types').insert(notionTypes))
             beforeEach(() => db.into('notions').insert(notionsPost))
-            beforeEach(() => db.into('users').insert(adminArray))
+            beforeEach(() => db.into('users').insert(hashAdminArray))
 
             it('responds with 204 and removes the notion', () => {
                 return supertest(app)

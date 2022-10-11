@@ -1,4 +1,4 @@
-const { requireAuth, requireAdmin } = require('../middleware/basic-auth')
+const { requireAuth, requireAdmin } = require('../middleware/jwt-auth')
 const express = require('express')
 const fabricsRouter = express.Router()
 const FabricsService = require('./fabrics-service')
@@ -134,60 +134,6 @@ fabricsRouter
             })
             .catch(next)
     })
-   
-// fabricsRouter
-//     .route('/fabric-types')
-//     .get((req, res, next) => {
-//         FabricsService
-//             .getAllFabricTypes(
-//                 req.app.get('db')
-//             )
-//             .then(fabricTypes => {
-//                 res.json(fabricTypes.map(serializeFabricTypes))
-//             })
-//             .catch(next)
-//     })
-//     .post(requireAuth, jsonParser, (req, res, next) => {
-//         const { 
-//             english_name, 
-//             fabric_type_class,
-//             approved_by_admin
-//         } = req.body
-
-//         const newFabricType = { 
-//             english_name, 
-//             fabric_type_class,
-//             approved_by_admin
-//         }
-
-//         const requiredFields = {
-//             english_name, 
-//             fabric_type_class
-//         }
-
-//         for (const [key, value] of Object.entries(requiredFields)) {
-//             if (value === undefined) {
-//                 return res.status(400).json({
-//                     error: { message: `Missing '${key}' in request body`}
-//                 })
-//             }
-//         }
-
-//         FabricsService
-//             .insertFabricType(
-//                 req.app.get('db'),
-//                 newFabricType
-//             )
-//             .then(fabricType => {
-//                 res
-//                     .status(201)
-//                     .location(path.posix.join(req.originalUrl + `/${fabricType.id}`))
-//                     .json(serializeFabricTypes(fabricType))
-                    
-//             })
-//             .catch(next)
-//     })
-
 
 fabricsRouter
     .route('/notion-types')

@@ -1,20 +1,20 @@
 const knex = require('knex')
+const jwt = require('jsonwebtoken')
 const app = require('../src/app')
-const supertest = require('supertest')
-const { expect } = require('chai')
+
 const { makeBrandArray, makeMalBrand } = require('./brands.fixtures')
 const { makeCertificationArray, makeMalCertification } = require('./certifications.fixtures')
-const { 
-    makeFabricArray, makeFabricsToCertifications, makeFabricsToFactories, makeFabricsToFibers,
+const {
+    makeFabricsToCertifications, makeFabricsToFactories, makeFabricsToFibers,
     makeFabricsTomalFibers, makeFabricsTomalCertifications, makeFabricsTomalFactories, makeFabricTypeArray,
-    makeFibersToFactories, makeNotionTypesArray, makeMalFabricType, makeMalNotionType, makeMalFabric, makeMalFibersToFactories
+    makeFibersToFactories, makeNotionTypesArray, makeMalNotionType, makeMalFabric, makeMalFibersToFactories
 } = require('./fabrics.fixtures')
 const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
 const { makeFiberArray, makeFiberTypeArray, makeMalFiber, makeMalFiberType } = require('./fibers.fixtures')
-const { makeAdmin, makeMalUser, makeUsers } = require('./users.fixtures')
+const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray } = require('./users.fixtures')
 
 describe('Fabrics Endpoints', () => {
-    const adminArray = makeAdmin()
+    const adminArray = makeAdminArray()
     const fabricTypes = makeFabricTypeArray()
     const fiberTypes = makeFiberTypeArray()
     const notionTypes = makeNotionTypesArray()
@@ -22,6 +22,8 @@ describe('Fabrics Endpoints', () => {
     const { fabricArray, expectedFabricArray } = makeFabricArray()
     const { fibersPost, fibersGet} = makeFiberArray()
     const factories = makeFactoryArray()
+    const hashAdminArray = hashedAdminArray()
+    const hashUserArray = hashedUserArray()
     const certifications = makeCertificationArray()
     const fabricsToFibers = makeFabricsToFibers()
     const fibersToFactories = makeFibersToFactories()
@@ -29,24 +31,25 @@ describe('Fabrics Endpoints', () => {
     const { malBrand } = makeMalBrand()
     const { malFabric, expectedFabric } = makeMalFabric()
     const { malFiber, expectedFiber } = makeMalFiber()
-    const { malFabricType, expectedFabricType } = makeMalFabricType()
     const { malFiberType } = makeMalFiberType()
     const { malNotionType, expectedNotionType } = makeMalNotionType()
     const { malFactory, expectedFactory } = makeMalFactory()
     const { malCertification, expectedCertification } = makeMalCertification()
-    const { malUser, expectedUser } = makeMalUser()
     const malFibersToFactories = makeMalFibersToFactories()
     const fabricsTomalFibers = makeFabricsTomalFibers()
     const fabricsToCertifications = makeFabricsToCertifications()
     const fabricsTomalCertifications = makeFabricsTomalCertifications()
     const fabricsTomalFactories = makeFabricsTomalFactories()
-    const userArray = makeUsers()
+    const userArray = makeUserArray()
 
     let db
 
-    const makeAuthHeader = user => {
-        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
-        return `Basic ${token}`
+    const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
+        const token = jwt.sign({ user_id: user.id }, secret, {
+            subject: user.email,
+            algorithm: 'HS256',
+        })
+        return `Bearer ${token}`
     }
 
     before('make knex instance', () => {
@@ -449,11 +452,11 @@ describe('Fabrics Endpoints', () => {
                 beforeEach(() =>  db.into('notion_types').insert(notionTypes))
                 beforeEach(() =>  db.into('fabrics').insert(fabricArray))
 
-                it(`responds with 401 'Missing basic token' when no basic token`, () => (
+                it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                     supertest(app)
                         .post(endpoint.path)
                         .send(newFabric)
-                        .expect(401, { error: `Missing basic token`})
+                        .expect(401, { error: `Missing bearer token`})
                 ))
     
                 it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -492,11 +495,11 @@ describe('Fabrics Endpoints', () => {
             beforeEach(() => db.into('brands').insert(brands))
             beforeEach(() => db.into('fabrics').insert(fabricArray))
 
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer tokenn' when no basic token`, () => (
                 supertest(app)
                     .patch('/api/fabrics/1')
                     .send({ fabric_mill_country: newFabric.fabric_mill_country})
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -535,10 +538,10 @@ describe('Fabrics Endpoints', () => {
             beforeEach(() => db.into('brands').insert(brands))
             beforeEach(() => db.into('fabrics').insert(fabricArray))
                         
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .delete('/api/fabrics/1')
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -572,7 +575,7 @@ describe('Fabrics Endpoints', () => {
     describe('POST /api/fabrics', () => {
         beforeEach(() =>  db.into('brands').insert(brands))
         beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-        beforeEach(() =>  db.into('users').insert(userArray))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
 
         it('creates a fabric, responding with 201 and the new fabric', () => {
             const newFabric = {
@@ -668,7 +671,7 @@ describe('Fabrics Endpoints', () => {
     })
 
     describe('POST /api/fabrics/notion-types', () => {
-        beforeEach(() =>  db.into('users').insert(userArray))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
         
         const newNotionType = {
             english_name: 'button',
@@ -740,7 +743,7 @@ describe('Fabrics Endpoints', () => {
         beforeEach(() =>  db.into('factories').insert(factories)) 
         beforeEach(() =>  db.into('fabrics').insert(fabricArray))
         beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
-        beforeEach(() => db.into('users').insert(userArray))
+        beforeEach(() => db.into('users').insert(hashUserArray))
 
         const fabricFiberPair =  {
             fabric_id: 1,
@@ -789,7 +792,7 @@ describe('Fabrics Endpoints', () => {
         beforeEach(() =>  db.into('factories').insert(factories)) 
         beforeEach(() =>  db.into('fabrics').insert(fabricArray))
         beforeEach(() =>  db.into('certifications').insert(certifications))
-        beforeEach(() =>  db.into('users').insert(userArray))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
         
         const fabricId = 1
 
@@ -834,7 +837,7 @@ describe('Fabrics Endpoints', () => {
         beforeEach(() =>  db.into('brands').insert(brands))
         beforeEach(() =>  db.into('factories').insert(factories)) 
         beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-        beforeEach(() =>  db.into('users').insert(userArray))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
 
         const newFabricFactoryPair = {
             fabric_id: 1,
@@ -875,7 +878,7 @@ describe('Fabrics Endpoints', () => {
     })
 
     describe('PATCH /api/fabrics/:fabric_id', () => {
-        beforeEach(() => db.into('users').insert(adminArray))
+        beforeEach(() => db.into('users').insert(hashAdminArray))
 
         const idToUpdate = 1
         
@@ -977,7 +980,7 @@ describe('Fabrics Endpoints', () => {
     })
 
     describe('DELETE /api/fabrics/:fabric_id', () => {
-        beforeEach(() => db.into('users').insert(adminArray))
+        beforeEach(() => db.into('users').insert(hashAdminArray))
 
         context('when the fabric with id fabric_id exists', () => {
             beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))

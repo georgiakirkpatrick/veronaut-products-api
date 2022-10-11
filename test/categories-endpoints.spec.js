@@ -1,26 +1,30 @@
 const knex = require('knex')
+const jwt = require('jsonwebtoken')
 const app = require('../src/app')
-const { expect } = require('chai')
-const supertest = require('supertest')
 const { makeBrandArray } = require('./brands.fixtures')
 const { makeCategoryArray, makeMalCat } = require('./categories.fixtures')
 const { makeProductArray, makeDry, makeMalProduct, makeWash } = require('./products.fixtures')
-const { makeAdmin, makeUsers } = require('./users.fixtures')
+const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray, makeMalUser } = require('./users.fixtures')
 
 describe('Categories Endpoints', function() {
-    const adminArray = makeAdmin()
+    const adminArray = makeAdminArray()
     const categories = makeCategoryArray()
     const brands = makeBrandArray()
+    const hashAdminArray = hashedAdminArray()
+    const hashUserArray = hashedUserArray()
     const wash = makeWash()
     const dry = makeDry()
     const { productsPost, productsExtendedGet } = makeProductArray()
-    const users = makeUsers()
+    const userArray = makeUserArray()
     
     let db
 
-    const makeAuthHeader = user => {
-        const token = Buffer.from(`${user.email}:${user.password}`).toString('base64')
-        return `Basic ${token}`
+    const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
+        const token = jwt.sign({ user_id: user.id }, secret, {
+            subject: user.email,
+            algorithm: 'HS256',
+        })
+        return `Bearer ${token}`
     }
 
     before('make knex instance', () => {
@@ -115,16 +119,16 @@ describe('Categories Endpoints', function() {
     })
 
     describe('Protected endpoints', () => {
-        beforeEach(() => db.into('users').insert(users)) 
+        beforeEach(() => db.into('users').insert(hashUserArray)) 
 
         const newCategory = categories[0]
 
         describe('POST /api/categories/', () => {
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
                 supertest(app)
                     .post('/api/categories')
                     .send(newCategory)
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
 
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -145,26 +149,16 @@ describe('Categories Endpoints', function() {
                     .send(newCategory)
                     .expect(401, { error: 'Unauthorized request' })
             })
-
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: users[0].email, password: 'wrong' }
-
-                return supertest(app)
-                    .post('/api/categories')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .send(newCategory)
-                    .expect(401, { error: 'Unauthorized request' })
-            })
         })
 
         describe('PATCH /api/categories/:category_id', () => {
             beforeEach(() => db.into('categories').insert(categories))
     
-            it(`responds with 401 'Missing basic token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
                 supertest(app)
                     .patch('/api/categories/1')
                     .send({ english_name: "new category name"})
-                    .expect(401, { error: `Missing basic token`})
+                    .expect(401, { error: `Missing bearer token`})
             ))
     
             it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
@@ -187,15 +181,15 @@ describe('Categories Endpoints', function() {
                     .expect(401, { error: 'Unauthorized request' })
             })
     
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: adminArray[0].email, password: 'wrong' }
+            // it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
+            //     const incorrectPassword = { email: adminArray[0].email, password: 'wrong' }
     
-                return supertest(app)
-                    .patch('/api/categories/1')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .send({ english_name: "new category name" })
-                    .expect(401, { error: 'Unauthorized request' })
-            })
+            //     return supertest(app)
+            //         .patch('/api/categories/1')
+            //         .set('Authorization', makeAuthHeader(incorrectPassword))
+            //         .send({ english_name: "new category name" })
+            //         .expect(401, { error: 'Unauthorized request' })
+            // })
     
             it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
                 const notAnAdmin = { email: adminArray[0].email, password: adminArray[0].password }
@@ -210,7 +204,7 @@ describe('Categories Endpoints', function() {
     })
 
     describe('POST /api/categories', () => {
-        beforeEach(() => db.into('users').insert(users)) 
+        beforeEach(() => db.into('users').insert(hashUserArray)) 
 
         it('creates a new category, returning 201 and the new category', () => {
             const newCategory = {
@@ -221,7 +215,7 @@ describe('Categories Endpoints', function() {
 
             return supertest(app)
                 .post('/api/categories')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(newCategory)
                 .expect(201)
                 .expect(res => {
@@ -245,7 +239,7 @@ describe('Categories Endpoints', function() {
 
                 return supertest(app)
                     .post('/api/categories')
-                    .set('Authorization', makeAuthHeader(users[0]))
+                    .set('Authorization', makeAuthHeader(userArray[0]))
                     .send(newCategory)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body.`}
@@ -258,7 +252,7 @@ describe('Categories Endpoints', function() {
 
             return supertest(app)
                 .post('/api/categories')
-                .set('Authorization', makeAuthHeader(users[0]))
+                .set('Authorization', makeAuthHeader(userArray[0]))
                 .send(malCategory)
                 .expect(201)
                 .expect(res => {
@@ -270,7 +264,7 @@ describe('Categories Endpoints', function() {
     })
 
     describe('PATCH /api/categories/:category_id', () => {
-        beforeEach(() => db.into('users').insert(adminArray))
+        beforeEach(() => db.into('users').insert(hashAdminArray))
 
         const adminUser = adminArray[0]
 

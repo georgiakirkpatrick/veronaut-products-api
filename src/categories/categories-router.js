@@ -1,5 +1,5 @@
 const express = require('express')
-const { requireAuth, requireAdmin } = require('../middleware/basic-auth')
+const { requireAuth, requireAdmin } = require('../middleware/jwt-auth')
 const categoriesRouter = express.Router()
 const CategoriesService = require('./categories-service')
 const jsonParser = express.json()

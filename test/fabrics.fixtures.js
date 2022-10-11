@@ -115,89 +115,12 @@ const makeFabricTypeArray = () => (
     ]
 )
 
-// const makeFibersArray = () => (
-//     [
-//         {
-//             id: 1,
-//             fiber_or_material_type_id: 1,
-//             brand_id: 1,
-//             producer_country: 1,
-//             producer_id: 1,
-//             production_notes: 'Notes',
-//             approved_by_admin: true
-//         },
-//         {
-//             id: 2,
-//             fiber_or_material_type_id: 1,
-//             brand_id: 1,
-//             producer_country: 1,
-//             producer_id: 1,
-//             production_notes: 'Notes',
-//             approved_by_admin: true
-//         }
-//     ]
-// )
-
 const makeFibersToFactories = () => (
     {
         fiber_or_material_id: 1,
         factory_id: 1
     }  
 )
-
-// const makeFiberTypesArray = () => (
-//     [
-//         {
-//             id: 1,
-//             english_name: 'cotton',
-//             fiber_type_class: 'naturally occuring cellulosic fiber',
-//             approved_by_admin: true,
-//             date_published: '2020-09-13T07:30:51.564Z'
-
-            
-//         },
-//         {
-//             id: 2,
-//             english_name: 'linen',
-//             fiber_type_class: 'naturally occuring cellulosic fiber',
-//             approved_by_admin: true,
-//             date_published: '2020-09-13T07:30:51.564Z'
-//         },
-//         {
-//             id: 3,
-//             english_name: 'silk',
-//             fiber_type_class: 'protein fiber',
-//             approved_by_admin: true,
-//             date_published: '2020-09-13T07:30:51.564Z'
-//         }
-//     ]
-// }
-
-// const makeCertificationArray = () => (
-//     [
-//         {
-//             id: 1,
-//             english_name: 'Organic',
-//             website: 'www.organic.com',
-//             approved_by_admin: true,
-//             date_published: '2020-09-13T07:30:51.564Z'
-//         },
-//         {
-//             id: 2,
-//             english_name: 'Fair Trade',
-//             website: 'www.fairtrade.com',
-//             approved_by_admin: true,
-//             date_published: '2020-09-13T07:30:51.564Z'
-//         },
-//         {
-//             id: 3,
-//             english_name: 'Green',
-//             website: 'www.green.com',
-//             approved_by_admin: true,
-//             date_published: '2020-09-13T07:30:51.564Z'
-//         }
-//     ]
-// }
 
 const makeFabricsTomalFibers = () => (
     {
@@ -220,31 +143,9 @@ const makeFabricsTomalFactories = () => (
     }
 )
 
-// const makeMalCertification = () => (
-//     const malCertification = {
-//         id: 666,
-//         english_name: '<a href="www.certification.com">Certification</a>',
-//         website: '<a href="www.certification.com">www.certification.com</a>',
-//         approved_by_admin: true,
-//         date_published: '2020-09-13T07:30:51.564Z'
-//     } 
-
-//     const expectedCertification = {
-//         ...malCertification,
-//         english_name: '&lt;a href="www.certification.com"&gt;Certification&lt;/a&gt;',
-//         website: '&lt;a href="www.certification.com"&gt;www.certification.com&lt;/a&gt;'
-//     }
-
-//     return {
-//         malCertification,
-//         expectedCertification
-//     }
-// }
-
 const makeMalFabric = () => {
     const malFabric = {
         id: 666,
-        // fabric_type_id: 1,
         brand_id: 1,
         fabric_mill_country: 2,
         fabric_mill_id: 2,
@@ -268,87 +169,12 @@ const makeMalFabric = () => {
     }
 }
 
-const makeMalFabricType = () => {
-    const malFabricType = {
-        id: 1,
-        english_name: '<a href="www.fabric.com">Fabric</a>',
-        fabric_type_class: 'woven',
-        approved_by_admin: true,
-        date_published: '2020-09-13T07:30:51.564Z'
-    }
-
-    const expectedFabricType = {
-        ...malFabricType,
-        english_name: '&lt;a href="www.fabric.com"&gt;Fabric&lt;/a&gt;',
-    }
-
-    return {
-        malFabricType,
-        expectedFabricType
-    }
-}
-
-// const makeMalFiber = () => (
-//     const malFiber = {
-//         id: 666,
-//         fiber_or_material_type_id: 666,
-//         brand_id: 1,
-//         producer_country: 1,
-//         producer_id: 666,
-//         production_notes: '<a href="www.notes.com">Notes</a>',
-//         approved_by_admin: false,
-//         date_published: '2020-09-13T07:30:51.564Z'
-//     }
-
-//     const expectedFiber = {
-//         id: 666,
-//         fiber_type_id: 666,
-//         brand_id: 1,
-//         producer_country: 1,
-//         producer_id: 666,
-//         fiber_type: '&lt;a href="www.fiber.com"&gt;Fiber&lt;/a&gt;',
-//         class: 'naturally occuring cellulosic fiber',
-//         production_notes: '&lt;a href="www.notes.com"&gt;Notes&lt;/a&gt;',
-//         producer: '&lt;a href="www.evil.com"&gt;Evil&lt;/a&gt;',
-//         producer_country: 1,
-//         producer_website: '&lt;a href="www.evil.com"&gt;www.evil.com&lt;/a&gt;',
-//         producer_notes: '&lt;a href="www.evil.com"&gt;Evil&lt;/a&gt;',
-//         approved_by_admin: false,
-//         date_published: '2020-09-13T07:30:51.564Z'
-//     }
-
-//     return {
-//         malFiber,
-//         expectedFiber
-//     }
-// }
-
 const makeMalFibersToFactories = () => (
     {
         fiber_or_material_id: 666,
         factory_id: 666
     }
-)  
-
-// const makeMalFiberType = () => (
-//     const malFiberType = {
-//         id: 666,
-//         english_name: '<a href="www.fiber.com">Fiber</a>',
-//         fiber_type_class: 'naturally occuring cellulosic fiber',
-//         approved_by_admin: true,
-//         date_published: '2020-09-13T07:30:51.564Z'
-//     }
-
-//     const expectedFiberType = {
-//         ...malFiberType,
-//         english_name: '&lt;a href="www.fiber.com"&gt;Fiber&lt;/a&gt;',
-//     }
-
-//     return {
-//         malFiberType,
-//         expectedFiberType
-//     }
-// }
+)
 
 const makeMalNotion = () => {
     const malNotion = {
@@ -418,7 +244,6 @@ module.exports = {
     makeFibersToFactories,
     makeFabricsToFactories,
     makeMalFabric,
-    makeMalFabricType,
     makeMalNotionType,
     makeMalNotion,
     makeMalFibersToFactories,

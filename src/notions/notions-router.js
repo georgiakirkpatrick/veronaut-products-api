@@ -1,4 +1,4 @@
-const { requireAuth, requireAdmin } = require('../middleware/basic-auth')
+const { requireAuth, requireAdmin } = require('../middleware/jwt-auth')
 const express = require('express')
 const jsonParser = express.json()
 const notionsRouter = express.Router()

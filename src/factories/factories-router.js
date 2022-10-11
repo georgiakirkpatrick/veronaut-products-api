@@ -1,4 +1,4 @@
-const { requireAuth, requireAdmin } = require('../middleware/basic-auth')
+const { requireAuth, requireAdmin } = require('../middleware/jwt-auth')
 const express = require('express')
 const FactoriesService = require('./factories-service')
 const factoriesRouter = express.Router()
