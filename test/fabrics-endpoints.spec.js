@@ -5,7 +5,7 @@ const app = require('../src/app')
 const { makeBrandArray, makeMalBrand } = require('./brands.fixtures')
 const { makeCertificationArray, makeMalCertification } = require('./certifications.fixtures')
 const {
-    makeFabricsToCertifications, makeFabricsToFactories, makeFabricsToFibers,
+    makeFabricArray, makeFabricsToCertifications, makeFabricsToFactories, makeFabricsToFibers,
     makeFabricsTomalFibers, makeFabricsTomalCertifications, makeFabricsTomalFactories, makeFabricTypeArray,
     makeFibersToFactories, makeNotionTypesArray, makeMalNotionType, makeMalFabric, makeMalFibersToFactories
 } = require('./fabrics.fixtures')

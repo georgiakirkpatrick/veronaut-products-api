@@ -11,7 +11,8 @@ const serializeUser = user => ({
     email: xss(user.email),
     password: user.password ? xss(user.password) : null,
     handle: user.handle ? xss(user.handle) : null,
-    name: user.name ? xss(user.name) : null,
+    first_name: user.first_name ? xss(user.first_name) : null,
+    last_name: user.last_name ? xss(user.last_name) : null,
     website: user.website ? xss(user.website) : null,
     profile_pic: user.profile_pic ? xss(user.profile_pic) : null,
     bio: user.bio ? xss(user.bio) : null,
@@ -61,7 +62,8 @@ usersRouter
             email,
             password,
             handle,
-            name,
+            first_name,
+            last_name,
             website,
             profile_pic,
             bio,
@@ -78,7 +80,8 @@ usersRouter
             email,
             password,
             handle,
-            name,
+            first_name,
+            last_name,
             website,
             profile_pic,
             bio,
@@ -154,7 +157,8 @@ usersRouter
             email,
             password,
             handle,
-            name,
+            first_name,
+            last_name,
             website,
             profile_pic,
             bio,
@@ -170,7 +174,8 @@ usersRouter
             email,
             password,
             handle,
-            name,
+            first_name,
+            last_name,
             website,
             profile_pic,
             bio,
@@ -187,7 +192,7 @@ usersRouter
         if (numberOfValues === 0) {
             return res.status(400).json({
                 error: { 
-                    message: `Request body must contain 'admin', 'email', 'password', 'handle', 'name', 'website', 'profile_pic', 'bio', 'public', editor, can_submit, org_affiliation, or 'account_created'`
+                    message: `Request body must contain 'admin', 'email', 'password', 'handle', 'first_name', 'last_name', 'website', 'profile_pic', 'bio', 'public', editor, can_submit, org_affiliation, or 'account_created'`
                 }
             })
         }

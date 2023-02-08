@@ -53,15 +53,15 @@ describe('Users Endpoints', () => {
     })
     after('disconnect from db', () => db.destroy())
 
-    const cleanUpTables = () => db.raw(
+    const cleanAllTables = () => db.raw(
         `TRUNCATE table brands, 
-        categories, 
-        certifications, 
-        dry_instructions, 
-        factories, 
-        products, 
-        users, 
-        wash_instructions RESTART IDENTITY CASCADE`
+            categories, 
+            certifications, 
+            dry_instructions, 
+            factories, 
+            products,
+            users,
+            wash_instructions RESTART IDENTITY CASCADE`
     )
 
     const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
@@ -72,15 +72,11 @@ describe('Users Endpoints', () => {
         return `Bearer ${token}`
     }
 
-    before('clean tables', () => cleanUpTables())
-    afterEach('clean tables', () => cleanUpTables())
+    before('clean all tables', () => cleanAllTables())
+    afterEach('clean all tables', () => cleanAllTables())
 
     describe('Protected endpoints', () => {
-        beforeEach(() =>  db.into('users').insert(userArray))
-
         describe('GET /api/users/', () => {
-            beforeEach(() =>  db.into('users').insert(adminArray))
-
             it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .get('/api/users')
@@ -115,6 +111,9 @@ describe('Users Endpoints', () => {
 
             it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
                 const notAnAdmin = { email: userArray[0].email, password: userArray[0].password }
+
+                before(() =>  db.into('users').insert(adminArray))
+
                 return supertest(app)
                     .get('/api/users')
                     .set('Authorization', makeAuthHeader(notAnAdmin))
@@ -122,69 +121,28 @@ describe('Users Endpoints', () => {
             })
         })
 
-        describe('POST /api/users/:user_id/products', () => {
-            
-            const currentUser = userArray[0]
-            const authUserId = currentUser.id
-            const unauthUserId = userArray[1].id
-            
-            const userProdSet = {
-                product_id: 1,
-                relationship_id: 1
-            }
-            
-            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
-                supertest(app)
-                    .post(`/api/users/${authUserId}/products`)
-                    .expect(401, { error: `Missing bearer token`})
-            ))
-
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
-                return supertest(app)
-                    .post(`/api/users/${authUserId}/products`)
-                    .set('Authorization', makeAuthHeader(userNoCreds))
-                    .expect(401, { error: `Unauthorized request` })
-            })
-
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                
-                return supertest(app)
-                    .post(`/api/users/${authUserId}/products`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .expect(401, { error: 'Unauthorized request' })
-            })
-
-            it(`responds with 401 when the user is not authorized`, () => {
-                return supertest(app)
-                    .post(`/api/users/${unauthUserId}/products`)
-                    .set('Authorization', makeAuthHeader(currentUser))
-                    .send(userProdSet)
-                    .expect(401, { error: `Unauthorized request`})
-            })
-        })
-
         describe('PATCH /api/users/:user_id', () => {
-            const newUser = {
-                email: 'newemail@gmail.com',
-                password: 'newpassword',
-                handle: 'NewName',
-                name: 'New Name',
-                website: 'newwebsite.com',
-                profile_pic: 'newphoto.jpg',
-                bio: 'New Bio.',
-                public: true
+            const userModification = {
+                email: 'modified@gmail.com',
+                password: 'modified',
+                handle: 'ModifiedName',
+                first_name: 'Modified Name',
+                website: 'modifiedwebsite.com',
+                profile_pic: 'modifiedphoto.jpg',
+                bio: 'Modified Bio.',
+                public: false
             }
 
             const currentUser = userArray[0]
             const authUserId = currentUser.id
             const unauthUserId = userArray[1].id
 
+            beforeEach(() =>  db.into('users').insert(userArray))
+
             it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
                     .patch(`/api/users/${authUserId}`)
-                    .send(newUser)
+                    .send(userModification)
                     .expect(401, { error: `Missing bearer token`})
             ))
 
@@ -194,7 +152,7 @@ describe('Users Endpoints', () => {
                 return supertest(app)
                     .patch(`/api/users/${authUserId}`)
                     .set('Authorization', makeAuthHeader(userNoCreds))
-                    .send(newUser)
+                    .send(userModification)
                     .expect(401, { error: `Unauthorized request` })
             })
 
@@ -204,7 +162,7 @@ describe('Users Endpoints', () => {
                 return supertest(app)
                     .patch(`/api/users/${authUserId}`)
                     .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .send(newUser)
+                    .send(userModification)
                     .expect(401, { error: 'Unauthorized request' })
             })
 
@@ -212,7 +170,7 @@ describe('Users Endpoints', () => {
                 return supertest(app)
                     .patch(`/api/users/${unauthUserId}`)
                     .set('Authorization', makeAuthHeader(currentUser))
-                    .send(newUser)
+                    .send(userModification)
                     .expect(401, { error: `Unauthorized request`})
             })
 
@@ -220,22 +178,8 @@ describe('Users Endpoints', () => {
                 return supertest(app)
                     .patch(`/api/users/${unauthUserId}`)
                     .set('Authorization', makeAuthHeader(currentUser))
-                    .send(newUser)
+                    .send(userModification)
                     .expect(401, { error: `Unauthorized request`})
-            })
-
-            context('Given an admin user', () => {
-                before(() =>  db.into('users').insert(adminArray))
-
-                it(`responds with 204 when the user is an admin`, () => {
-                    const admin = adminArray[0]
-                        
-                    return supertest(app)
-                        .patch(`/api/users/${unauthUserId}`)
-                        .set('Authorization', makeAuthHeader(admin))
-                        .send(newUser)
-                        .expect(204)
-                })
             })
         })
 
@@ -243,6 +187,8 @@ describe('Users Endpoints', () => {
             const currentUser = userArray[0]
             const authUserId = currentUser.id
             const unauthUserId = userArray[1].id
+
+            beforeEach(() =>  db.into('users').insert(userArray))
             
             it(`responds with 401 'Missing bearer token' when no basic token`, () => (
                 supertest(app)
@@ -277,12 +223,12 @@ describe('Users Endpoints', () => {
             context('Given an admin user', () => {
                 before(() =>  db.into('users').insert(adminArray))
 
-                it(`responds with 401 when the user is an admin`, () => {
+                it(`responds with 401 when the user is not an admin`, () => {
                     const admin = adminArray[0]
                         
                     return supertest(app)
                         .delete(`/api/users/${unauthUserId}`)
-                        .set('Authorization', makeAuthHeader(admin))
+                        .set('Authorization', makeAuthHeader(userArray[0]))
                         .expect(401, { error: `Unauthorized request` })
                 })
             })
@@ -320,7 +266,7 @@ describe('Users Endpoints', () => {
                         expect(res.body[malUserIndex].email).to.eql(expectedUser.email)
                         expect(res.body[malUserIndex].password).to.eql(expectedUser.password)
                         expect(res.body[malUserIndex].handle).to.eql(expectedUser.handle)
-                        expect(res.body[malUserIndex].name).to.eql(expectedUser.name)
+                        expect(res.body[malUserIndex].first_name).to.eql(expectedUser.first_name)
                         expect(res.body[malUserIndex].website).to.eql(expectedUser.website)
                         expect(res.body[malUserIndex].profile_pic).to.eql(expectedUser.profile_pic)
                         expect(res.body[malUserIndex].bio).to.eql(expectedUser.bio)
@@ -400,16 +346,49 @@ describe('Users Endpoints', () => {
     describe('POST /api/users', () => {
         beforeEach(() => db.into('users').insert(adminArray))
 
+        context(`User Validation`, () => {
+            const requiredFields = [
+                'email',
+                'password'
+            ]
+
+            requiredFields.forEach(field => {
+                const newUser = {
+                    email: 'email@address.com',
+                    password: 'testpassword',
+                    handle: 'Franzferdinand',
+                    first_name: 'Franz',
+                    last_name: 'Ferdinand',
+                    website: 'franziboy.com',
+                    profile_pic: 'https://www.photo.jpg',
+                    bio: 'Archduke Franz Ferdinand Carl Ludwig Joseph Maria of Austria was the heir presumptive to the throne of Austria-Hungary. His assassination in Sarajevo is considered the most immediate cause of World War I.'
+                }
+
+                it(`responds with 400 and an error message when the '${field}' is missing`, () => {
+                    delete newUser[field]
+
+                    return supertest(app)
+                        .post('/api/users')
+                        .send(newUser)
+                        .expect(400, {
+                            error: { message: `Missing '${field}' in request body`}
+                        })
+                })
+            })
+        })
+
         it(`Creates a user, responding with 201 and the new user`, () => {
             const newUser = {
-                id: 5,
+                // id: 5,
                 email: 'email@address.com',
                 password: 'testpassword',
                 handle: 'Franzferdinand',
-                name: 'Franz Ferdinand',
+                first_name: 'Franz',
+                last_name: 'Ferdinand',
                 website: 'franziboy.com',
                 profile_pic: 'https://www.photo.jpg',
-                bio: 'Archduke Franz Ferdinand Carl Ludwig Joseph Maria of Austria was the heir presumptive to the throne of Austria-Hungary. His assassination in Sarajevo is considered the most immediate cause of World War I.'
+                bio: 'Archduke Franz Ferdinand Carl Ludwig Joseph Maria of Austria was the heir presumptive to the throne of Austria-Hungary. His assassination in Sarajevo is considered the most immediate cause of World War I.',
+                org_affliation: 'Control Union'
             }
                 
             return supertest(app)
@@ -419,7 +398,8 @@ describe('Users Endpoints', () => {
                     expect(res.body.email).to.eql(newUser.email)
                     expect(res.body.password).to.eql(newUser.password)
                     expect(res.body.handle).to.eql(newUser.handle)
-                    expect(res.body.name).to.eql(newUser.name)
+                    expect(res.body.first_name).to.eql(newUser.first_name)
+                    expect(res.body.last_name).to.eql(newUser.last_name)
                     expect(res.body.website).to.eql(newUser.website)
                     expect(res.body).to.have.property('id')
                     expect(res.headers.location).to.have.eql(`/api/users/${res.body.id}`)
@@ -442,35 +422,7 @@ describe('Users Endpoints', () => {
                     })
                 })
         })
-
-        const requiredFields = [
-            'email',
-            'password'
-        ]
-
-        requiredFields.forEach(field => {
-            const newUser = {
-                email: 'email@address.com',
-                password: 'testpassword',
-                handle: 'Franzferdinand',
-                name: 'Franz Ferdinand',
-                website: 'franziboy.com',
-                profile_pic: 'https://www.photo.jpg',
-                bio: 'Archduke Franz Ferdinand Carl Ludwig Joseph Maria of Austria was the heir presumptive to the throne of Austria-Hungary. His assassination in Sarajevo is considered the most immediate cause of World War I.'
-            }
-
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
-                delete newUser[field]
-
-                return supertest(app)
-                    .post('/api/users')
-                    .send(newUser)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                    })
-            })
-        })
-
+        
         it(`Removes XSS attack content from response`, () => {
             return supertest(app)
                 .post('/api/users')
@@ -480,7 +432,8 @@ describe('Users Endpoints', () => {
                     expect(res.body.email).to.eql(expectedUser.email)
                     expect(res.body.password).to.eql(expectedUser.password)
                     expect(res.body.handle).to.eql(expectedUser.handle)
-                    expect(res.body.name).to.eql(expectedUser.name)
+                    expect(res.body.first_name).to.eql(expectedUser.first_name)
+                    expect(res.body.last_name).to.eql(expectedUser.last_name)
                     expect(res.body.website).to.eql(expectedUser.website)
                     expect(res.body.profile_pic).to.eql(expectedUser.profile_pic)
                     expect(res.body.bio).to.eql(expectedUser.bio)
@@ -545,17 +498,23 @@ describe('Users Endpoints', () => {
     })
 
     describe('PATCH /api/users/:user_id', () => {
+        beforeEach(() => db.into('brands').insert(brands))
+        beforeEach(() => db.into('categories').insert(categories))
+        beforeEach(() => db.into('dry_instructions').insert(dryInstructions))
+        beforeEach(() => db.into('factories').insert(factories))
+        beforeEach(() => db.into('wash_instructions').insert(washInstructions))
+        beforeEach(() => db.into('products').insert(productsPost))
         beforeEach(() =>  db.into('users').insert(userArray))
+        beforeEach(() => db.into('users_to_products').insert(relArray))
 
         context('Given there are users in the database', () => {
-
             const currentUser = userArray[1]
             const idToUpdate = currentUser.id
 
             it('responds with 204 and updates the user', () => {
                 const updateUser = {
                     handle: 'newhandle',
-                    name: 'new Name',
+                    first_name: 'new Name',
                     website: 'newwebsite.com',
                     profile_pic: 'https://www.newphoto.jpg',
                     bio: 'New bio.'
@@ -585,7 +544,7 @@ describe('Users Endpoints', () => {
                     .set('Authorization', makeAuthHeader(currentUser))
                     .send({ irrelevantField: 'foo' })
                     .expect(400, {
-                        error: { message: `Request body must contain 'admin', 'email', 'password', 'handle', 'name', 'website', 'profile_pic', 'bio', 'public', editor, can_submit, org_affiliation, or 'account_created'`}
+                        error: { message: `Request body must contain 'admin', 'email', 'password', 'handle', 'first_name', 'last_name', 'website', 'profile_pic', 'bio', 'public', editor, can_submit, org_affiliation, or 'account_created'`}
                     })
             })
 
