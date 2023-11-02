@@ -1,64 +1,44 @@
-const makeFiberArray = () => {
-    const fibersPost = [
+const { makeFactory } = require('./factories.fixtures')
+const { makeCertArray, makeMalCert } = require('./certifications.fixtures')
+
+const factory = makeFactory()['factoryInsert']
+const { certArrayGet } = makeCertArray()
+const { malCertGet } = makeMalCert()
+
+const makeFiber = () => {
+    const fiberPost = {
+        fiber_or_material_type_id: 1,
+        brand_id: 1,
+        producer_country: 1,
+        producer_id: 1,
+        production_notes: 'Notes',
+    }
+
+    const fiberInsert = {
+        id: 1,
+        ...fiberPost,
+        approved_by_admin: true,
+        created_at: '2020-10-05T18:32:57.458Z',
+        updated_at: '2020-10-05T18:32:57.458Z'
+    }
+
+    const fiberGet = [
         {
-            id: 1,
-            fiber_or_material_type_id: 1,
-            brand_id: 1,
-            producer_country: 1,
-            producer_id: 1,
-            production_notes: 'Notes',
-            approved_by_admin: true,
-            date_published: '2020-10-05T18:32:57.458Z'
-        },
-        {
-            id: 2,
-            fiber_or_material_type_id: 1,
-            brand_id: 1,
-            producer_country: 1,
-            producer_id: 1,
-            production_notes: 'Notes',
-            approved_by_admin: false,
-            date_published: '2020-10-05T18:32:57.458Z'
+            ...fiberInsert,
+            producer_country: factory.country,
+            producer_id: factory.id,
+            fiber_type: 'Cotton',
+            class: 'naturally occuring cellulosic fiber',
+            producer: factory.english_name,
+            producer_website: factory.website
         }
     ]
 
-    const fibersGet = [
-        {
-            id: 1,
-            brand_id: 1,
-            producer_country: 1,
-            producer_id: 1,
-            approved_by_admin: true,
-            date_published: '2020-10-05T18:32:57.458Z',
-            fiber_or_material_type_id: 1,
-            fiber_type: 'Cotton',
-            class: 'naturally occuring cellulosic fiber',
-            producer: 'The Orange Concept',
-            production_notes: 'Notes',
-            producer_website: "www.orange.com"
-        },
-        {
-            id: 2,
-            brand_id: 1,
-            producer_country: 1,
-            producer_id: 1,
-            production_notes: 'Notes',
-            approved_by_admin: false,
-            date_published: '2020-10-05T18:32:57.458Z',
-            fiber_or_material_type_id: 1,
-            fiber_type: 'Cotton',
-            class: 'naturally occuring cellulosic fiber',
-            producer: 'The Orange Concept',
-            production_notes: 'Notes',
-            producer_website: "www.orange.com"
-        }
-    ]
-
-    return { fibersPost, fibersGet }
+    return { fiberPost, fiberInsert, fiberGet }
 }
 
-const makeFiberToCertArray = () => (
-    [
+const makeFibToCert = () => {
+    const fibToCertArray = [
         {
             fiber_or_material_id: 1,
             certification_id: 1
@@ -72,92 +52,133 @@ const makeFiberToCertArray = () => (
             certification_id: 3
         }
     ]
-)
 
-const makeFiberToMalCertArray = () => (
-    {
-        fiber_or_material_id: 1,
-        certification_id: 666
-    }
-)
-
-const makeFiberTypeArray = () => (
-    [
+    const fibCertGet = [
         {
-            id: 1,
-            english_name: 'Cotton',
-            fiber_type_class: 'naturally occuring cellulosic fiber',
-            approved_by_admin: true,
-            date_published: '2020-10-05T18:32:57.458Z'
+            ...certArrayGet[0],
+            certification_id: fibToCertArray[0].certification_id,
+            fiber_id: fibToCertArray[0].fiber_or_material_id
         },
         {
-            id: 2,
-            english_name: 'Wool',
-            fiber_type_class: 'protein fiber',
-            approved_by_admin: true,
-            date_published: '2020-10-05T18:32:57.458Z'
+            ...certArrayGet[1],
+            certification_id: fibToCertArray[1].certification_id,
+            fiber_id: fibToCertArray[1].fiber_or_material_id
+        },
+        {
+            ...certArrayGet[2],
+            certification_id: fibToCertArray[2].certification_id,
+            fiber_id: fibToCertArray[2].fiber_or_material_id
         }
     ]
-)
+
+    delete fibCertGet[0].id
+    delete fibCertGet[1].id
+    delete fibCertGet[2].id
+
+    return { fibToCertArray, fibCertGet }
+}
+    
+const makeMalFibToMalCert = () => {
+    const malFibToMalCert = {
+        fiber_or_material_id: 666,
+        certification_id: 666
+    }
+
+    const malFibCertGet = {
+        ...malCertGet,
+        certification_id: malFibToMalCert.certification_id,
+        fiber_id: malFibToMalCert.fiber_or_material_id
+    }
+
+    delete malFibCertGet.id
+
+    return { malFibToMalCert, malFibCertGet }
+}
+
+const makeFiberType = () => {
+    const ftPost = {
+        english_name: 'Cotton',
+        fiber_type_class: 'undetermined'
+    }
+    
+    const ftInsert = {
+        id: 1,
+        ...ftPost,
+        fiber_type_class: 'naturally occuring cellulosic fiber',
+        approved_by_admin: true,
+        created_at: '2020-10-05T18:32:57.458Z',
+        updated_at: '2020-10-05T18:32:57.458Z'
+    }
+
+    const ftGet = [
+        {
+            ...ftInsert
+        }
+    ]
+
+    return { ftPost, ftInsert, ftGet }
+}
 
 const makeMalFiberType = () => {
-    const malFiberType = {
-        id: 666,
+    const malFtPost = {
         english_name: '<a>Bad fiber type</a>',
+    }
+
+    const malFtInsert = {
+        id: 666,
+        ...malFtPost,
         fiber_type_class: 'undetermined',
         approved_by_admin: true,
-        date_published: '2020-10-05T18:32:57.458Z'
+        created_at: '2020-10-05T18:32:57.458Z',
+        updated_at: '2020-10-05T18:32:57.458Z'
     }
 
-    const expectedFiberType = {
-        ...malFiberType,
-        english_name: '&lt;a&gt;Bad fiber type&lt;/a&gt;'
-    }
+    const malFtGet = [
+        {
+            ...malFtInsert,
+            english_name: '&lt;a&gt;Bad fiber type&lt;/a&gt;'
+        }
+    ]
 
-    return {
-        malFiberType,
-        expectedFiberType
-    }
+    return { malFtPost, malFtInsert, malFtGet }
 }
 
 const makeMalFiber = () => {
-    const malFiber = {
-        id: 666,
+    const malFiberPost = {
         fiber_or_material_type_id: 666,
         brand_id: 666,
         producer_country: 1,
         producer_id: 666,
-        production_notes: '<a>Notes</a>',
-        approved_by_admin: true,
-        date_published: '2020-10-05T18:32:57.458Z'
+        production_notes: '<a>Notes</a>'
     }
 
-    const expectedFiber = {
+    const malFiberInsert = {
         id: 666,
-        fiber_or_material_type_id: 666,
-        fiber_type: '&lt;a&gt;Bad fiber type&lt;/a&gt;',
-        class: 'undetermined',
-        brand_id: 666,
-        producer_country: 1,
-        producer_id: 666,
-        producer: '&lt;a href="www.evil.com"&gt;Evil&lt;/a&gt;',
-        producer_website: '&lt;a href="www.evil.com"&gt;www.evil.com&lt;/a&gt;',
-        production_notes: '&lt;a&gt;Notes&lt;/a&gt;',
+        ...malFiberPost,
         approved_by_admin: true,
-        date_published: '2020-10-05T18:32:57.458Z'
+        created_at: '2020-10-05T18:32:57.458Z',
+        updated_at: '2020-10-05T18:32:57.458Z'
     }
 
-    return {
-        malFiber,
-        expectedFiber
-    }
+    const malFiberGet = [
+        {
+            ...malFiberInsert,
+            fiber_type: '&lt;a&gt;Bad fiber type&lt;/a&gt;',
+            class: 'undetermined',
+            producer: '&lt;a href="www.evil.com"&gt;Evil&lt;/a&gt;',
+            producer_website: '&lt;a href="www.evil.com"&gt;www.evil.com&lt;/a&gt;',
+            production_notes: '&lt;a&gt;Notes&lt;/a&gt;'
+        }
+    ]
+
+    return { malFiberPost, malFiberInsert, malFiberGet }
 }
 
 module.exports = {
-    makeFiberArray,
-    makeFiberToCertArray,
-    makeFiberToMalCertArray,
-    makeFiberTypeArray,
+    makeFiber,
+    makeFibToCert,
+    makeMalFibToMalCert,
+    makeFiberType,
     makeMalFiberType,
     makeMalFiber
 }

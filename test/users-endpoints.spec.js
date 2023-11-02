@@ -1,24 +1,30 @@
-const knex = require('knex')
-const jwt = require('jsonwebtoken')
-const app = require('../src/app')
-
-const { makeBrandArray } = require('./brands.fixtures')
-const { makeCategoryArray } = require('./categories.fixtures')
-const { makeFactoryArray } = require('./factories.fixtures')
-const { makeDry, makeMalProduct, makeProductArray, makeWash } = require('./products.fixtures')
-const { makeAdminArray, makeUserArray, makeMalUser } = require('./users.fixtures')
-
 describe('Users Endpoints', () => {
-    const adminArray = makeAdminArray()
-    const brands = makeBrandArray()
-    const categories = makeCategoryArray()
-    const dryInstructions = [ makeDry() ]
-    const factories = makeFactoryArray()
-    const { malProduct, expectedProduct } = makeMalProduct()
+    const app = require('../src/app')
+    const { expect } = require('chai')
+    const knex = require('knex')
+    const jwt = require('jsonwebtoken')
+    const supertest = require('supertest')
+    const { hashedAdminArray, hashedUserArray } = require('./users.fixtures')
+    const { makeBrand, makeMalBrand } = require('./brands.fixtures')
+    const { makeCategoryArray } = require('./categories.fixtures')
+    const { makeFactory } = require('./factories.fixtures')
+    const { makeDry, makeMalProduct, makeProduct, makeWash } = require('./products.fixtures')
+    const { makeAdminArray, makeUserArray, makeMalUser } = require('./users.fixtures')
+    const { brandInsert } = makeBrand()
+    const { malBrandInsert } = makeMalBrand()
+    const { categoriesInsert } = makeCategoryArray()
+    const { malProdPost, malProdInsert, malProdGet } = makeMalProduct()
     const { malUser, expectedUser } = makeMalUser()
-    const { productsOnlyGet, productsPost } = makeProductArray()
+    const { prodOnlyGet, productPost } = makeProduct()
+    const admin = makeAdminArray()[0]
+    const currentUser = makeUserArray()[0]
+    const dryInstructions = [ makeDry() ]
+    const factory = makeFactory()
+    const hashAdminArray = hashedAdminArray()
+    const hashUserArray = hashedUserArray()
     const washInstructions = [ makeWash() ]
-    const userArray = makeUserArray()
+    const user = makeUserArray()[0]
+
     const relArray = [
         { 
             user_id: 1,
@@ -77,21 +83,21 @@ describe('Users Endpoints', () => {
 
     describe('Protected endpoints', () => {
         describe('GET /api/users/', () => {
-            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no bearer token is provided`, () => (
                 supertest(app)
                     .get('/api/users')
-                    .expect(401, { error: `Missing bearer token`})
+                    .expect(401, { error: 'Missing bearer token'})
             ))
 
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                 const userNoCreds = { email: '', password: '' }
                 return supertest(app)
                     .get(`/api/users`)
                     .set('Authorization', makeAuthHeader(userNoCreds))
-                    .expect(401, { error: `Unauthorized request` })
+                    .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when invalid user`, () => {
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {
                 const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
                 
                 return supertest(app)
@@ -100,19 +106,10 @@ describe('Users Endpoints', () => {
                     .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: userArray[0].email, password: 'wrong' }
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`, () => {
+                const notAnAdmin = { email: user.email, password: user.password }
 
-                return supertest(app)
-                    .get('/api/users')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .expect(401, { error: 'Unauthorized request' })
-            })
-
-            it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
-                const notAnAdmin = { email: userArray[0].email, password: userArray[0].password }
-
-                before(() =>  db.into('users').insert(adminArray))
+                before(() =>  db.into('users').insert(hashAdminArray))
 
                 return supertest(app)
                     .get('/api/users')
@@ -133,30 +130,29 @@ describe('Users Endpoints', () => {
                 public: false
             }
 
-            const currentUser = userArray[0]
             const authUserId = currentUser.id
-            const unauthUserId = userArray[1].id
+            const unauthUserId = makeUserArray()[1].id
 
-            beforeEach(() =>  db.into('users').insert(userArray))
+            beforeEach(() =>  db.into('users').insert(hashUserArray))
 
-            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
+            it(`responds with 401 'Missing bearer token' when no bearer token is provided`, () => (
                 supertest(app)
                     .patch(`/api/users/${authUserId}`)
                     .send(userModification)
-                    .expect(401, { error: `Missing bearer token`})
+                    .expect(401, { error: 'Missing bearer token'})
             ))
 
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                 const userNoCreds = { email: '', password: '' }
 
                 return supertest(app)
                     .patch(`/api/users/${authUserId}`)
                     .set('Authorization', makeAuthHeader(userNoCreds))
                     .send(userModification)
-                    .expect(401, { error: `Unauthorized request` })
+                    .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when invalid user`, () => {
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {
                 const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
                 
                 return supertest(app)
@@ -171,40 +167,31 @@ describe('Users Endpoints', () => {
                     .patch(`/api/users/${unauthUserId}`)
                     .set('Authorization', makeAuthHeader(currentUser))
                     .send(userModification)
-                    .expect(401, { error: `Unauthorized request`})
-            })
-
-            it(`responds with 401 when the user is not authorized`, () => {
-                return supertest(app)
-                    .patch(`/api/users/${unauthUserId}`)
-                    .set('Authorization', makeAuthHeader(currentUser))
-                    .send(userModification)
-                    .expect(401, { error: `Unauthorized request`})
+                    .expect(401, { error: 'Unauthorized request'})
             })
         })
 
         describe('DELETE /api/users/:user_id', () => {
-            const currentUser = userArray[0]
-            const authUserId = currentUser.id
-            const unauthUserId = userArray[1].id
-
-            beforeEach(() =>  db.into('users').insert(userArray))
+            beforeEach(() =>  db.into('users').insert(hashUserArray))
             
-            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
+            const authUserId = currentUser.id
+            const unauthUserId = makeUserArray()[1].id
+
+            it(`responds with 401 'Missing bearer token' when no bearer token is provided`, () => (
                 supertest(app)
                     .delete(`/api/users/${authUserId}`)
-                    .expect(401, { error: `Missing bearer token`})
+                    .expect(401, { error: 'Missing bearer token'})
             ))
 
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                 const userNoCreds = { email: '', password: '' }
                 return supertest(app)
                     .delete(`/api/users/${authUserId}`)
                     .set('Authorization', makeAuthHeader(userNoCreds))
-                    .expect(401, { error: `Unauthorized request` })
+                    .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when invalid user`, () => {
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {
                 const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
                 
                 return supertest(app)
@@ -217,38 +204,36 @@ describe('Users Endpoints', () => {
                 return supertest(app)
                     .delete(`/api/users/${unauthUserId}`)
                     .set('Authorization', makeAuthHeader(currentUser))
-                    .expect(401, { error: `Unauthorized request`})
+                    .expect(401, { error: 'Unauthorized request'})
             })
 
             context('Given an admin user', () => {
-                before(() =>  db.into('users').insert(adminArray))
+                before(() =>  db.into('users').insert(hashAdminArray))
 
-                it(`responds with 401 when the user is not an admin`, () => {
-                    const admin = adminArray[0]
-                        
+                it(`responds with 401 when the user is not an admin`, () => {                        
                     return supertest(app)
                         .delete(`/api/users/${unauthUserId}`)
-                        .set('Authorization', makeAuthHeader(userArray[0]))
-                        .expect(401, { error: `Unauthorized request` })
+                        .set('Authorization', makeAuthHeader(user))
+                        .expect(401, { error: 'Unauthorized request' })
                 })
             })
         })
     })
 
     describe('GET /api/users', () => {
-        beforeEach(() =>  db.into('users').insert(userArray))
-        beforeEach(() =>  db.into('users').insert(adminArray))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
+        beforeEach(() =>  db.into('users').insert(hashAdminArray))
 
         context('Given there are users in the database', () => {
             const expectedArray = [
-                ...userArray,
-                ...adminArray
+                ...hashUserArray,
+                ...hashAdminArray
             ]
 
             it('GET /api/users responds with 200 and all of the users', () => {
                 return supertest(app)
                     .get('/api/users')
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
+                    .set('Authorization', makeAuthHeader(admin))
                     .expect(200, expectedArray)
             })
         })
@@ -256,10 +241,10 @@ describe('Users Endpoints', () => {
         context('Given an XSS attack user', () => {
             before(() => db.into('users').insert(malUser))
     
-            it('removes XSS attack content', () => {
+            it('removes the attack content', () => {
                 return supertest(app)
                     .get('/api/users')
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
+                    .set('Authorization', makeAuthHeader(admin))
                     .expect(200)
                     .expect(res => {
                         const malUserIndex = res.body.findIndex(user => user.id === 666)
@@ -276,29 +261,28 @@ describe('Users Endpoints', () => {
     })
 
     describe('GET /api/users/:user_id/products', () => {
-        beforeEach(() => db.into('brands').insert(brands))
-        beforeEach(() => db.into('categories').insert(categories))
+        beforeEach(() => db.into('brands').insert(brandInsert))
+        beforeEach(() => db.into('categories').insert(categoriesInsert))
         beforeEach(() => db.into('dry_instructions').insert(dryInstructions))
-        beforeEach(() => db.into('factories').insert(factories))
-        beforeEach(() =>  db.into('users').insert(userArray))
+        beforeEach(() => db.into('factories').insert(factoryInsert))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
         beforeEach(() => db.into('wash_instructions').insert(washInstructions))
 
-        const currentUser = userArray[0]
         const userId = currentUser.id
 
         context('when there are products in the database', () => {
             const usersProducts = {
                 user_id: userId,
-                product_id: productsPost[0].id,
+                product_id: productPost.id,
                 relationship_id: 1
             }
 
             const expectedUserProduct = {
-                ...productsOnlyGet[0],
+                ...prodOnlyGet[0],
                 relationship_id: usersProducts.relationship_id
             }
 
-            beforeEach(() => db.into('products').insert(productsPost))
+            beforeEach(() => db.into('products').insert(productInsert))
             beforeEach(() => db.into('users_to_products').insert(usersProducts))
 
             it(`returns all the user's products`, () => {
@@ -314,37 +298,38 @@ describe('Users Endpoints', () => {
             
             return supertest(app)
                 .get(`/api/users/${userId}/products`)
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .expect(200, [])
+                .set('Authorization', makeAuthHeader(user))
+                .expect(200)
+                .expect([])
             })
         })
 
         context('given a malicious product', () => {
             const usersMalProducts = {
                 user_id: userId,
-                product_id: malProduct.id,
+                product_id: malProdInsert.id,
                 relationship_id: 1
             }
 
             const expectedUserProduct = {
-                ...expectedProduct,
+                ...malProdGet,
                 relationship_id: usersMalProducts.relationship_id
             }
-
-            beforeEach(() => db.into('products').insert(malProduct))
+            beforeEach(() => db.into('brands').insert(malBrandInsert))
+            beforeEach(() => db.into('products').insert(malProdInsert))
             beforeEach(() => db.into('users_to_products').insert(usersMalProducts))
 
             it('removes the attack content', () => {
                 return supertest(app)
                     .get(`/api/users/${userId}/products`)
-                    .set('Authorization', makeAuthHeader(userArray[0]))
+                    .set('Authorization', makeAuthHeader(user))
                     .expect(200, [ expectedUserProduct ])
             })
         })
     })
 
     describe('POST /api/users', () => {
-        beforeEach(() => db.into('users').insert(adminArray))
+        beforeEach(() => db.into('users').insert(hashAdminArray))
 
         context(`User Validation`, () => {
             const requiredFields = [
@@ -404,8 +389,9 @@ describe('Users Endpoints', () => {
                     expect(res.body).to.have.property('id')
                     expect(res.headers.location).to.have.eql(`/api/users/${res.body.id}`)
                     const expected = new Date().toLocaleString()
-                    const actual = new Date(res.body.date_published).toLocaleString()
-                   return res
+                    const actual = new Date(res.body.created_at).toLocaleString()
+                    expect(expected).to.eql(actual)
+                    return res
                 })
                 .then(async postRes => {
                     const expectedResponse = {
@@ -415,7 +401,7 @@ describe('Users Endpoints', () => {
 
                     await supertest(app)
                     .get(`/api/users/${postRes.body.id}`)
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
+                    .set('Authorization', makeAuthHeader(admin))
                     .expect(expectedResponse)
                     .catch(error => {
                         console.log(error)
@@ -423,7 +409,7 @@ describe('Users Endpoints', () => {
                 })
         })
         
-        it(`Removes XSS attack content from response`, () => {
+        it(`removes the attack content from the response`, () => {
             return supertest(app)
                 .post('/api/users')
                 .send(malUser)
@@ -442,16 +428,15 @@ describe('Users Endpoints', () => {
     })
 
     describe('POST /api/users/:user_id/products', () => {
-        beforeEach(() => db.into('brands').insert(brands))
-        beforeEach(() => db.into('categories').insert(categories))
+        beforeEach(() => db.into('brands').insert(brandInsert))
+        beforeEach(() => db.into('categories').insert(categoriesInsert))
         beforeEach(() => db.into('dry_instructions').insert(dryInstructions))
-        beforeEach(() => db.into('factories').insert(factories))
+        beforeEach(() => db.into('factories').insert(factoryInsert))
         beforeEach(() => db.into('wash_instructions').insert(washInstructions))
-        beforeEach(() => db.into('products').insert(productsPost))
-        beforeEach(() =>  db.into('users').insert(userArray))
+        beforeEach(() => db.into('products').insert(productInsert))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
         beforeEach(() => db.into('users_to_products').insert(relArray))
 
-        const currentUser = userArray[0]
         const userId = currentUser.id
 
         it(`creates a user-product set, responding with 201 and the new set`, () => {
@@ -498,17 +483,16 @@ describe('Users Endpoints', () => {
     })
 
     describe('PATCH /api/users/:user_id', () => {
-        beforeEach(() => db.into('brands').insert(brands))
-        beforeEach(() => db.into('categories').insert(categories))
+        beforeEach(() => db.into('brands').insert(brandInsert))
+        beforeEach(() => db.into('categories').insert(categoriesInsert))
         beforeEach(() => db.into('dry_instructions').insert(dryInstructions))
-        beforeEach(() => db.into('factories').insert(factories))
+        beforeEach(() => db.into('factories').insert(factoryInsert))
         beforeEach(() => db.into('wash_instructions').insert(washInstructions))
-        beforeEach(() => db.into('products').insert(productsPost))
-        beforeEach(() =>  db.into('users').insert(userArray))
+        beforeEach(() => db.into('products').insert(productInsert))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
         beforeEach(() => db.into('users_to_products').insert(relArray))
 
         context('Given there are users in the database', () => {
-            const currentUser = userArray[1]
             const idToUpdate = currentUser.id
 
             it('responds with 204 and updates the user', () => {
@@ -544,7 +528,7 @@ describe('Users Endpoints', () => {
                     .set('Authorization', makeAuthHeader(currentUser))
                     .send({ irrelevantField: 'foo' })
                     .expect(400, {
-                        error: { message: `Request body must contain 'admin', 'email', 'password', 'handle', 'first_name', 'last_name', 'website', 'profile_pic', 'bio', 'public', editor, can_submit, org_affiliation, or 'account_created'`}
+                        error: { message: `Request body must contain 'admin', 'email', 'password', 'handle', 'first_name', 'last_name', 'website', 'profile_pic', 'bio', 'public', editor, can_submit, org_affiliation, 'created_at', or 'updated_at'`}
                     })
             })
 
@@ -582,7 +566,7 @@ describe('Users Endpoints', () => {
 
             it(`responds with 400 when the email address is already associated with an account`, () => {
                 const updateUser = {
-                    email: userArray[0].email,
+                    email: user.email,
                 }
 
                 return supertest(app)
@@ -598,17 +582,16 @@ describe('Users Endpoints', () => {
 
     describe('DELETE /api/users/:user_id', () => {
         const allUsers = [
-            ...userArray,
-            ...adminArray
+            ...hashUserArray,
+            ...hashAdminArray
         ]
 
-        const adminUser = adminArray[0]
-        beforeEach(() =>  db.into('users').insert(userArray))
-        beforeEach(() =>  db.into('users').insert(adminArray))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
+        beforeEach(() =>  db.into('users').insert(hashAdminArray))
 
         context('Given there are users in the database', () => {
             it('responds with 204 and removes the user', () => {
-                const userToRemove = userArray[0]
+                const userToRemove = user
                 const idToRemove = userToRemove.id
                 const expectedUsers = allUsers.filter(user => user.id !== idToRemove)
 
@@ -619,7 +602,7 @@ describe('Users Endpoints', () => {
                     .then(res => 
                         supertest(app)
                             .get('/api/users')
-                            .set('Authorization', makeAuthHeader(adminUser))
+                            .set('Authorization', makeAuthHeader(admin))
                             .expect(expectedUsers)
                             .catch(error => {
                                 console.log(error)
@@ -629,36 +612,35 @@ describe('Users Endpoints', () => {
         })
 
         context('Given no users', () => {
-            it(`responds with 404`, () => {
+            it(`responds with 404 and an error message`, () => {
                 const idToRemove = 234567
                 return supertest(app)
                     .delete(`/api/users/${idToRemove}`)
-                    .set('Authorization', makeAuthHeader(userArray[0]))
-                    .expect(404, { error: { message: 'User does not exist' } })
+                    .set('Authorization', makeAuthHeader(user))
+                    .expect(404, { error: { message: 'User does not exist.' } })
             })
         })
     })
 
     describe('DELETE /api/users/:user_id/products', () => {
-        beforeEach(() => db.into('brands').insert(brands))
-        beforeEach(() => db.into('categories').insert(categories))
+        beforeEach(() => db.into('brands').insert(brandInsert))
+        beforeEach(() => db.into('categories').insert(categoriesInsert))
         beforeEach(() => db.into('dry_instructions').insert(dryInstructions))
-        beforeEach(() => db.into('factories').insert(factories))
+        beforeEach(() => db.into('factories').insert(factoryInsert))
         beforeEach(() => db.into('wash_instructions').insert(washInstructions))
-        beforeEach(() => db.into('products').insert(productsPost))
+        beforeEach(() => db.into('products').insert(productInsert))
 
         const relationship = { 
             product_id: relArray[0].product_id,
             relationship_id: relArray[0].relationship_id
         }
 
-        beforeEach(() =>  db.into('users').insert(userArray))
+        beforeEach(() =>  db.into('users').insert(hashUserArray))
 
         context('Given the user and product relationship exist', () => {
             beforeEach(() => db.into('users_to_products').insert(relArray))
 
             it('responds with 204 and removes the user-product relationship', () => {
-                const user = userArray[0]
                 const userId = user.id
     
                 return supertest(app)
@@ -670,19 +652,18 @@ describe('Users Endpoints', () => {
         })
 
         context('Given no users with the provided id', () => {
-            it(`responds with 404`, () => {
+            it(`responds with 404 and an error message`, () => {
                 const idToRemove = 234567
                 return supertest(app)
                     .delete(`/api/users/${idToRemove}/products`)
-                    .set('Authorization', makeAuthHeader(userArray[0]))
+                    .set('Authorization', makeAuthHeader(user))
                     .send(relationship)
                     .expect(401, { error: 'Unauthorized request' })
             })
         })
 
-        context('Given the product relationship does not exist', () => {
-            it(`responds with 404`, () => {
-                const user = userArray[0]
+        context('Given the product relationship does not exist.', () => {
+            it(`responds with 404 and an error message`, () => {
                 const userId = user.id
 
                 return supertest(app)

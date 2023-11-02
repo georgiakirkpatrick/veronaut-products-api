@@ -1,5 +1,5 @@
 const ProductsService = {
-// Products
+    // Products
     getAllProducts(knex) {
         return knex('products')
             .join('brands', {'products.brand_id': 'brands.id'})
@@ -22,7 +22,8 @@ const ProductsService = {
                 'products.cmt_notes',
                 'products.featured',
                 'products.approved_by_admin',
-                'products.date_published'
+                'products.created_at',
+                'products.updated_at'
             )
     },
 
@@ -48,7 +49,8 @@ const ProductsService = {
                 'products.cmt_notes',
                 'products.featured',
                 'products.approved_by_admin',
-                'products.date_published'
+                'products.created_at',
+                'products.updated_at'
             )
             .where('products.featured', true)
     },
@@ -74,7 +76,8 @@ const ProductsService = {
                 'products.cmt_notes',
                 'products.featured',
                 'products.approved_by_admin',
-                'products.date_published'
+                'products.created_at',
+                'products.updated_at'
             )
             .where('products.id', id)
             .first()
@@ -103,14 +106,22 @@ const ProductsService = {
     },
 
     //Certifications
-    getCertificationsForProduct(knex, productId) {
+    getProdCerts(knex, productId) {
         return knex('product_cmts_to_certifications')
             .join('certifications', {'product_cmts_to_certifications.certification_id': 'certifications.id'})
-            .select('*')
+            .select(
+                'product_cmts_to_certifications.certification_id',
+                'certifications.english_name',
+                'certifications.website',
+                'certifications.approved_by_admin as cert_approved_by_admin',
+                'product_cmts_to_certifications.approved_by_admin as pair_approved_by_admin',
+                'product_cmts_to_certifications.created_at as pair_created_at',
+                'product_cmts_to_certifications.updated_at as pair_updated_at'
+            )
             .where('product_cmts_to_certifications.product_id', productId)
     },
 
-    insertProductCertification(knex, newPair) {
+    insertProdCert(knex, newPair) {
         return knex
             .insert(newPair)
             .into('product_cmts_to_certifications')
@@ -123,15 +134,7 @@ const ProductsService = {
     // Colors
     getColorsForProduct(knex, productId) {
         return knex('product_colors')
-            .select(
-                'product_colors.id',
-                'product_colors.product_id',
-                'product_colors.color_description_id',
-                'product_colors.color_english_name',
-                'product_colors.swatch_image_url',
-                'product_colors.approved_by_admin',
-                'product_colors.date_published'
-            )
+            .select('*')
             .where('product_colors.product_id', productId)
     },
 
@@ -191,8 +194,10 @@ const ProductsService = {
                 'fabrics.dye_print_finish_country',
                 'fabrics.dye_print_finish_id',
                 'fabrics.dye_print_finish_notes',
-                'fabrics.approved_by_admin',
-                'fabrics.date_published'
+                'fabrics.approved_by_admin as fab_approved_by_admin',
+                'fabrics_to_products.approved_by_admin as pair_approved_by_admin',
+                'fabrics_to_products.created_at as pair_created_at',
+                'fabrics_to_products.updated_at as pair_updated_at'
             )
             .where('product_id', productId)
     },
@@ -218,8 +223,10 @@ const ProductsService = {
                 'factories.website',
                 'factories.notes',
                 'product_cmts_to_factories.stage',
-                'factories.approved_by_admin',
-                'factories.date_published'
+                'factories.approved_by_admin as fact_approved_by_admin',
+                'product_cmts_to_factories.approved_by_admin as pair_approved_by_admin',
+                'product_cmts_to_factories.created_at as pair_created_at',
+                'product_cmts_to_factories.updated_at as pair_updated_at'
             )
             .where('product_id', productId)
     },
@@ -232,7 +239,7 @@ const ProductsService = {
             .then(response => response[0])
     },
 
-// Fibers
+    // Fibers
     getFibersForProduct(knex, productId) {
         return knex('fibers_and_materials')
             .join('fibers_to_products', {'fibers_and_materials.id': 'fibers_to_products.fiber_or_material_id'})
@@ -251,8 +258,11 @@ const ProductsService = {
                 'factories.website as producer_website',
                 'fibers_and_materials.production_notes',
                 'factories.notes as producer_notes',
-                'fibers_and_materials.approved_by_admin',
-                'fibers_and_materials.date_published'
+                'fibers_and_materials.approved_by_admin as fib_approved_by_admin',
+                'fibers_to_products.approved_by_admin as pair_approved_by_admin',
+                'fibers_to_products.created_at as pair_created_at',
+                'fibers_to_products.updated_at as pair_updated_at'
+
             )
             .where('product_id', productId)
     },
@@ -265,7 +275,7 @@ const ProductsService = {
             .then(response => response[0])
     },
 
-// Notions
+    // Notions
     getNotionsForProduct(knex, productId) {
         return knex('notions')
             .join('notion_types', {'notions.notion_type_id': 'notion_types.id'})
@@ -273,7 +283,6 @@ const ProductsService = {
             .join('products', {'notions_to_products.product_id': 'products.id'})
             .join('factories', {'notions.manufacturer_id': 'factories.id'})
             .join('fiber_and_material_types', {'notions.material_type_id': 'fiber_and_material_types.id'})
-            // .join('notions_to_certifications', {'notions.id': 'notions_to_certifications.notion_id'})
             .select(
                 'notions.id',
                 'notions.notion_type_id',
@@ -287,9 +296,10 @@ const ProductsService = {
                 'notions.material_origin_id',
                 'notions.material_producer_id',
                 'notions.material_notes',
-                // 'notions_to_certifications.certification_id',
-                'notions.approved_by_admin',
-                'notions.date_published'
+                'notions.approved_by_admin as notion_approved_by_admin',
+                'notions_to_products.approved_by_admin as pair_approved_by_admin',
+                'notions_to_products.created_at as pair_created_at',
+                'notions_to_products.updated_at as pair_updated_at'
             )
             .where('notions_to_products.product_id', productId)
     },
@@ -304,7 +314,7 @@ const ProductsService = {
             })
     },
 
-// Sizes
+    // Sizes
     getSizesForProduct(knex, productId) {
         return knex('sizes')
             .join('sizes_to_products', {'sizes.id': 'sizes_to_products.size_id'})
@@ -314,7 +324,10 @@ const ProductsService = {
                 'sizes.size_text',
                 'sizes.size_category',
                 'sizes.size_class',
-                'sizes.us_size'
+                'sizes.us_size',
+                'sizes_to_products.approved_by_admin as pair_approved_by_admin',
+                'sizes_to_products.created_at as pair_created_at',
+                'sizes_to_products.updated_at as pair_updated_at'
             )
             .where('product_id', productId)
     },

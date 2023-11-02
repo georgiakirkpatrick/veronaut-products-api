@@ -6,7 +6,7 @@ const NotionsService = require('./notions-service')
 const path = require('path')
 const xss = require('xss').escapeHtml
 
-const serializeNotions = notion => ({
+const serializeNotionGet = notion => ({
     id: notion.id,
     notion_type_id: notion.notion_type_id,
     notion_type: notion.type ? xss(notion.type) : null,
@@ -19,14 +19,32 @@ const serializeNotions = notion => ({
     material_producer_id: notion.material_producer_id,
     material_notes: notion.material_notes ? xss(notion.material_notes) : null,
     approved_by_admin: notion.approved_by_admin,
-    date_published: notion.date_published
+    created_at: notion.created_at,
+    updated_at: notion.updated_at
+})
+
+const serializeNotionPost = notion => ({
+    id: notion.id,
+    notion_type_id: notion.notion_type_id,
+    brand_id: notion.brand_id,
+    manufacturer_country: notion.manufacturer_country,
+    manufacturer_id: notion.manufacturer_id,
+    manufacturer_notes: notion.manufacturer_notes ? xss(notion.manufacturer_notes) : null,
+    material_type_id: notion.material_type_id,
+    material_origin_id: notion.material_origin_id,
+    material_producer_id: notion.material_producer_id,
+    material_notes: notion.material_notes ? xss(notion.material_notes) : null,
+    approved_by_admin: notion.approved_by_admin,
+    created_at: notion.created_at,
+    updated_at: notion.updated_at
 })
 
 const serializeNotTypes = notionType => ({
     id: notionType.id,
     english_name: notionType.english_name ? xss(notionType.english_name) : null,
     approved_by_admin: notionType.approved_by_admin,
-    date_published: notionType.date_published
+    created_at: notionType.created_at,
+    updated_at: notionType.updated_at
 })
 
 const serializeCerts = cert => ({
@@ -34,7 +52,8 @@ const serializeCerts = cert => ({
     english_name: xss(cert.english_name),
     website: cert.website ? xss(cert.website) : null,
     approved_by_admin: cert.approved_by_admin,
-    date_published: cert.date_published
+    created_at: cert.created_at,
+    updated_at: cert.updated_at
 })
 
 notionsRouter
@@ -43,12 +62,13 @@ notionsRouter
         NotionsService
             .getAllNotions(req.app.get('db'))
             .then(notions => {
-                res.json(notions.map(serializeNotions))
+                res.json(notions.map(serializeNotionGet))
             })
             .catch(next)
     })
     .post(requireAuth, jsonParser, (req, res, next) => {
         const {
+            id,
             notion_type_id,
             brand_id,
             manufacturer_country,
@@ -58,11 +78,11 @@ notionsRouter
             material_origin_id,
             material_producer_id,
             material_notes,
-            approved_by_admin,
-            date_published
+            approved_by_admin
         } = req.body
 
         const newNotion = {
+            id,
             notion_type_id,
             brand_id,
             manufacturer_country,
@@ -72,8 +92,7 @@ notionsRouter
             material_origin_id,
             material_producer_id,
             material_notes,
-            approved_by_admin,
-            date_published
+            approved_by_admin
         }
 
         const requiredFields = { 
@@ -98,7 +117,7 @@ notionsRouter
                 res
                     .status(201)
                     .location(path.posix.join(req.originalUrl + `/${notion.id}`))
-                    .json(serializeNotions(notion))
+                    .json(serializeNotionPost(notion))
             })
             .catch(next)
     })
@@ -116,17 +135,24 @@ notionsRouter
             .catch(next)
     })
     .post(requireAuth, jsonParser, (req, res, next) => {
-        const { 
+        const {
+            id,
             english_name, 
-            approved_by_admin
+            approved_by_admin,
+            created_at,
+            updated_at
         } = req.body
 
-        const newNotionType = { 
+        const newNotionType = {
+            id,
             english_name, 
-            approved_by_admin
+            approved_by_admin,
+            created_at,
+            updated_at
         }
 
         if (newNotionType.english_name === undefined) {
+
             return res.status(400).json({
                 error: { message: `Missing 'english_name' in request body`}
             })
@@ -140,7 +166,7 @@ notionsRouter
             .then(notionType => {
                 res
                     .status(201)
-                    // .location(path.posix.join(req.originalUrl + `/${notionType.id}`))
+                    .location(path.posix.join(req.originalUrl + `/${notionType.id}`))
                     .json(serializeNotTypes(notionType))
                     
             })
@@ -150,21 +176,20 @@ notionsRouter
 notionsRouter
     .route('/:notion_id')
     .all((req, res, next) => {
-        NotionsService
-            .getNotionById(
-                req.app.get('db'),
-                req.params.notion_id
-            )
-            .then(notion => {
-                if (!notion) {
-                    return res.status(404).json({
-                        error: { message: `Notion does not exist` }
-                    })
-                }
-                res.notion = notion
-                next()
-            })
-            .catch(next)
+        NotionsService.getNotionById(
+            req.app.get('db'),
+            req.params.notion_id
+        )
+        .then(notion => {
+            if (!notion) {
+                return res.status(404).json({
+                    error: { message: `Notion does not exist.` }
+                })
+            }
+            res.notion = notion
+            next()
+        })
+        .catch(next)
     })
     .get((req, res, next) => {
         res.json({
@@ -180,7 +205,8 @@ notionsRouter
             material_producer_id: res.notion.material_producer_id,
             material_notes: res.notion.material_notes ? xss(res.notion.material_notes) : null,
             approved_by_admin: res.notion.approved_by_admin,
-            date_published: res.notion.date_published
+            created_at: res.notion.created_at,
+            updated_at: res.notion.updated_at
         })
         next()
     })
@@ -212,10 +238,11 @@ notionsRouter
         }
 
         const numberOfValues = Object.values(newNotionFields).filter(Boolean).length
+
         if (numberOfValues === 0) {
             return res.status(400).json({
                 error: {
-                    message: `Request body must contain 'notion_type_id', 'brand_id', 'manufacturer_country', 'manufacturer_id', 'manufacturer_notes', 'material_type_id', 'material_origin_id', 'material_producer_id','material_notes','approved_by_admin'`
+                    message: `Request body must contain 'notion_type_id', 'brand_id', 'manufacturer_country', 'manufacturer_id', 'manufacturer_notes', 'material_type_id', 'material_origin_id', 'material_producer_id','material_notes','approved_by_admin', 'created_at', or 'updated_at'.`
                 }
             })
         }
@@ -231,7 +258,7 @@ notionsRouter
             })
             .catch(next)
     })
-    .delete(requireAdmin, (req, res, next) => {
+    .delete(requireAdmin, jsonParser, (req, res, next) => {
         NotionsService
             .deleteNotion(
                 req.app.get('db'),
@@ -253,7 +280,7 @@ notionsRouter
         .then(notion => {
             if (!notion) {
                 return res.status(404).json({
-                    error: { message: `Notion does not exist` }
+                    error: { message: `Notion does not exist.` }
                 })
             }
             res.notion = notion

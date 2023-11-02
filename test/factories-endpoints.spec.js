@@ -1,19 +1,17 @@
-const knex = require('knex')
-const jwt = require('jsonwebtoken')
-const app = require('../src/app')
-
-const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
-const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray } = require('./users.fixtures')
-
 describe('Factories Endpoints', function() {
-    const adminArray = makeAdminArray()
-    const admin = adminArray[0]
-    const factories = makeFactoryArray()
+    const app = require('../src/app')
+    const { expect } = require('chai')
+    const knex = require('knex')
+    const jwt = require('jsonwebtoken')
+    const supertest = require('supertest')
+    const { makeFactory, makeMalFactory } = require('./factories.fixtures')
+    const { factoryPost, factoryInsert, factoryGet, factFullUpdate } = makeFactory()
+    const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray } = require('./users.fixtures')
+    const { malFactGet, malFactInsert, malFactPost } = makeMalFactory()
+    const admin = makeAdminArray()[0]
     const hashAdminArray = hashedAdminArray()
     const hashUserArray = hashedUserArray()
-    const { malFactory, expectedFactory } = makeMalFactory()
-    const userArray = makeUserArray()
-    const user = userArray[0]
+    const user = makeUserArray()[0]
 
     let db
 
@@ -38,13 +36,14 @@ describe('Factories Endpoints', function() {
     afterEach('cleanup', () => db.raw('TRUNCATE table factories, users RESTART IDENTITY CASCADE'))
 
     describe('GET /api/factories', () => {
-        context('when there are factories in the database', () => {
-            beforeEach(() =>  db.into('factories').insert(factories))
+        context('given there are factories in the database', () => {
+            beforeEach(() =>  db.into('factories').insert(factoryInsert))
             
-            it('returns all the factories', () => {
+            it('responds with 200 and all the factories', () => {
                 return supertest(app)
                     .get('/api/factories')
-                    .expect(200, factories)
+                    .expect(200)
+                    .expect(factoryGet)
             })
         })
 
@@ -53,186 +52,201 @@ describe('Factories Endpoints', function() {
             
             return supertest(app)
                 .get('/api/factories')
-                .expect(200, [])
+                .expect(200)
+                .expect([])
             })
         })
 
         context('given a malicious factory', () => {
-            beforeEach(() =>  db.into('factories').insert( malFactory ))
+            beforeEach(() =>  db.into('factories').insert(malFactInsert))
 
             it('removes the attack content', () => {
                 return supertest(app)
                     .get('/api/factories')
-                    .expect(200, [ expectedFactory ])
+                    .expect(200)
+                    .expect(malFactGet)
             })
         })
     })
 
     describe('GET /api/factories/:factory_id', () => {
+        beforeEach(() =>  db.into('factories').insert(factoryInsert))
+        const factoryId = factoryInsert.id
+
         context('when the factory with id factory_id exists', () => {
-            beforeEach(() =>  db.into('factories').insert(factories))
-
-            const factoryId = 1
-
-            it('returns the factory with id factory_id', () => {
-                return supertest(app)
-                    .get(`/api/factories/${factoryId}`)
-                    .expect(200, factories[factoryId - 1])
-            })
-        })
-
-        context('when the factory with id factory_id does not exist', () => {
-            const factoryId = 1
-
-            it('responds with 404 and an error message', () => {
-                return supertest(app)
-                    .get(`/api/factories/${factoryId}`)
-                    .expect(404, { error: { message: 'Factory does not exist' } })
-            })
-        })
-
-        context('when the factory with id factory_id is a malicious factory', () => {
-            beforeEach(() =>  db.into('factories').insert(malFactory))
-
-            const factoryId = 666
-
-            it('removes the attack content from the factory with id factory_id', () => {
+            it('responds with 200 and returns the factory with id factory_id', () => {
                 return supertest(app)
                     .get(`/api/factories/${factoryId}`)
                     .expect(200)
-                    .expect(res => {
-                        expect(res.body.english_name).to.eql(expectedFactory.english_name)
-                        expect(res.body.website).to.eql(expectedFactory.website)
-                        expect(res.body.notes).to.eql(expectedFactory.notes)
-                    })
+                    .expect(factoryGet[0])
+            })
+        })
+
+        context('when the factory with id factory_id does not exist.', () => {
+            const nonexistantId = factoryId + 1
+
+            it('responds with 404 and an error message', () => {
+                return supertest(app)
+                    .get(`/api/factories/${nonexistantId}`)
+                    .expect(404)
+                    .expect({ error: { message: 'Factory does not exist.' } })
+            })
+        })
+
+        context('given a malicious factory', () => {
+            beforeEach(() =>  db.into('factories').insert(malFactInsert))
+            const malFactId = malFactInsert.id
+
+            it('removes the attack content', () => {
+                return supertest(app)
+                    .get(`/api/factories/${malFactId}`)
+                    .expect(200)
+                    .expect(malFactGet[0])
              
             })
         })
     })
 
     describe('Protected endpoints', () => {
-        before('create users', () => db.into('users').insert(hashUserArray))
-        before('create users', () => db.into('users').insert(hashAdminArray))
-
-        const newFactory = {
-            english_name: 'Blue Factory',
-            country: 1,
-            website: 'www.blue.com',
-            notes: 'it is blue'
-        }
+        before(() => db.into('users').insert(hashUserArray))
+        const factoryId = factoryInsert.id
+        const invalidSecret = 'bad-secret'
+        const invalidUser =  { email: 'not-a-user', password: 'password' }
+        const notAnAdmin = { email: user.email, password: user.password }
+        const userNoCreds = { email: '', password: '' }
+        const validUser = user
 
         describe('POST /api/factories/', () => {
-            it(`responds with 401 'Missing bearer tokenn' when no basic token`, () => (
-                supertest(app)
-                    .post('/api/factories')
-                    .send(newFactory)
-                    .expect(401, { error: `Missing bearer token`})
-            ))
-
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
+            it(`responds with 401 and 'Missing bearer token' when no bearer token is provided`, () => {
                 return supertest(app)
-                    .post(`/api/factories`)
+                    .post('/api/factories')
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Missing bearer token'})
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
+                return supertest(app)
+                    .post('/api/factories')
                     .set('Authorization', makeAuthHeader(userNoCreds))
-                    .send(newFactory)
-                    .expect(401, { error: `Unauthorized request` })
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                
-                return supertest(app)
-                    .post(`/api/factories`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .send(newFactory)
-                    .expect(401, { error: 'Unauthorized request' })
-            })
-
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: user.email, password: 'wrong' }
-
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {                
                 return supertest(app)
                     .post('/api/factories')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .send(newFactory)
-                    .expect(401, { error: 'Unauthorized request' })
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, () => {                    
+                return supertest(app)
+                    .post('/api/factories')
+                    .set('Authorization', makeAuthHeader(invalidUser))
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
             })
         })
 
-        describe('PATCH /api/factories/:brand_id', () => {
-            beforeEach(() => db.into('factories').insert(factories))       
+        describe('PATCH /api/factories/:factory_id', () => {
+            before(() => db.into('users').insert(hashAdminArray))
+            beforeEach(() => db.into('factories').insert(factoryInsert))
 
-            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
-                supertest(app)
-                    .patch('/api/factories/1')
-                    .send({ english_name: newFactory.english_name})
-                    .expect(401, { error: `Missing bearer token`})
-            ))
-
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
-
+            it(`responds with 401 and 'Missing bearer token' when no bearer token is provided`, () => {
                 return supertest(app)
-                    .patch('/api/factories/1')
+                    .patch(`/api/factories/${factoryId}`)
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Missing bearer token'})
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
+                return supertest(app)
+                    .patch(`/api/factories/${factoryId}`)
                     .set('Authorization', makeAuthHeader(userNoCreds))
-                    .send({ english_name: newFactory.english_name })
-                    .expect(401, { error: `Unauthorized request` })
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {                
                 return supertest(app)
-                    .patch(`/api/factories/1`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .send({ english_name: newFactory.english_name })
-                    .expect(401, { error: 'Unauthorized request' })
+                    .patch(`/api/factories/${factoryId}`)
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: user.email, password: 'wrong' }
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, () => {                    
+                return supertest(app)
+                    .patch(`/api/factories/${factoryId}`)
+                    .set('Authorization', makeAuthHeader(invalidUser))
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`, () => {
+                before(() => db.into('users').insert(hashUserArray))
 
                 return supertest(app)
-                    .patch('/api/factories/1')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .send({ english_name: newFactory.english_name })
-                    .expect(401, { error: 'Unauthorized request' })
+                    .patch(`/api/factories/${factoryId}`)
+                    .set('Authorization', makeAuthHeader(notAnAdmin))
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
             })
         })
 
         describe('DELETE /api/factories/:brand_id', () => {
-            beforeEach(() => db.into('factories').insert(factories))       
+            before(() => db.into('users').insert(hashAdminArray))
+            beforeEach(() => db.into('factories').insert(factoryInsert))       
             
-            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
-                supertest(app)
-                    .delete('/api/factories/1')
-                    .expect(401, { error: `Missing bearer token`})
-            ))
-
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
+            it(`responds with 401 and 'Missing bearer token' when no bearer token is provided`, () => {
                 return supertest(app)
-                    .delete(`/api/factories/1`)
+                    .delete(`/api/factories/${factoryId}`)
+                    .expect(401)
+                    .expect({ error: 'Missing bearer token'})
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
+                return supertest(app)
+                    .delete(`/api/factories/${factoryId}`)
                     .set('Authorization', makeAuthHeader(userNoCreds))
-                    .expect(401, { error: `Unauthorized request` })
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {                
                 return supertest(app)
-                    .delete(`/api/factories/1`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .expect(401, { error: 'Unauthorized request' })
+                    .delete(`/api/factories/${factoryId}`)
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: user.email, password: 'wrong' }
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, () => {                    
+                return supertest(app)
+                    .delete(`/api/factories/${factoryId}`)
+                    .set('Authorization', makeAuthHeader(invalidUser))
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`, () => {
+                before(() => db.into('users').insert(hashUserArray))
 
                 return supertest(app)
-                    .delete('/api/factories/1')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .expect(401, { error: 'Unauthorized request' })
+                    .delete(`/api/factories/${factoryId}`)
+                    .set('Authorization', makeAuthHeader(notAnAdmin))
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
             })
         })
     })
@@ -240,26 +254,49 @@ describe('Factories Endpoints', function() {
     describe('POST /api/factories', () => {
         beforeEach(() => db.into('users').insert(hashUserArray))
 
-        it('creates a factory, responding with 201 and the new factory', () => {
-            const newFactory = {
-                english_name: 'The Orange Concept',
-                country: 1,
-                website: 'www.orange.com',
-                notes: 'family-owned',
-                approved_by_admin: true
+        it('creates a factory, responding with 201 and the new factory', async () => {
+            const postResponse = await supertest(app)
+                .post('/api/factories')
+                .set('Authorization', makeAuthHeader(user))
+                .send(factoryPost)
+
+            const getResponse = await supertest(app)
+                .get(`/api/factories/${postResponse.body.id}`)
+
+            const expected = new Date().toLocaleString()
+            const postCreated = new Date(postResponse.body.created_at).toLocaleString()
+            const postUpdated = new Date(postResponse.body.updated_at).toLocaleString()
+
+            const expectedPostBody = {
+                id: postResponse.body.id,
+                ...factoryPost,
+                approved_by_admin: false,
+                created_at: postResponse.body.created_at,
+                updated_at: postResponse.body.updated_at
             }
 
+            const expectedGetBody = {
+                ...expectedPostBody
+            }
+
+            expect(postResponse.status).to.eql(201)
+            expect(postResponse.headers.location).to.eql(`/api/factories/${postResponse.body.id}`)
+            expect(postResponse.body.approved_by_admin).to.eql(false)
+            expect(postResponse.body).to.eql(expectedPostBody)
+            expect(postCreated).to.eql(expected)
+            expect(postUpdated).to.eql(expected)
+            expect(getResponse.status).to.eql(200)
+            expect(getResponse.body).to.eql(expectedGetBody)
+        })
+                
+        it('creates a factory with "approved_by_admin" set to "false" when only the required fields are sent', async () => {
             return supertest(app)
                 .post('/api/factories')
-                .send(newFactory)
+                .send(factoryPost)
                 .set('Authorization', makeAuthHeader(user))
                 .expect(201)
                 .expect(res => {
-                    expect(res.body.english_name).to.eql(newFactory.english_name)
-                    expect(res.body.country).to.eql(newFactory.country)
-                    expect(res.body.website).to.eql(newFactory.website)
-                    expect(res.body.notes).to.eql(newFactory.notes)
-                    expect(res.body.approved_by_admin).to.eql(newFactory.approved_by_admin)
+                    expect(res.body.approved_by_admin).to.eql(false)
                 })
         })
 
@@ -270,178 +307,180 @@ describe('Factories Endpoints', function() {
 
         requiredFields.forEach(field => {
             const newFactory = {
-                english_name: 'The Orange Concept',
-                country: 1,
-                website: 'www.orange.com',
-                notes: 'family-owned',
-                approved_by_admin: true
+                ...factoryPost
             }
 
             delete newFactory[field]
             
             it(`responds with 400 and an error message when the '${field}' is missing`, () => {
+                
                 return supertest(app)
-                    .post(`/api/factories`)
+                    .post('/api/factories')
                     .set('Authorization', makeAuthHeader(user))
                     .send(newFactory)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                    })
+                    .expect(400)
+                    .expect({ error: { message: `Missing '${field}' in request body`} })
             })
         })
 
-        it(`Removes XSS attack content from response`, () => {
-            const { malFactory, expectedFactory } = makeMalFactory()
+        context('given a malicious factory', () => {
+            it('removes the attack content from the response', async () => {
+                const postResponse = await supertest(app)
+                    .post('/api/factories')
+                    .set('Authorization', makeAuthHeader(user))
+                    .send(malFactPost)
 
-            return supertest(app)
-                .post(`/api/factories`)
-                .send(malFactory)
-                .set('Authorization', makeAuthHeader(user))
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(expectedFactory.english_name)
-                    expect(res.body.country).to.eql(expectedFactory.country)
-                    expect(res.body.website).to.eql(expectedFactory.website)
-                    expect(res.body.notes).to.eql(expectedFactory.notes)
-                    expect(res.body.approved_by_admin).to.eql(expectedFactory.approved_by_admin)
+                const getResponse = await supertest(app)
+                    .get(`/api/factories/${postResponse.body.id}`)
 
-                })
+                const expected = new Date().toLocaleString()
+                const postCreated = new Date(postResponse.body.created_at).toLocaleString()
+                const postUpdated = new Date(postResponse.body.updated_at).toLocaleString()
+
+                const expectedPostBody = {
+                    ...malFactGet[0],
+                    id: postResponse.body.id,
+                    approved_by_admin: postResponse.body.approved_by_admin,
+                    created_at: postResponse.body.created_at,
+                    updated_at: postResponse.body.updated_at
+                }
+
+                const expectedGetBody = {
+                    ...expectedPostBody
+                }
+
+                expect(postResponse.status).to.eql(201)
+                expect(postResponse.headers.location).to.eql(`/api/factories/${postResponse.body.id}`)
+                expect(postResponse.body.approved_by_admin).to.eql(false)
+                expect(postResponse.body).to.eql(expectedPostBody)
+                expect(postCreated).to.eql(expected)
+                expect(postUpdated).to.eql(expected)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedGetBody)
+            })
         })
     })
 
     describe('PATCH /api/factories/:factory_id', () => {
         beforeEach(() => db.into('users').insert(hashAdminArray))
+        const factoryId = factoryInsert.id
 
         context('when the factory with id factory_id exists', () => {
-            beforeEach(() =>  db.into('factories').insert(factories))
+            beforeEach(() =>  db.into('factories').insert(factoryInsert))
 
-            it('updates the factory and responds 204', () => {
-                const idToUpdate = 1
-                const updateFactory = {
-                    english_name: 'The Orange Concept',
-                    country: 1,
-                    website: 'www.orange.com',
-                    notes: 'family-owned',
-                    approved_by_admin: true
-                }
-    
-                const expectedFactory = {
-                    ...factories[idToUpdate - 1],
-                    ...updateFactory
-                }
-    
-                return supertest(app)
-                    .patch(`/api/factories/${idToUpdate}`)
-                    .send(updateFactory)
+            it('updates the factory and responds 204', async () => {    
+                const patchResponse = await supertest(app)
+                    .patch(`/api/factories/${factoryId}`)
                     .set('Authorization', makeAuthHeader(admin))
-                    .expect(204)
-                    .then(res => {
-                        supertest(app)
-                            .get(`/api/factories/${idToUpdate}`)
-                            .expect(expectedFactory)
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    })
+                    .send(factFullUpdate)
 
+                const getResponse = await supertest(app)
+                    .get(`/api/factories/${factoryId}`)
+                
+                const expectedFactory = {
+                    ...factoryInsert,
+                    ...factFullUpdate,
+                }
+
+                const created = new Date(getResponse.body.created_at).toLocaleString()
+                const updated = new Date(getResponse.body.updated_at).toLocaleString()
+                const expectedCreated = new Date(factoryInsert.created_at).toLocaleString()
+                const expectedUpdated = new Date(factFullUpdate.updated_at).toLocaleString()
+
+                expect(patchResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedFactory)      
+                expect(created).to.eql(expectedCreated)
+                expect(updated).to.eql(expectedUpdated)
             })
 
             it('responds with 400 when no required fields are supplied', () => {
-                const idToUpdate = 1
                 return supertest(app)
-                    .patch(`/api/factories/${idToUpdate}`)
+                    .patch(`/api/factories/${factoryId}`)
                     .send({irrelevantField: 'bar'})
                     .set('Authorization', makeAuthHeader(admin))
-                    .expect(400, {
+                    .expect(400)
+                    .expect({
                         error: { message: `Request body must contain 'english_name', 'country', 'website', 'notes', and/or 'approved_by_admin'`}
                     })
             })
 
-            it('responds with 204 when updating only a subset of fields', () => {
-                const idToUpdate = 1
-                const updateFactory = {
-                    english_name: 'The Orange Concept',
+            it('responds with 204 when updating only a subset of fields', async () => {
+                const subsetUpdate = {
+                    english_name: factFullUpdate.english_name,
                 }
-    
-                const expectedFactory = {
-                    ...factories[idToUpdate - 1],
-                    ...updateFactory
-                }
-    
-                return supertest(app)
-                    .patch(`/api/factories/${idToUpdate}`)
-                    .send(updateFactory)
+
+                const patchResponse = await supertest(app)
+                    .patch(`/api/factories/${factoryId}`)
                     .set('Authorization', makeAuthHeader(admin))
-                    .expect(204)
-                    .then(res => {
-                        supertest(app)
-                            .get(`/api/factories/${idToUpdate}`)
-                            .expect(expectedFactory)
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    })
+                    .send(subsetUpdate)
+
+                const getResponse = await supertest(app)
+                    .get(`/api/factories/${factoryId}`)
+                
+                const expectedFactory = {
+                    ...factoryInsert,
+                    ...subsetUpdate,
+                }
+
+                const created = new Date(getResponse.body.created_at).toLocaleString()
+                const updated = new Date(getResponse.body.updated_at).toLocaleString()
+                const expectedCreated = new Date(factoryInsert.created_at).toLocaleString()
+                const expectedUpdated = new Date(factoryInsert.updated_at).toLocaleString()
+
+                expect(patchResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedFactory)      
+                expect(created).to.eql(expectedCreated)
+                expect(updated).to.eql(expectedUpdated)
             })
         })
 
-        context('when the factory with id factory_id does not exist', () => {
-            const idToUpdate = 1
-            const updateFactory = {
-                english_name: 'The Orange Concept',
-                    country: 1,
-                    website: 'www.orange.com',
-                    notes: 'family-owned',
-                    approved_by_admin: true
-            }
+        context('when the factory with id factory_id does not exist.', () => {
+            const nonexistantId = factoryInsert.id + 1
 
-            it('responds with 404', () => {
+            it('responds with 404 and an error message', () => {
                 return supertest(app)
-                    .patch(`/api/factories/${idToUpdate}`)
-                    .send(updateFactory)
+                    .patch(`/api/factories/${nonexistantId}`)
+                    .send(factFullUpdate)
                     .set('Authorization', makeAuthHeader(admin))
-                    .expect(404, {
-                        error: { message: `Factory does not exist`} } )
-            })
+                    .expect(404)
+                    .expect({ error: { message: 'Factory does not exist.'} } ) })
         })
     })
 
     describe('DELETE /api/factories/:factory_id', () => {
         before('create users', () => db.into('users').insert(hashAdminArray))
 
-        context('when the factory with id factory_id exists', () => {
-            beforeEach(() =>  db.into('factories').insert(factories))
+        context('given the factory with id factory_id exists', () => {
+            beforeEach(() =>  db.into('factories').insert(factoryInsert))
 
-            it('removes the factory and responds 204', () => {
-                const idToRemove = 1
-                const expectedFactories = factories.filter(factory => factory.id !== idToRemove)
+            it('removes the factory and responds 204', async () => {
+                const factoryId = factoryInsert.id
 
-                return supertest(app)
-                    .delete(`/api/factories/${idToRemove}`)
+                const deleteResponse = await supertest(app)
+                    .delete(`/api/factories/${factoryId}`)
                     .set('Authorization', makeAuthHeader(admin))
-                    .expect(204)
-                    .then(res => {
-                        supertest(app)
-                            .get('/api/factories')
-                            .expect(200)
-                            .expect(expectedFactories)
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    })    
+                
+                const getResponse = await supertest(app)
+                    .get(`/api/factories/${factoryId}`)
+
+                expect(deleteResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(404)
             })
         })
 
-        context('when the fabric with id fabric_id does not exist', () => {
-            beforeEach(() =>  db.into('factories').insert(factories))
+        context('when the fabric with id fabric_id does not exist.', () => {
+            beforeEach(() =>  db.into('factories').insert(factoryInsert))
 
-            it('responds with 404', () => {
-                const idToRemove = 222
+            it('responds with 404 and an error message', () => {
+                const nonexistantId = factoryInsert.id + 1
 
                 return supertest(app)
-                    .delete(`/api/factories/${idToRemove}`)
+                    .delete(`/api/factories/${nonexistantId}`)
                     .set('Authorization', makeAuthHeader(admin))
-                    .expect(404, {
-                        error: { message: `Factory does not exist`} } )
+                    .expect(404)
+                    .expect({ error: { message: 'Factory does not exist.'} } )
             })
         })
     })

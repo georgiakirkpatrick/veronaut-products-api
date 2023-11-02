@@ -12,7 +12,8 @@ const serializeCertifications = certification => ({
     english_name: xss(certification.english_name),
     website: xss(certification.website),
     approved_by_admin: certification.approved_by_admin,
-    date_published: certification.date_published
+    created_at: certification.created_at,
+    updated_at: certification.updated_at
 })
 
 certificationsRouter
@@ -76,7 +77,7 @@ certificationsRouter
         .then(certification => {
             if (!certification) {
                 return res.status(404).json({
-                    error: { message: `Certification does not exist` }
+                    error: { message: `Certification does not exist.` }
                 })
             }
             res.certification = certification
@@ -105,7 +106,7 @@ certificationsRouter
         if (numberOfValues === 0) {
             return res.status(400).json({
                 error: { 
-                    message: `Request body must contain 'english_name', 'website', and/or 'approved_by_admin'`
+                    message: `Request body must contain 'english_name', 'website', 'approved_by_admin', 'created_at', and/or 'updated_at'`
                 }
             })
         }

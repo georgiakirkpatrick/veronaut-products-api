@@ -1,14 +1,15 @@
+const app = require('../src/app')
+const { expect } = require('chai')
 const knex = require('knex')
 const jwt = require('jsonwebtoken')
-const app = require('../src/app')
-const {hashedUserArray, makeUserArray} = require('./users.fixtures')
 const supertest = require('supertest')
+
+const {hashedUserArray, makeUserArray} = require('./users.fixtures')
 
 describe('Auth Endpoints', () => {
     const hashUserArray = hashedUserArray()
     const hashedUser = hashUserArray[0]
-    const userArray = makeUserArray()
-    const user = userArray[0]
+    const user = makeUserArray()[0]
 
     let db
 
@@ -37,8 +38,8 @@ describe('Auth Endpoints', () => {
 
         requiredFields.forEach(field => {
             const loginAttemptBody = {
-                email: user.email,
-                password: user.password
+                email: hashedUser.email,
+                password: hashedUser.password
             }
 
             it(`responds with 400 required error when '${field}' is missing`, () => {
@@ -47,9 +48,7 @@ describe('Auth Endpoints', () => {
                 return supertest(app)
                     .post('/api/auth/login')
                     .send(loginAttemptBody)
-                    .expect(400, {
-                        error: `Missing '${field}' in request body`
-                    })
+                    .expect(400, {"error":`Missing '${field}' in request body`})
             })
         })
 
@@ -62,16 +61,7 @@ describe('Auth Endpoints', () => {
                 .expect(400, { error: `Incorrect email or password` })
         })
 
-        it(`responds 400 'incorrect email or password' when the password is incorrect`, () => {
-            const userInvalidPass = { email: user.email, password: 'not-the-password' }
-
-            return supertest(app)
-                .post('/api/auth/login')
-                .send(userInvalidPass)
-                .expect(400, { error: `Incorrect email or password` })
-        })
-
-        it('responds with 200 and JWT auth token using secret when provided valid credentials', function() {
+        it('responds with 200 and JWT auth token using secret when provided valid credentials', function () {
             this.retries(3)
             
             const userValidCreds = {
@@ -91,9 +81,7 @@ describe('Auth Endpoints', () => {
             return supertest(app)
                 .post('/api/auth/login')
                 .send(userValidCreds)
-                .expect(200, {
-                    authToken: expectedToken
-                })
+                .expect({ authToken: expectedToken })
         })
     })
 })

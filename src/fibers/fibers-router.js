@@ -12,7 +12,8 @@ const serializeCertifications = certification => ({
     english_name: xss(certification.english_name),
     website: xss(certification.website),
     approved_by_admin: certification.approved_by_admin,
-    date_published: certification.date_published
+    created_at: certification.created_at,
+    updated_at: certification.updated_at
 })
 
 const serializeFibers = fiber => ({
@@ -24,10 +25,11 @@ const serializeFibers = fiber => ({
     producer_country: fiber.producer_country,
     producer_id: fiber.producer_id,
     production_notes: fiber.production_notes ? xss(fiber.production_notes) : null,
-    producer: fiber.producer,
+    producer: xss(fiber.producer),
     producer_website: fiber.producer_website ? xss(fiber.producer_website) : null,
     approved_by_admin: fiber.approved_by_admin,
-    date_published: fiber.date_published
+    created_at: fiber.created_at,
+    updated_at: fiber.updated_at
 })
 
 const serializeFiberTypes = fiberType => ({
@@ -35,7 +37,8 @@ const serializeFiberTypes = fiberType => ({
     english_name: xss(fiberType.english_name),
     fiber_type_class: fiberType.fiber_type_class,
     approved_by_admin: fiberType.approved_by_admin,
-    date_published: fiberType.date_published
+    created_at: fiberType.created_at,
+    updated_at: fiberType.updated_at
 })
 
 fibersRouter
@@ -94,7 +97,8 @@ fibersRouter
                         producer_id: fiber.producer_id,
                         production_notes: fiber.production_notes ? xss(fiber.production_notes) : null,
                         approved_by_admin: fiber.approved_by_admin,
-                        date_published: fiber.date_published
+                        created_at: fiber.created_at,
+                        updated_at: fiber.updated_at
                     })
             })
     })
@@ -144,7 +148,7 @@ fibersRouter
             .then(fiberType => {
                 res
                     .status(201)
-                    .location(path.posix.join(req.originalUrl + `/${fiberType.id}`))
+                    // .location(path.posix.join(req.originalUrl + `/${fiberType.id}`))
                     .json(serializeFiberTypes(fiberType))
                     
             })
@@ -162,7 +166,7 @@ fibersRouter
             .then(fiber => {
                 if (!fiber) {
                     return res.status(404).json({
-                        error: { message: `Fiber does not exist` }
+                        error: { message: `Fiber does not exist.` }
                     })
                 }
                 res.fiber = fiber
@@ -184,8 +188,10 @@ fibersRouter
             producer_website: res.fiber.producer_website ? xss(res.fiber.producer_website): null,
             // producer_notes: res.fiber.producer_notes ? xss(res.fiber.producer_notes) : null,
             approved_by_admin: res.fiber.approved_by_admin,
-            date_published: res.fiber.date_published
+            created_at: res.fiber.created_at,
+            updated_at: res.fiber.updated_at
         })
+        .catch(next)
     })
     .patch(requireAdmin, jsonParser, (req, res, next) => {
         const {
@@ -248,7 +254,7 @@ fibersRouter
         .then(fiber => {
             if (!fiber) {
                 return res.status(404).json({
-                    error: { message: `Fiber does not exist` }
+                    error: { message: `Fiber does not exist.` }
                 })
             }
             res.fiber = fiber
@@ -296,7 +302,6 @@ fibersRouter
 
                 res
                     .status(201)
-                    .location(path.posix.join(req.originalUrl))
                     .json(fiberCert)
             })
             .catch(next)

@@ -21,7 +21,8 @@ const serializeUser = user => ({
     editor: user.editor,
     can_submit: user.can_submit,
     org_affiliation: user.org_affiliation ? xss(user.org_affiliation) : null,
-    account_created: user.account_created
+    created_at: user.created_at, 
+    updated_at: user.updated_at
 })
 
 const serializeUserProducts = product => ({
@@ -43,7 +44,8 @@ const serializeUserProducts = product => ({
     cmt_notes: product.cmt_notes ? xss(product.cmt_notes) : null,
     featured: product.featured,
     approved_by_admin: product.approved_by_admin,
-    date_published: product.date_published
+    created_at: product.created_at,
+        updated_at: product.updated_at
 })
 
 usersRouter
@@ -72,7 +74,8 @@ usersRouter
             editor,
             can_submit,
             org_affiliation,
-            account_created
+            created_at,
+            updated_at
         } = req.body
 
         const newUser = {
@@ -90,7 +93,8 @@ usersRouter
             editor,
             can_submit,
             org_affiliation,
-            account_created
+            created_at,
+            updated_at
         }
 
         const requiredFields = {
@@ -132,7 +136,7 @@ usersRouter
         .then(user => {
             if (!user) {
                 return res.status(404).json({
-                    error: { message: `User does not exist` }
+                    error: { message: `User does not exist.` }
                 })
             }
             res.user = user
@@ -167,7 +171,8 @@ usersRouter
             editor,
             can_submit,
             org_affiliation,
-            account_created
+            created_at,
+            updated_at
         } = req.body
 
         const userToUpdate = {
@@ -184,7 +189,8 @@ usersRouter
             editor,
             can_submit,
             org_affiliation,
-            account_created
+            created_at,
+            updated_at
         }
 
         const numberOfValues = Object.values(userToUpdate).filter(value => value !== undefined).length
@@ -192,7 +198,7 @@ usersRouter
         if (numberOfValues === 0) {
             return res.status(400).json({
                 error: { 
-                    message: `Request body must contain 'admin', 'email', 'password', 'handle', 'first_name', 'last_name', 'website', 'profile_pic', 'bio', 'public', editor, can_submit, org_affiliation, or 'account_created'`
+                    message: `Request body must contain 'admin', 'email', 'password', 'handle', 'first_name', 'last_name', 'website', 'profile_pic', 'bio', 'public', editor, can_submit, org_affiliation, 'created_at', or 'updated_at'`
                 }
             })
         }
@@ -255,7 +261,7 @@ usersRouter
         .then(user => {
             if (!user) {
                 return res.status(404).json({
-                    error: { message: `User does not exist` }
+                    error: { message: `User does not exist.` }
                 })
             } else {
                 UsersService.getProductsForUser(

@@ -13,7 +13,8 @@ const serializeFactories = factory => ({
     website: factory.website ? xss(factory.website) : null,
     notes: xss(factory.notes),
     approved_by_admin: factory.approved_by_admin,
-    date_published: factory.date_published
+    created_at: factory.created_at,
+    updated_at: factory.updated_at
 })
 
 factoriesRouter
@@ -44,7 +45,7 @@ factoriesRouter
             notes,
             approved_by_admin
         }
-
+        
         const requiredFields = {
             english_name,
             country
@@ -83,7 +84,7 @@ factoriesRouter
         .then(factory => {
             if (!factory) {
                 return res.status(404).json({
-                    error: { message: `Factory does not exist` }
+                    error: { message: `Factory does not exist.` }
                 })
             }
             res.factory = factory
@@ -99,7 +100,8 @@ factoriesRouter
             website: xss(res.factory.website),
             notes: xss(res.factory.notes),
             approved_by_admin: res.factory.approved_by_admin,
-            date_published: res.factory.date_published
+            created_at: res.factory.created_at,
+            updated_at: res.factory.updated_at
         })
         next()
     })

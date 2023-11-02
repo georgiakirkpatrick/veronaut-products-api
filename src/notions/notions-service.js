@@ -16,7 +16,8 @@ const NotionsService = {
                     'notions.material_producer_id',
                     'notions.material_notes',
                     'notions.approved_by_admin',
-                    'notions.date_published'
+                    'notions.created_at',
+                    'notions.updated_at'
                 )
         },        
         
@@ -36,7 +37,8 @@ const NotionsService = {
                     'notions.material_producer_id',
                     'notions.material_notes',
                     'notions.approved_by_admin',
-                    'notions.date_published'
+                    'notions.created_at',
+                    'notions.updated_at'
                 )
                 .where('notions.id', notionId)
                 .first()
@@ -68,12 +70,12 @@ const NotionsService = {
                 .join('notions_to_certifications', {'notions.id': 'notions_to_certifications.notion_id'})
                 .join('certifications', {'notions_to_certifications.certification_id': 'certifications.id'})
                 .select(
-                    'notions.id as notion_id',
                     'certifications.id',
                     'certifications.english_name',
                     'certifications.website',
                     'certifications.approved_by_admin',
-                    'certifications.date_published'
+                    'certifications.created_at',
+                    'certifications.updated_at'
                 )
                 .where('notions.id', notionId)
 

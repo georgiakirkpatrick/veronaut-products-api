@@ -1,10 +1,14 @@
-const makeCategoryArray = () => (
-    [
+const makeCategoryArray = () => {
+    const categoryPost = {
+        english_name: 'Activewear',
+        category_class: 'clothing',
+        feature_image: '' 
+    }
+
+    const categoriesInsert = [
         {
             id: 1,
-            english_name: 'Activewear',
-            category_class: 'clothing',
-            feature_image: ''
+            ...categoryPost
         },
         {
             id: 2,
@@ -25,9 +29,19 @@ const makeCategoryArray = () => (
             feature_image: ''
         }
     ]
-)
 
-const makeMalCat = () => {
+    const categoriesGet = [
+        ...categoriesInsert
+    ]
+
+    return {
+        categoryPost,
+        categoriesInsert,
+        categoriesGet
+    }
+}
+
+const makeMalCategory = () => {
     const malCategory = {
         id: 1,
         english_name: '<a href="bad">Activewear</a>',
@@ -42,13 +56,35 @@ const makeMalCat = () => {
         feature_image: '&lt;a href="bad"&gt;www.image.com&lt;/a&gt;'
     }
 
+    const malCatPost = {
+        english_name: '<a href="bad">Activewear</a>',
+        category_class: 'clothing',
+        feature_image: '<a href="bad">www.image.com</a>'
+    }
+
+    const malCatInsert = {
+        id: 1,
+        ...malCatPost
+    }
+
+    const malCatGet = [
+        {
+            ...malCatInsert,
+            english_name: '&lt;a href="bad"&gt;Activewear&lt;/a&gt;',
+            feature_image: '&lt;a href="bad"&gt;www.image.com&lt;/a&gt;'
+        }
+    ]
+
     return {
         malCategory,
-        expectedCategory
+        expectedCategory,
+        malCatPost,
+        malCatInsert,
+        malCatGet
     }
 }
 
 module.exports = {
     makeCategoryArray,
-    makeMalCat
+    makeMalCategory
 }

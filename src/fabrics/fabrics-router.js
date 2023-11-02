@@ -11,7 +11,8 @@ const serializeCertifications = certification => ({
     english_name: xss(certification.english_name),
     website: xss(certification.website),
     approved_by_admin: certification.approved_by_admin,
-    date_published: certification.date_published
+    created_at: certification.created_at,
+    updated_at: certification.updated_at
 })
 
 const serializeFabric = fabric => ({
@@ -24,15 +25,8 @@ const serializeFabric = fabric => ({
     dye_print_finish_id: fabric.dye_print_finish_id,
     dye_print_finish_notes: xss(fabric.dye_print_finish_notes),
     approved_by_admin: fabric.approved_by_admin,
-    date_published: fabric.date_published
-})
-
-const serializeFabricTypes = fabricType => ({
-    id: fabricType.id,
-    english_name: xss(fabricType.english_name),
-    fabric_type_class: fabricType.fabric_type_class,
-    approved_by_admin: fabricType.approved_by_admin,
-    date_published: fabricType.date_published
+    created_at: fabric.created_at,
+    updated_at: fabric.updated_at
 })
 
 const serializeFactories = factory => ({
@@ -42,30 +36,25 @@ const serializeFactories = factory => ({
     website: xss(factory.website),
     notes: xss(factory.notes),
     approved_by_admin: factory.approved_by_admin,
-    date_published: factory.date_published
+    created_at: factory.created_at,
+    updated_at: factory.updated_at
 })
 
 const serializeFibers = fiber => ({
+    percent_of_fabric: fiber.percent_of_fabric,
     id: fiber.id,
     brand_id: fiber.brand_id,
-    fiber_type_id: fiber.fiber_type_id,
+    fiber_or_material_type_id: fiber.fiber_or_material_type_id,
     fiber_type: xss(fiber.fiber_type),
     class: fiber.class,
-    producer_country: fiber.producer_country,
     producer_id: fiber.producer_id,
     producer: xss(fiber.producer),
-    factory_country: fiber.factory_country,
+    producer_country: fiber.producer_country,
     producer_website: xss(fiber.producer_website),
     production_notes: fiber.production_notes ? xss(fiber.production_notes) : null,
     approved_by_admin: fiber.approved_by_admin,
-    date_published: fiber.date_published
-})
-
-const serializeNotionTypes = notionType => ({
-    id: notionType.id,
-    english_name: xss(notionType.english_name),
-    approved_by_admin: notionType.approved_by_admin,
-    date_published: notionType.date_published
+    created_at: fiber.created_at,
+    updated_at: fiber.updated_at
 })
 
 fabricsRouter
@@ -136,56 +125,6 @@ fabricsRouter
     })
 
 fabricsRouter
-    .route('/notion-types')
-    .get((req, res, next) => {
-        FabricsService
-            .getAllNotionTypes(
-                req.app.get('db')
-            )
-            .then(notionTypes => {
-                res.json(notionTypes.map(serializeNotionTypes))
-            })
-            .catch(next)
-    })
-    .post(requireAuth, jsonParser, (req, res, next) => {
-        const { 
-            english_name,
-            approved_by_admin
-        } = req.body
-
-        const newNotionType = {
-            english_name,
-            approved_by_admin
-        }
-
-        const requiredFields = {
-            english_name
-        }
-
-        for (const [key, value] of Object.entries(requiredFields)) {
-            if (value === undefined) {
-                return res.status(400).json({
-                    error: { message: `Missing '${key}' in request body`}
-                })
-            }
-        }
-
-        FabricsService
-            .insertNotionType(
-                req.app.get('db'),
-                newNotionType
-            )
-            .then(notionType => {
-                res
-                    .status(201)
-                    .location(path.posix.join(req.originalUrl + `/${notionType.id}`))
-                    .json(serializeNotionTypes(notionType))
-                    
-            })
-            .catch(next)
-    })
-
-fabricsRouter
     .route('/:fabric_id')
     .all((req, res, next) => {
         FabricsService.getFabricById(
@@ -224,10 +163,11 @@ fabricsRouter
                             brand_id: fiber.brand_id,
                             certification_ids: [fiber.certification_id],
                             class: fiber.class,
-                            date_published: fiber.date_published,
-                            factory_country: fiber.factory_country,
+                            created_at: fiber.created_at,
+                            updated_at: fiber.updated_at,
+                            producer_country: fiber.producer_country,
                             fiber_type: fiber.fiber_type,
-                            fiber_type_id: fiber.fiber_type_id,
+                            fiber_or_material_type_id: fiber.fiber_or_material_type_id,
                             id: fiber.id,
                             percent_of_fabric: fiber.percent_of_fabric,
                             producer: fiber.producer,
@@ -258,7 +198,8 @@ fabricsRouter
                 certification_ids: fabCerts.map(cert => cert.certification_id),
                 fibers: makeFibArray(),
                 approved_by_admin: res.fabric.approved_by_admin,
-                date_published: res.fabric.date_published
+                created_at: res.fabric.created_at,
+                updated_at: res.fabric.updated_at
             }
 
             res.json(fabric)
@@ -277,7 +218,8 @@ fabricsRouter
             dye_print_finish_country,
             dye_print_finish_id,
             dye_print_finish_notes,
-            approved_by_admin
+            approved_by_admin,
+            updated_at
         } = req.body
 
         const fabricToUpdate = {
@@ -288,14 +230,15 @@ fabricsRouter
             dye_print_finish_country,
             dye_print_finish_id,
             dye_print_finish_notes,
-            approved_by_admin
+            approved_by_admin,
+            updated_at
         }
 
         const numberOfValues = Object.values(fabricToUpdate).filter(Boolean).length
 
         if (numberOfValues === 0) {
             return res.status(400).json({
-                error: { message: `Request body must include 'brand_id', 'fabric_mill_country', 'fabric_mill_id', 'fabric_mill_notes', 'dye_print_finish_country', 'dye_print_finish_id', 'dye_print_finish_notes', or 'approved_by_admin'`}
+                error: { message: `Request body must include 'brand_id', 'fabric_mill_country', 'fabric_mill_id', 'fabric_mill_notes', 'dye_print_finish_country', 'dye_print_finish_id', 'dye_print_finish_notes', 'approved_by_admin', or 'updated_at'`}
             })
         }
 
@@ -332,7 +275,7 @@ fabricsRouter
         .then(fabric => {
             if (!fabric) {
                 return res.status(404).json({
-                    error: { message: `Product does not exist` }
+                    error: { message: `Product does not exist.` }
                 })
             }
             res.fabric = fabric
@@ -390,7 +333,7 @@ fabricsRouter
         .then(fabric => {
             if (!fabric) {
                 return res.status(404).json({
-                    error: { message: `Product does not exist` }
+                    error: { message: `Product does not exist.` }
                 })
             }
             res.fabric = fabric
@@ -448,7 +391,7 @@ fabricsRouter
         .then(fabric => {
             if (!fabric) {
                 return res.status(404).json({
-                    error: { message: `Fabric does not exist` }
+                    error: { message: `Fabric does not exist.` }
                 })
             }
             res.fabric = fabric
@@ -484,7 +427,7 @@ fabricsRouter
             percent_of_fabric
         }
 
-        const requiredFields = {            
+        const requiredFields = {       
             fiber_or_material_id
         }
 

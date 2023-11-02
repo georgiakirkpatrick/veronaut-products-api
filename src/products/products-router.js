@@ -15,7 +15,7 @@ const serializeProductGet = product => {
         english_name: xss(product.english_name),
         brand_currency: product.brand_currency,
         brand_id: product.brand_id,
-        brand_name: product.brand_name,
+        brand_name: xss(product.brand_name),
         category_id: product.category_id,
         product_url: xss(product.product_url),
         feature_image_url: xss(product.feature_image_url),
@@ -25,10 +25,11 @@ const serializeProductGet = product => {
         dry_id: product.dry_id,
         cmt_sew_country: product.cmt_sew_country,
         cmt_cut_country: product.cmt_cut_country,
-        cmt_notes: product.cmt_notes ? xss(product.cmt_notes) : null,
+        cmt_notes: product.cmt_notes ? xss(product.cmt_notes) : '',
         featured: product.featured,
         approved_by_admin: product.approved_by_admin,
-        date_published: product.date_published
+        created_at: product.created_at,
+        updated_at: product.updated_at
     }
 }
 
@@ -46,28 +47,41 @@ const serializeProductPost = product => ({
         dry_id: product.dry_id,
         cmt_sew_country: product.cmt_sew_country,
         cmt_cut_country: product.cmt_cut_country,
-        cmt_notes: product.cmt_notes ? xss(product.cmt_notes) : null,
+        cmt_notes: product.cmt_notes ? xss(product.cmt_notes) : '',
         featured: product.featured,
-        approved_by_admin: product.approved_by_admin ? product.approved_by_admin : null,
-        date_published: product.date_published
+        approved_by_admin: product.approved_by_admin,
+        created_at: product.created_at,
+        updated_at: product.updated_at
     })
 
-const serializeCertification = certification => ({
+const serializeCert = certification => ({
     id: certification.id,
     english_name: xss(certification.english_name),
     website: xss(certification.website),
     approved_by_admin: certification.approved_by_admin,
-    date_published: certification.date_published
+    created_at: certification.created_at,
+    updated_at: certification.updated_at
+})
+
+const serializePCPair = certification => ({
+    certification_id: certification.certification_id,
+    english_name: xss(certification.english_name),
+    website: xss(certification.website),
+    cert_approved_by_admin: certification.cert_approved_by_admin,
+    pair_approved_by_admin: certification.pair_approved_by_admin,
+    pair_created_at: certification.pair_created_at,
+    pair_updated_at: certification.pair_updated_at
 })
 
 const serializeColors = color => ({
-    color_id: color.id,
+    id: color.id,
     product_id: color.product_id,
     color_description_id: color.color_description_id,
     color_english_name: xss(color.color_english_name),
     swatch_image_url: xss(color.swatch_image_url),
     approved_by_admin: color.approved_by_admin,
-    date_published: color.date_published
+    created_at: color.created_at,
+    updated_at: color.updated_at
 })
 
 const serializeColorsImages = colorImage => ({
@@ -87,8 +101,10 @@ const serializeFactories = factory => ({
     website: factory.website ? xss(factory.website) : null,
     notes: factory.notes ? xss(factory.notes) : null,
     stage: factory.stage,
-    approved_by_admin: factory.approved_by_admin,
-    date_published: factory.date_published
+    fact_approved_by_admin: factory.fact_approved_by_admin,
+    pair_approved_by_admin: factory.pair_approved_by_admin,
+    pair_created_at: factory.pair_created_at,
+    pair_updated_at: factory.pair_updated_at
 })
 
 const serializeFibers = fiber => ({
@@ -103,8 +119,10 @@ const serializeFibers = fiber => ({
     producer: xss(fiber.producer),
     producer_country: fiber.producer_country,
     producer_website: fiber.producer_website ? xss(fiber.producer_website) : null,
-    approved_by_admin: fiber.approved_by_admin,
-    date_published: fiber.date_published
+    fib_approved_by_admin: fiber.fib_approved_by_admin,
+    pair_approved_by_admin: fiber.pair_approved_by_admin,
+    pair_created_at: fiber.pair_created_at,
+    pair_updated_at: fiber.pair_updated_at
 })
 
 const serializeImages = image => ({
@@ -114,34 +132,37 @@ const serializeImages = image => ({
     color_id: image.color_id,
     primary_image_for_color: image.primary_image_for_color,
     approved_by_admin: image.approved_by_admin,
-    date_published: image.date_published
+    created_at: image.created_at,
+    updated_at: image.updated_at
 })
 
 const serializeNotions = notion => ({
     id: notion.id,
     notion_type_id: notion.notion_type_id,
-    notion_type: notion.type ? xss(notion.type) : null,
+    notion_type: notion.notion_type ? xss(notion.notion_type) : null,
     brand_id: notion.brand_id,
     manufacturer_country: notion.manufacturer_country,
     manufacturer_id: notion.manufacturer_id,
     manufacturer_notes: notion.manufacturer_notes ? xss(notion.manufacturer_notes) : null,
     material_type_id: notion.material_type_id,
-    material_type: notion.material_type,
+    material_type: notion.material_type ? xss(notion.material_type) : null,
     material_origin_id: notion.material_origin_id,
     material_producer_id: notion.material_producer_id,
     material_notes: notion.material_notes ? xss(notion.material_notes) : null,
-    approved_by_admin: notion.approved_by_admin,
-    date_published: notion.date_published
+    notion_approved_by_admin: notion.notion_approved_by_admin,
+    pair_approved_by_admin: notion.pair_approved_by_admin,
+    pair_created_at: notion.pair_created_at,
+    pair_updated_at: notion.pair_updated_at
 })
 
-const serializeSizes = size => ({
-    id: size.id,
-    country_system: size.country_system,
-    size_text: size.size_text,
-    size_category: size.size_category,
-    size_class: size.size_class,
-    us_size: size.us_size
-})
+// const serializeSizes = size => ({
+//     id: size.id,
+//     country_system: size.country_system,
+//     size_text: size.size_text,
+//     size_category: size.size_category,
+//     size_class: size.size_class,
+//     us_size: size.us_size
+// })
 
 productsRouter
     .route('/')
@@ -167,7 +188,10 @@ productsRouter
             cmt_sew_country,
             cmt_cut_country,
             cmt_notes,
-            approved_by_admin
+            featured,
+            approved_by_admin,
+            created_at,
+            updated_at
         } = req.body
 
         const newProduct = {
@@ -183,10 +207,24 @@ productsRouter
             cmt_sew_country,
             cmt_cut_country,
             cmt_notes,
-            approved_by_admin
+            featured,
+            approved_by_admin,
+            created_at,
+            updated_at
         }
 
-        for (const [key, value] of Object.entries(newProduct)) {
+        const requiredFields = { 
+            english_name,
+            brand_id,
+            category_id,
+            product_url,
+            feature_image_url,
+            cost_in_home_currency,
+            wash_id,
+            dry_id
+        }
+
+        for (const [key, value] of Object.entries(requiredFields)) {
             if (value === undefined) {
                 return res.status(400).json({
                     error: { message: `Missing '${key}' in request body`}
@@ -404,7 +442,7 @@ productsRouter
                         "certification_id": cert
                     }
 
-                    const certPromise = ProductsService.insertProductCertification(
+                    const certPromise = ProductsService.insertProdCert(
                         req.app.get('db'),
                         certPair
                     )
@@ -613,7 +651,7 @@ productsRouter
         .then(product => {
             if (!product) {
                 return res.status(404).json({
-                    error: { message: `Product does not exist` }
+                    error: { message: `Product does not exist.` }
                 })
             }
             res.product = product
@@ -626,12 +664,12 @@ productsRouter
             try {
                 const prodPromises = []
 
-                const productCerts = await ProductsService.getCertificationsForProduct(
+                const productCerts = await ProductsService.getProdCerts(
                     req.app.get('db'),
                     res.product.id
                 )
 
-                prodPromises.push(productCerts.map(serializeCertification))
+                prodPromises.push(productCerts.map(serializeCert))
 
                 const productColorsImages = await ProductsService.getColorsImages(
                     req.app.get('db'),
@@ -795,7 +833,7 @@ productsRouter
         .then(product => {
             if (!product) {
                 return res.status(404).json({
-                    error: { message: `Product does not exist` }
+                    error: { message: `Product does not exist.` }
                 })
             }
             res.product = product
@@ -806,23 +844,31 @@ productsRouter
     .get((req, res, next) => {
         const productId = res.product.id
         ProductsService
-            .getCertificationsForProduct(
+            .getProdCerts(
                 req.app.get('db'), 
                 productId
             ) 
             .then(certifications => {
-                res.json(certifications.map(serializeCertification))
+                res.json(certifications.map(serializePCPair))
         })
         .catch(next)
     })
     .post(requireAuth, jsonParser, (req, res, next) => {
         const productId = res.product.id
 
-        const { certification_id } = req.body
+        const { 
+            certification_id,
+            approved_by_admin,
+            created_at,
+            updated_at
+        } = req.body
 
-        const newProductCertification = { 
+        const newProdCert = { 
             product_id: productId,
-            certification_id
+            certification_id,
+            approved_by_admin,
+            created_at,
+            updated_at
         }
 
         const requiredFields = {
@@ -836,9 +882,9 @@ productsRouter
         }
 
         ProductsService
-            .insertProductCertification(
+            .insertProdCert(
                 req.app.get('db'),
-                newProductCertification
+                newProdCert
             )
             .then(response => {
                 res
@@ -858,7 +904,7 @@ productsRouter
         .then(product => {
             if (!product) {
                 return res.status(404).json({
-                    error: { message: `Product does not exist` }
+                    error: { message: `Product does not exist.` }
                 })
             }
             res.product = product
@@ -868,6 +914,7 @@ productsRouter
     })
     .get((req, res, next) => {
         const productId = res.product.id
+
         ProductsService
             .getColorsForProduct(
                 req.app.get('db'),
@@ -879,23 +926,32 @@ productsRouter
         .catch(next)
     })
     .post(requireAuth, jsonParser, (req, res, next) => {
+        const productId = res.product.id
+
         const {
+            id,
             color_description_id,
             color_english_name,
-            swatch_image_url
+            swatch_image_url,
+            approved_by_admin,
+            created_at,
+            updated_at
         } = req.body
 
         const newProductColor = {
-            product_id: req.params.product_id,
+            id,
+            product_id: productId,
             color_description_id,
             color_english_name,
-            swatch_image_url
+            swatch_image_url,
+            approved_by_admin,
+            created_at,
+            updated_at
         }
 
         const requiredFields = {
             color_description_id,
-            color_english_name,
-            swatch_image_url
+            color_english_name
         }
     
         for (const [key, value] of Object.entries(requiredFields)) {
@@ -928,7 +984,7 @@ productsRouter
         .then(product => {
             if (!product) {
                 return res.status(404).json({
-                    error: { message: `Product does not exist` }
+                    error: { message: `Product does not exist.` }
                 })
             }
             res.product = product
@@ -959,7 +1015,7 @@ productsRouter
         .then(product => {
             if (!product) {
                 return res.status(404).json({
-                    error: { message: `Product does not exist` }
+                    error: { message: `Product does not exist.` }
                 })
             }
             res.product = product
@@ -1023,10 +1079,11 @@ productsRouter
                                 brand_id: fiber.brand_id,
                                 certification_ids: fibCertIds,
                                 class: fiber.class,
-                                date_published: fiber.date_published,
+                                created_at: fiber.created_at,
+                                updated_at: fiber.updated_at,
                                 factory_country: fiber.factory_country,
                                 fiber_type: fiber.fiber_type,
-                                fiber_type_id: fiber.fiber_type_id,
+                                fiber_or_material_type_id: fiber.fiber_or_material_type_id,
                                 id: fiber.id,
                                 percent_of_fabric: fiber.percent_of_fabric,
                                 producer: fiber.producer,
@@ -1056,8 +1113,10 @@ productsRouter
                         dye_print_finish_notes: xss(fabric.dye_print_finish_notes),
                         certification_ids: fabCerts.map(cert => cert.id),
                         fibers: await Promise.all(fabFibsWithCerts),
-                        approved_by_admin: fabric.approved_by_admin,
-                        date_published: fabric.date_published
+                        fab_approved_by_admin: fabric.fab_approved_by_admin,
+                        pair_approved_by_admin: fabric.pair_approved_by_admin,
+                        pair_created_at: fabric.pair_created_at,
+                        pair_updated_at: fabric.pair_updated_at
                     }
 
                     return newFabric
@@ -1079,18 +1138,23 @@ productsRouter
     .post(requireAuth, jsonParser, (req, res, next) => {
         const {
             fabric_id, 
-            relationship
+            relationship,
+            approved_by_admin,
+            created_at,
+            updated_at
         } = req.body
 
         const newProductFabric = {
             product_id: req.params.product_id, 
             fabric_id, 
-            relationship
+            relationship,
+            approved_by_admin,
+            created_at,
+            updated_at
         }
 
         const requiredFields = {
-            fabric_id, 
-            relationship
+            fabric_id
         }
         
         for (const [key, value] of Object.entries(requiredFields)) {
@@ -1124,7 +1188,7 @@ productsRouter
         .then(product => {
             if (!product) {
                 return res.status(404).json({
-                    error: { message: `Product does not exist` }
+                    error: { message: 'Product does not exist.' }
                 })
             }
             res.product = product
@@ -1147,18 +1211,23 @@ productsRouter
     .post(requireAuth, jsonParser, (req, res, next) => {
         const { 
             factory_id, 
-            stage 
+            stage,
+            approved_by_admin,
+            created_at,
+            updated_at
         } = req.body
 
         const newProductFactory = {  
             product_id: req.params.product_id,
             factory_id,
-            stage
+            stage,
+            approved_by_admin,
+            created_at,
+            updated_at
         }
 
         const requiredFields = {
-            factory_id, 
-            stage 
+            factory_id
         }
 
         for (const [ key, value ] of Object.entries(requiredFields)) {
@@ -1192,7 +1261,7 @@ productsRouter
         .then(product => {
             if (!product) {
                 return res.status(404).json({
-                    error: { message: `Product does not exist` }
+                    error: { message: `Product does not exist.` }
                 })
             }
             res.product = product
@@ -1214,12 +1283,18 @@ productsRouter
     })
     .post(requireAuth, jsonParser, (req, res, next) => {
         const { 
-            fiber_or_material_id 
+            fiber_or_material_id,
+            approved_by_admin,
+            created_at,
+            updated_at
         } = req.body
 
         const newProductFiber = {
             product_id: req.params.product_id,
-            fiber_or_material_id
+            fiber_or_material_id,
+            approved_by_admin,
+            created_at,
+            updated_at
         }
 
         const requiredFields = { 
@@ -1257,7 +1332,7 @@ productsRouter
         .then(product => {
             if (!product) {
                 return res.status(404).json({
-                    error: { message: `Product does not exist` }
+                    error: { message: `Product does not exist.` }
                 })
             }
             res.product = product
@@ -1281,14 +1356,20 @@ productsRouter
         const {
             product_image_url,
             color_id,        
-            primary_image_for_color
+            primary_image_for_color,
+            approved_by_admin,
+            created_at,
+            updated_at
         } = req.body
 
         const newImage = {
             product_id: req.params.product_id,
             product_image_url,
             color_id,
-            primary_image_for_color
+            primary_image_for_color,
+            approved_by_admin,
+            created_at,
+            updated_at
         }
 
         const requiredFields = {
@@ -1328,7 +1409,7 @@ productsRouter
         .then(product => {
             if (!product) {
                 return res.status(404).json({
-                    error: { message: `Product does not exist` }
+                    error: { message: `Product does not exist.` }
                 })
             }
             res.product = product
@@ -1348,20 +1429,8 @@ productsRouter
                     )
 
                     const newNotion = {
-                        id: notion.id,
-                        notion_type_id: notion.notion_type_id,
-                        notion_type: notion.notion_type,
-                        brand_id: notion.brand_id,
-                        manufacturer_country: notion.manufacturer_country,
-                        manufacturer_id: notion.manufacturer_id,
-                        manufacturer_notes: notion.manufacturer_notes ? xss(notion.manufacturer_notes) : null,
-                        material_type_id: notion.material_type_id,
-                        material_origin_id: notion.material_origin_id,
-                        material_producer_id: notion.material_producer_id,
-                        material_notes: notion.material_notes ? xss(notion.material_notes) : null,
-                        certification_ids: notionCerts,
-                        approved_by_admin: notion.approved_by_admin,
-                        date_published: notion.date_published
+                        ...serializeNotions(notion),
+                        certifications: notionCerts.map(serializeCert),
                     }
 
                     return newNotion
@@ -1381,12 +1450,18 @@ productsRouter
     })
     .post(requireAuth, jsonParser, (req, res, next) => {
         const { 
-            notion_id 
+            notion_id,
+            approved_by_admin,
+            created_at,
+            updated_at
         } = req.body
 
-        const newPair = { 
+        const newPair = {
+            product_id: Number(req.params.product_id),
             notion_id, 
-            product_id: Number(req.params.product_id)
+            approved_by_admin,
+            created_at,
+            updated_at
         }
 
         const requiredFields = {
@@ -1424,7 +1499,7 @@ productsRouter
         .then(product => {
             if (!product) {
                 return res.status(404).json({
-                    error: { message: `Product does not exist` }
+                    error: { message: 'Product does not exist.' }
                 })
             }
             res.product = product
@@ -1440,18 +1515,24 @@ productsRouter
                 productId
             )
             .then(sizes => {
-                res.json(sizes.map(serializeSizes))
+                res.json(sizes)
             })
             .catch(next)
     })
     .post(requireAuth, jsonParser, (req, res, next) => {
         const { 
-            size_id
+            size_id,
+            approved_by_admin,
+            created_at,
+            updated_at
         } = req.body
 
-        const newPair = { 
+        const newPair = {
+            product_id: req.params.product_id,
             size_id, 
-            product_id: req.params.product_id
+            approved_by_admin,
+            created_at,
+            updated_at
         }
 
         if (req.body.size_id === undefined) {

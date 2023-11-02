@@ -17,7 +17,8 @@ const makeAdminArray = () => (
             editor: true,
             can_submit: true,
             org_affiliation: null,
-            account_created: "2020-09-13T07:30:51.564Z"
+            created_at: '2023-02-27 14:24:38.513 -0800',
+            updated_at: '2023-02-27 14:24:38.513 -0800'
         },
         {
             id: 4,
@@ -34,7 +35,8 @@ const makeAdminArray = () => (
             editor: true,
             can_submit: true,
             org_affiliation: null,
-            account_created: "2020-09-13T07:30:51.564Z"
+            created_at: '2023-02-27 14:24:38.513 -0800',
+            updated_at: '2023-02-27 14:24:38.513 -0800'
         }
     ]
 )
@@ -73,7 +75,8 @@ const makeUserArray = () => (
             editor: false,
             can_submit: true,
             org_affiliation: 'None',
-            account_created: "2020-09-13T07:30:51.564Z"
+            created_at: '2023-02-27 14:24:38.513 -0800',
+            updated_at: '2023-02-27 14:24:38.513 -0800'
         },
         {
             id: 2,
@@ -90,7 +93,8 @@ const makeUserArray = () => (
             editor: false,
             can_submit: true,
             org_affiliation: 'None',
-            account_created: "2020-09-13T07:30:51.564Z"
+            created_at: '2023-02-27 14:24:38.513 -0800',
+            updated_at: '2023-02-27 14:24:38.513 -0800'
         }
     ]
 )
@@ -128,7 +132,8 @@ const makeMalUser = () => {
         editor: false,
         can_submit: true,
         org_affiliation: '<a href="bad.com">Bad Organization</a>',
-        account_created: "2020-09-13T07:30:51.564Z"
+        created_at: "2020-09-13T07:30:51.564Z",
+        updated_at: "2020-09-13T07:30:51.564Z"
     }
 
     const hashedMal = {
@@ -151,7 +156,8 @@ const makeMalUser = () => {
         editor: false,
         can_submit: true,
         org_affiliation: '&lt;a href="bad.com"&gt;Bad Organization&lt;/a&gt;',
-        account_created: '2020-09-13T07:30:51.564Z'
+        created_at: '2023-02-27 14:24:38.513 -0800',
+        updated_at: '2023-02-27 14:24:38.513 -0800'
     }
 
     return { malUser, expectedUser, hashedMal }

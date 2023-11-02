@@ -42,7 +42,8 @@ const FabricsService = {
                 'factories.website',
                 'factories.notes',
                 'factories.approved_by_admin',
-                'factories.date_published'
+                'factories.created_at',
+                'factories.updated_at'
             )
             .where('fabric_id', fabricId)
     },
@@ -66,17 +67,18 @@ const FabricsService = {
                 'fabrics_to_fibers_and_materials.percent_of_fabric',
                 'fibers_and_materials.id',
                 'fibers_and_materials.brand_id',
-                'fibers_and_materials.fiber_or_material_type_id as fiber_type_id',
+                'fibers_and_materials.fiber_or_material_type_id',
                 'fiber_and_material_types.english_name as fiber_type',
                 'fiber_and_material_types.fiber_type_class as class',
                 'fibers_and_materials.producer_country',
                 'fibers_and_materials.producer_id',
                 'factories.english_name as producer',
-                'factories.country as factory_country',
+                'factories.country as producer_country',
                 'factories.website as producer_website',
                 'fibers_and_materials.production_notes',
                 'fibers_and_materials.approved_by_admin',
-                'fibers_and_materials.date_published'
+                'fibers_and_materials.created_at',
+                'fibers_and_materials.updated_at'
             )
             .where('fabrics.id', fabricId)
     },
@@ -99,7 +101,8 @@ const FabricsService = {
                 'certifications.english_name',
                 'certifications.website',
                 'certifications.approved_by_admin',
-                'certifications.date_published'
+                'certifications.created_at',
+                'certifications.updated_at'
             )
             .where('fabric_id', fabricId)
     },
@@ -119,7 +122,7 @@ const FabricsService = {
 
     insertNotionType(knex, notionType) {
         return knex
-        .insert(notionType)
+        .insert(ntInsert)
         .into('notion_types')
         .returning('*')
         .then(response => response[0])

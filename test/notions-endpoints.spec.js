@@ -1,33 +1,33 @@
-const knex = require('knex')
-const jwt = require('jsonwebtoken')
-const app = require('../src/app')
-const { makeBrandArray, makeMalBrand } = require('./brands.fixtures')
-const { makeFactoryArray,makeMalFactory } = require('./factories.fixtures')
-const { makeFiberTypeArray, makeMalFiberType } = require('./fibers.fixtures')
-const { makeMalNotion, makeNotionArray, makeNotionType, makeMalNotionType, makeNotsToCerts } = require('./notions.fixtures')
-const { makeCertificationArray, makeMalCertification } = require('./certifications.fixtures')
-const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray, makeMalUser } = require('./users.fixtures')
-const { describe } = require('mocha')
-
 describe('Notions Endpoints', () => {
-    const adminArray = makeAdminArray()
-    const brands = makeBrandArray()
-    const certifications = makeCertificationArray()
-    const factories = makeFactoryArray()
-    const fiberTypes = makeFiberTypeArray()
+    const app = require('../src/app')
+    const { expect } = require('chai')
+    const knex = require('knex')
+    const jwt = require('jsonwebtoken')
+    const supertest = require('supertest')
+    const { hashedAdminArray, hashedUserArray } = require('./users.fixtures')
+    const { makeBrand, makeMalBrand } = require('./brands.fixtures')
+    const { makeFactory,makeMalFactory } = require('./factories.fixtures')
+    const { makeFiberType, makeMalFiberType } = require('./fibers.fixtures')
+    const { makeMalNotion, makeNotionType, makeNotion, makeMalNotionType, makeNotsToCerts, makeMalNotToMalCert } = require('./notions.fixtures')
+    const { makeCertArray, makeMalCert } = require('./certifications.fixtures')
+    const { makeAdminArray, makeUserArray } = require('./users.fixtures')
+    const { brandInsert } = makeBrand()
+    const { certArrayInsert, certArrayGet} = makeCertArray()
+    const { malBrandInsert } = makeMalBrand()
+    const { malCertGet, malCertInsert } = makeMalCert()
+    const { malFactInsert } = makeMalFactory()
+    const { malFtInsert } = makeMalFiberType()
+    const { malNotionPost, malNotionInsert, malNotionGet } = makeMalNotion()
+    const { notionPost, notionInsert, notionGet } = makeNotion()
+    const { malNtPost, malNtInsert, malNtGet } = makeMalNotionType()
+    const { ntPost, ntGet, ntInsert } = makeNotionType()
+    const admin = makeAdminArray()[0]
+    const {factoryInsert} = makeFactory()
+    const { ftInsert } = makeFiberType()
     const hashAdminArray = hashedAdminArray()
     const hashUserArray = hashedUserArray()
-    const { malBrand } = makeMalBrand()
-    const { malCertification, expectedCertification } = makeMalCertification()
-    const { malFactory } = makeMalFactory()
-    const { malFiberType } = makeMalFiberType()
-    const { malNotion, expectedNotion } = makeMalNotion()
-    const { notionsPost, notionsCertsGet, notionsGet } = makeNotionArray()
     const notsToCerts = makeNotsToCerts()
-    const { malNotionType, expectedNotionType } = makeMalNotionType()
-    const { malUser, expectedUser } = makeMalUser()
-    const notionTypes = makeNotionType()
-    const userArray = makeUserArray()
+    const user = makeUserArray()[0]
 
     let db
 
@@ -38,6 +38,25 @@ describe('Notions Endpoints', () => {
         })
         return `Bearer ${token}`
     }
+
+    const insertNotion = () => (
+        Promise.all([
+            db.into('brands').insert(brandInsert),
+            db.into('notion_types').insert(ntInsert),
+            db.into('fiber_and_material_types').insert(ftInsert),
+            db.into('factories').insert(factoryInsert)
+        ])
+        .then(() => db.into('notions').insert(notionInsert))
+    )
+
+    const insertNotReqs = () => (
+        Promise.all([
+            db.into('brands').insert(brandInsert),
+            db.into('notion_types').insert(ntInsert),
+            db.into('fiber_and_material_types').insert(ftInsert),
+            db.into('factories').insert(factoryInsert)
+        ])
+    )
 
     before('make knex instance', () => {
         db = knex({
@@ -65,141 +84,125 @@ describe('Notions Endpoints', () => {
 
     describe('GET /api/notions', () => {
         context('when there are notions in the database', () => {
-            beforeEach(() => db.into('brands').insert(brands))
-            beforeEach(() => db.into('notion_types').insert(notionTypes))
-            beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
-            beforeEach(() => db.into('factories').insert(factories))
-            beforeEach(() => db.into('notions').insert(notionsPost))
+            beforeEach(insertNotion)
 
-            it('returns 200 and all the notions', () => (
-                supertest(app)
+            it('returns 200 and all the notions', async () => {
+                const getResponse = await supertest(app)
                     .get('/api/notions')
-                    .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].id).to.eql(notionsGet.id)
-                        expect(res.body[0].notion_type_id).to.eql(notionsGet.notion_type_id)
-                        expect(res.body[0].brand_id).to.eql(notionsGet.brand_id)
-                        expect(res.body[0].manufacturer_country).to.eql(notionsGet.manufacturer_country)
-                        expect(res.body[0].manufacturer_id).to.eql(notionsGet.manufacturer_id)
-                        expect(res.body[0].manufacturer_notes).to.eql(notionsGet.manufacturer_notes)
-                        expect(res.body[0].material_type_id).to.eql(notionsGet.material_type_id)
-                        expect(res.body[0].material_origin_id).to.eql(notionsGet.material_origin_id)
-                        expect(res.body[0].material_producer_id).to.eql(notionsGet.material_producer_id)
-                        expect(res.body[0].material_notes).to.eql(notionsGet.material_notes)
-                        expect(res.body[0].approved_by_admin).to.eql(notionsGet.approved_by_admin)
-                        expect(res.body[0].date_published).to.eql(notionsGet.date_published)
-                    })
-            ))
+
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(notionGet)
+            })
         })
 
         context('when there are no notions in the database', () => {
-            it('responds with 200 and an empty list', () => (
-                supertest(app)
+            it('responds with 200 and an empty list', async () => {
+                const getResponse = await supertest(app)
                     .get('/api/notions')
-                    .expect(200, [])
-            ))
+
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql([])
+            })
         })
 
-        context('given an XSS attack notion', () => {
-            beforeEach(() => db.into('brands').insert(malBrand))
-            beforeEach(() => db.into('notion_types').insert(malNotionType))
-            beforeEach(() => db.into('fiber_and_material_types').insert(malFiberType))
-            beforeEach(() => db.into('factories').insert(malFactory))
-            beforeEach(() => db.into('notions').insert(malNotion))
+        context('given a malicious notion', () => {
+            beforeEach(() => db.into('brands').insert(malBrandInsert))
+            beforeEach(() => db.into('notion_types').insert(malNtInsert))
+            beforeEach(() => db.into('fiber_and_material_types').insert(malFtInsert))
+            beforeEach(() => db.into('factories').insert(malFactInsert))
+            beforeEach(() => db.into('notions').insert(malNotionInsert))
 
-            it('removes the XSS attack content', () => (
-                supertest(app)
+            it('removes the attack content', async () => {
+               const getResponse = await supertest(app)
                     .get('/api/notions')
-                    .expect(res => {
-                        expect(res.body[0].notion_type).to.eql(expectedNotion.notion_type)
-                        expect(res.body[0].manufacturer_notes).to.eql(expectedNotion.manufacturer_notes)
-                        expect(res.body[0].material_notes).to.eql(expectedNotion.material_notes)
-                    })
-            ))
+                
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body[0]).to.eql(malNotionGet[0])
+            })
         })
     })
 
-    describe('GET /api/notions/notion-types', () => {
+    describe('GET /api/notions/notion-types', () => { 
         context('when there are notion types in the database', () => {
-            beforeEach(() => db.into('notion_types').insert(notionTypes))
+            beforeEach(() => db.into('notion_types').insert(ntInsert))
 
-            it('returns 200 and all the notion types', () => (
-                supertest(app)
+            it('returns 200 and all the notion types', async () => {
+               const getResponse = await supertest(app)
                     .get('/api/notions/notion-types')
-                    .expect(200, notionTypes)
-            ))
+
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(ntGet)
+            })
         })
 
         context('when there are no notion types in the database', () => {
-            it('responds with 200 and an empty list', () => (
-                supertest(app)
+            it('responds with 200 and an empty list', async () => {
+               const getResponse = await supertest(app)
                     .get('/api/notions/notion-types')
-                    .expect(200, [])
-            ))
+
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql([])    
+            })
         })
 
-        context('given an XSS attack notion type', () => {
-            beforeEach(() => db.into('brands').insert(malBrand))
-            beforeEach(() => db.into('notion_types').insert(malNotionType))
-            beforeEach(() => db.into('fiber_and_material_types').insert(malFiberType))
-            beforeEach(() => db.into('factories').insert(malFactory))
-            beforeEach(() => db.into('notions').insert(malNotion))
+        context('given a malicious notion type', () => {
+            beforeEach(() => db.into('brands').insert(malBrandInsert))
+            beforeEach(() => db.into('notion_types').insert(malNtInsert))
+            beforeEach(() => db.into('fiber_and_material_types').insert(malFtInsert))
+            beforeEach(() => db.into('factories').insert(malFactInsert))
+            beforeEach(() => db.into('notions').insert(malNotionInsert))
 
-            it('removes the XSS attack content', () => (
-                supertest(app)
+            it('removes the attack content', async () => {
+               const getResponse = await supertest(app)
                     .get('/api/notions/notion-types')
-                    .expect(res => {
-                        expect(res.body[0].english_name).to.eql(expectedNotionType.english_name)
-                    })
-            ))
+
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(malNtGet)
+            })
         })
     })
 
     describe('GET /api/notions/:notion_id', () => {
+        const notionId = notionInsert.id
+        const malNotionId = malNotionInsert.id
+
         context('when the notion with id notion_id exists', () => {
-            beforeEach(() => db.into('brands').insert(brands))
-            beforeEach(() => db.into('notion_types').insert(notionTypes))
-            beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
-            beforeEach(() => db.into('factories').insert(factories))
-            beforeEach(() => db.into('notions').insert(notionsPost))
+            beforeEach(insertNotion)
             
-            const notionId = notionsPost.id
 
-            it('returns the notion with id notion_id', () => (
-                supertest(app)
+            it('returns the notion with id notion_id', async () => {
+               const getResponse = await supertest(app)
                     .get(`/api/notions/${notionId}`)
-                    .expect(200, notionsGet)
-            ))
+
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(notionGet[0])
+            })
         })
 
-        context('when the notion does not exist', () => {
-            const notionId = notionsPost.id
-
-            it('responds with 404 and an error message', () => (
-                supertest(app)
+        context('when the notion does not exist.', () => {
+            it('responds with 404 and an error message', async () => {
+               const getResponse = await supertest(app)
                     .get(`/api/notions/${notionId}`)
-                    .expect(404, { error: { message: 'Notion does not exist' } })
-            ))
+
+                expect(getResponse.status).to.eql(404)
+                expect(getResponse.error.text).to.eql('{"error":{"message":"Notion does not exist."}}')
+            })
         })
 
-        context('given an XSS attack notion', () => {
-            beforeEach(() => db.into('brands').insert(malBrand))
-            beforeEach(() => db.into('notion_types').insert(malNotionType))
-            beforeEach(() => db.into('fiber_and_material_types').insert(malFiberType))
-            beforeEach(() => db.into('factories').insert(malFactory))
-            beforeEach(() => db.into('notions').insert(malNotion))
+        context('given a malicious notion', () => {
+            beforeEach(() => db.into('brands').insert(malBrandInsert))
+            beforeEach(() => db.into('notion_types').insert(malNtInsert))
+            beforeEach(() => db.into('fiber_and_material_types').insert(malFtInsert))
+            beforeEach(() => db.into('factories').insert(malFactInsert))
+            beforeEach(() => db.into('notions').insert(malNotionInsert))
 
-            const malNotionId = malNotion.id
-
-            it('removes the XSS attack content', () => (
-                supertest(app)
+            it('removes the attack content', async () => {
+               const getResponse = await supertest(app)
                     .get(`/api/notions/${malNotionId}`)
-                    .expect(res => {
-                        expect(res.body.notion_type).to.eql(expectedNotion.notion_type)
-                        expect(res.body.manufacturer_notes).to.eql(expectedNotion.manufacturer_notes)
-                        expect(res.body.material_notes).to.eql(expectedNotion.material_notes)
-                    })   
-            ))
+
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(malNotionGet[0])
+            })
         })
     })
 
@@ -207,59 +210,68 @@ describe('Notions Endpoints', () => {
         const notionId = 1
 
         context('when there are certifications in the database', () => {
-            beforeEach(() => db.into('brands').insert(brands))
-            beforeEach(() => db.into('notion_types').insert(notionTypes))
-            beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
-            beforeEach(() => db.into('factories').insert(factories))
-            beforeEach(() => db.into('notions').insert(notionsPost))
-            beforeEach(() =>  db.into('certifications').insert(certifications))
+            beforeEach(insertNotion)
+            beforeEach(() =>  db.into('certifications').insert(certArrayInsert))
             beforeEach(() =>  db.into('notions_to_certifications').insert(notsToCerts))
             
-            it('returns all the certifications', () => {
-                return supertest(app)
+            it('returns all the certifications', async () => {
+               const getResponse = await supertest(app)
                     .get(`/api/notions/${notionId}/certifications`)
-                    .expect(200, certifications)
+
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(certArrayInsert)
             })
         })
 
         context('when there are no certifications in the database', () => {
-            beforeEach(() => db.into('brands').insert(brands))
-            beforeEach(() => db.into('notion_types').insert(notionTypes))
-            beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
-            beforeEach(() => db.into('factories').insert(factories))
-            beforeEach(() => db.into('notions').insert(notionsPost))
+            beforeEach(insertNotion)
 
-            it('responds with 200 and an empty list', () => {
-                return supertest(app)
+            it('responds with 200 and an empty list', async () => {
+               const getResponse = await supertest(app)
                     .get(`/api/notions/${notionId}/certifications`)
-                    .expect(200, [])
+
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql([])    
             })
         })
 
         context('given a malicious certification', () => {
-            const notsToMalCert = {
-                certification_id: 666,
-                notion_id: 1
-            }
+            const malNotToMalCert = makeMalNotToMalCert()
 
-            beforeEach(() => db.into('brands').insert(brands))
-            beforeEach(() => db.into('notion_types').insert(notionTypes))
-            beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
-            beforeEach(() => db.into('factories').insert(factories))
-            beforeEach(() => db.into('notions').insert(notionsPost))
-            beforeEach(() =>  db.into('certifications').insert(malCertification))
-            beforeEach(() =>  db.into('notions_to_certifications').insert(notsToMalCert))
+            beforeEach(() => db.into('brands').insert(malBrandInsert))
+            beforeEach(() => db.into('notion_types').insert(malNtInsert))
+            beforeEach(() => db.into('fiber_and_material_types').insert(malFtInsert))
+            beforeEach(() => db.into('factories').insert(factoryInsert))
+            beforeEach(() => db.into('notions').insert(malNotionInsert))
+            beforeEach(() =>  db.into('certifications').insert(malCertInsert))
+            beforeEach(() =>  db.into('notions_to_certifications').insert(malNotToMalCert))
 
-            it('removes the attack content', () => {
-                return supertest(app)
-                    .get(`/api/notions/${notionId}/certifications`)
-                    .expect(200, [ expectedCertification ])
+            const malNotId = 666
+
+            it('removes the attack content', async () => {
+               const getResponse = await supertest(app)
+                    .get(`/api/notions/${malNotId}/certifications`)
+
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql([ malCertGet ])
             })
         })
     })
 
     describe('Protected endpoints', () => {
-        const protectedEndpoints = [
+        beforeEach(() => db.into('brands').insert(brandInsert))
+        beforeEach(() => db.into('notion_types').insert(ntInsert))
+        beforeEach(() => db.into('fiber_and_material_types').insert(ftInsert))
+        beforeEach(() => db.into('factories').insert(factoryInsert))
+        beforeEach(() =>  db.into('notions').insert(notionInsert))
+        beforeEach(() =>  db.into('certifications').insert(malCertInsert))
+        const invalidSecret = 'bad-secret'
+        const invalidUser =  { email: 'not-a-user', password: 'password' }
+        const notAnAdmin = { email: user.email, password: user.password }
+        const userNoCreds = { email: '', password: '' }
+        const validUser = user
+        const notionId = notionInsert.id
+        const ProtPostPoints = [
             {
                 name: 'POST /api/notions',
                 path: '/api/notions'
@@ -270,160 +282,194 @@ describe('Notions Endpoints', () => {
             },
             {
                 name: 'POST /api/notions/:notion_id/certifications',
-                path: '/api/notions/1/certifications'
-            },
-            {
-                name: 'PATCH /api/notions/:notion_id',
-                path: '/api/notions/1/certifications'
-            },
-            {
-                name: 'DELETE /api/notions/:notion_id',
-                path: '/api/notions/1/certifications'
+                path: `/api/notions/${notionId}/certifications`
             }
         ]
 
-        protectedEndpoints.forEach(endpoint => {
+        ProtPostPoints.forEach(endpoint => {
             describe(endpoint.name, () => {
-                beforeEach(() => db.into('brands').insert(brands))
-                beforeEach(() => db.into('notion_types').insert(notionTypes))
-                beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
-                beforeEach(() => db.into('factories').insert(factories))
-                beforeEach(() => db.into('notions').insert(notionsPost))                
-
-                it(`responds with 401 'Missing bearer tokenn' when no basic token`, () => (
-                    supertest(app)
+                it(`responds with 401 and 'Missing bearer token' when no bearer token is provided`, async () => {
+                    const postResponse = await supertest(app)
                         .post(endpoint.path)
                         .send({})
-                        .expect(401, { error: `Missing bearer token`})
-                ))
-    
-                it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                    const userNoCreds = { email: '', password: '' }
-                    return supertest(app)
+
+                    expect(postResponse.status).to.eql(401)
+                    expect(postResponse.error.text).to.eql('{"error":"Missing bearer token"}')
+                })
+
+                it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, async () => {
+                    const postResponse = await supertest(app)
                         .post(endpoint.path)
                         .set('Authorization', makeAuthHeader(userNoCreds))
                         .send({})
-                        .expect(401, { error: `Unauthorized request` })
+
+                    expect(postResponse.status).to.eql(401)
+                    expect(postResponse.error.text).to.eql('{"error":"Unauthorized request"}')
                 })
     
-                it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                    const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                    
-                    return supertest(app)
+                it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, async () => {
+                    const postResponse = await supertest(app)
                         .post(endpoint.path)
-                        .set('Authorization', makeAuthHeader(invalidUserCreds))
+                        .set('Authorization', makeAuthHeader(validUser, invalidSecret))
                         .send({})
-                        .expect(401, { error: 'Unauthorized request' })
+
+                    expect(postResponse.status).to.eql(401)
+                    expect(postResponse.error.text).to.eql('{"error":"Unauthorized request"}')
                 })
     
-                it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                    const incorrectPassword = { email: userArray[0].name, password: 'wrong' }
-    
-                    return supertest(app)
+                it(`responds with 401 and 'Unauthorized request' when the user is invalid`, async () => {                    
+                    const postResponse = await supertest(app)
                         .post(endpoint.path)
-                        .set('Authorization', makeAuthHeader(incorrectPassword))
-                        .send({})
-                        .expect(401, { error: 'Unauthorized request' })
+                        .set('Authorization', makeAuthHeader(invalidUser))
+
+                    expect(postResponse.status).to.eql(401)
+                    expect(postResponse.error.text).to.eql('{"error":"Unauthorized request"}')
                 })
             })
+        })
 
-            const reqAdminEndpoints = [
-                {
-                    name: 'PATCH /api/notions/:notion_id',
-                    path: '/api/notions/1/certifications'
-                },
-                {
-                    name: 'DELETE /api/notions/:notion_id',
-                    path: '/api/notions/1/certifications'
-                }
-            ]
-    
-            reqAdminEndpoints.forEach(endpoint => {
-                describe(endpoint.name, () => {
-                    beforeEach(() => db.into('brands').insert(brands))
-                    beforeEach(() => db.into('notion_types').insert(notionTypes))
-                    beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
-                    beforeEach(() => db.into('factories').insert(factories))
-                    beforeEach(() => db.into('notions').insert(notionsPost))
-                    beforeEach(() => db.into('users').insert(hashAdminArray))
-
-                    it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
-                        return supertest(app)
-                        .patch(`/api/notions/${notionsPost.id}`)
-                        .set('Authorization', makeAuthHeader(userArray[0]))
-                        .send({ notion_type_id: 1})
-                        .expect(401, { error: 'Unauthorized request' })
-                    })
-                })
+        describe('PATCH /api/notions/:notion_id', () => {
+            it(`responds with 401 and 'Missing bearer token' when no bearer token is provided`, async () => {
+               const patchResponse = await supertest(app)
+                    .patch(`/api/notions/${notionId}`)
+                    .send({})
+                
+                expect(patchResponse.status).to.eql(401)
+                expect(patchResponse.error.text).to.eql('{"error":"Missing bearer token"}')
             })
-        })    
+
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, async () => {
+               const patchResponse = await supertest(app)
+                    .patch(`/api/notions/${notionId}`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .send({})
+
+                expect(patchResponse.status).to.eql(401)
+                expect(patchResponse.error.text).to.eql('{"error":"Unauthorized request"}')
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, async () => {
+                const patchResponse = await supertest(app)
+                    .patch(`/api/notions/${notionId}`)
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .send({})
+
+                expect(patchResponse.status).to.eql(401)
+                expect(patchResponse.error.text).to.eql('{"error":"Unauthorized request"}')
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, async () => {                
+                const patchResponse = await supertest(app)
+                    .patch(`/api/notions/${notionId}`)
+                    .set('Authorization', makeAuthHeader(invalidUser))
+                    .send({})
+
+                expect(patchResponse.status).to.eql(401)
+                expect(patchResponse.error.text).to.eql('{"error":"Unauthorized request"}')            
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`, async () => {
+                const patchResponse = await supertest(app)
+                    .patch(`/api/notions/${notionId}`)
+                    .set('Authorization', makeAuthHeader(notAnAdmin))
+                    .send({})
+
+                expect(patchResponse.status).to.eql(401)
+                expect(patchResponse.error.text).to.eql('{"error":"Unauthorized request"}')
+            })
+        })
+
+        describe('DELETE /api/notions/:notion_id', () => {
+            it(`responds with 401 and 'Missing bearer token' when no bearer token is provided`, async () => {
+                const delResponse = await supertest(app)
+                    .delete(`/api/notions/${notionId}`)
+
+                expect(delResponse.status).to.eql(401)
+                expect(delResponse.error.text).to.eql('{"error":"Missing bearer token"}')
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, async () => {
+                const delResponse = await supertest(app)
+                    .delete(`/api/notions/${notionId}`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+
+                    expect(delResponse.status).to.eql(401)
+                    expect(delResponse.error.text).to.eql('{"error":"Unauthorized request"}')
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, async () => {
+                const delResponse = await supertest(app)
+                    .delete(`/api/notions/${notionId}`)
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+
+                    expect(delResponse.status).to.eql(401)
+                    expect(delResponse.error.text).to.eql('{"error":"Unauthorized request"}')
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, async () => {
+                const delResponse = await supertest(app)
+                    .delete(`/api/notions/${notionId}`)
+                    .set('Authorization', makeAuthHeader(invalidUser))
+
+                expect(delResponse.status).to.eql(401)
+                expect(delResponse.error.text).to.eql('{"error":"Unauthorized request"}')
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`, async () => {
+                const delResponse = await supertest(app)
+                    .delete(`/api/notions/${notionId}`)
+                    .set('Authorization', makeAuthHeader(notAnAdmin))
+
+                expect(delResponse.status).to.eql(401)
+                expect(delResponse.error.text).to.eql('{"error":"Unauthorized request"}')
+            })
+        })
     })
 
     describe('POST /api/notions', () => {
-        beforeEach(() => db.into('brands').insert(brands))
-        beforeEach(() => db.into('factories').insert(factories))
-        beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
-        beforeEach(() => db.into('notion_types').insert(notionTypes))
+        beforeEach(insertNotReqs)
+        // beforeEach(() => db.into('brands').insert(brandInsert))
+        // beforeEach(() => db.into('factories').insert(factoryInsert))
+        // beforeEach(() => db.into('fiber_and_material_types').insert(ftInsert))
+        // beforeEach(() => db.into('notion_types').insert(ntInsert))
 
-        it('creates a new notion, returning 201 and the new notion', () => {
-            const newNotion = {
-                notion_type_id: 1,
-                brand_id: 1,
-                manufacturer_country: 1,
-                manufacturer_id: 1,
-                manufacturer_notes: 'These are the notes.',
-                material_type_id: 1,
-                material_origin_id: 1,
-                material_producer_id: 1,
-                material_notes: 'These are the notes.'
-            }
+        it('creates a new notion, returning 201 and the new notion', async function () {
+            this.retries(3)
             
-            return supertest(app)
+            const postResponse = await supertest(app)
                 .post(`/api/notions`)
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(newNotion)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.notion_type_id).to.eql(newNotion.notion_type_id)
-                    expect(res.body.brand_id).to.eql(newNotion.brand_id)
-                    expect(res.body.manufacturer_country).to.eql(newNotion.manufacturer_country)
-                    expect(res.body.manufacturer_id).to.eql(newNotion.manufacturer_id)
-                    expect(res.body.manufacturer_notes).to.eql(newNotion.manufacturer_notes)
-                    expect(res.body.material_type_id).to.eql(newNotion.material_type_id)
-                    expect(res.body.material_origin_id).to.eql(newNotion.material_origin_id)
-                    expect(res.body.material_notes).to.eql(newNotion.material_notes)
-                    expect(res.body.approved_by_admin).to.eql(false)
-                    expect(res.body).to.have.property('id')
-                    expect(res.headers.location).to.eql(`/api/notions/${res.body.id}`)
-                    const expected = new Date().toLocaleString()
-                    const actual = new Date(res.body.date_published).toLocaleString()
-                    expect(actual).to.eql(expected)
-                    return res
-                })
-                .then(async postRes => {
-                    const expectedNotion = {
-                        id: postRes.body.id,
-                        notion_type_id: postRes.body.notion_type_id,
-                        notion_type: 'button',
-                        brand_id: postRes.body.brand_id,
-                        manufacturer_country: postRes.body.manufacturer_country,
-                        manufacturer_id: postRes.body.manufacturer_id,
-                        manufacturer_notes: postRes.body.manufacturer_notes,
-                        material_type_id: postRes.body.material_type_id,
-                        material_origin_id: postRes.body.material_origin_id,
-                        material_producer_id: postRes.body.material_producer_id,
-                        material_notes: postRes.body.material_notes,
-                        approved_by_admin: postRes.body.approved_by_admin,
-                        date_published: postRes.body.date_published
-                    }
+                .set('Authorization', makeAuthHeader(user))
+                .send(notionPost)
 
-                    await supertest(app)
-                        .get(`/api/notions/${postRes.body.id}`)
-                        .expect(expectedNotion)
-                        .catch(error => {
-                            console.log(error)
-                        })
-                })
+            const getResponse = await supertest(app)
+                .get(`/api/notions/${postResponse.body.id}`)
+
+            const expected = new Date().toLocaleString()
+            const created = new Date(postResponse.body.created_at).toLocaleString()
+            const updated = new Date(postResponse.body.updated_at).toLocaleString()
+
+            const expectedPostBody = {
+                id: postResponse.body.id,
+                ...notionPost,
+                approved_by_admin: false,
+                created_at: postResponse.body.created_at,
+                updated_at: postResponse.body.updated_at
+            }
+
+            const expectedGet = {
+                ...expectedPostBody,
+                notion_type: ntInsert.english_name
+            }
+
+            expect(postResponse.status).to.eql(201)
+            expect(postResponse.headers.location).to.eql(`/api/notions/${postResponse.body.id}`)
+            expect(postResponse.body.approved_by_admin).to.eql(false)
+            expect(postResponse.body).to.eql(expectedPostBody)
+            expect(created).to.eql(expected)
+            expect(updated).to.eql(expected)
+            expect(getResponse.status).to.eql(200)
+            expect(getResponse.body).to.eql(expectedGet)
+
         })
 
         const requiredFields = [
@@ -449,274 +495,346 @@ describe('Notions Endpoints', () => {
                 material_notes: 'These are the notes.'
             }
 
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
+            it(`responds with 400 and an error message when the '${field}' is missing`, async () => {
                 delete newNotion[field]
 
-                return supertest(app)
+                const postResponse = await supertest(app)
                     .post('/api/notions')
-                    .set('Authorization', makeAuthHeader(userArray[0]))
+                    .set('Authorization', makeAuthHeader(user))
                     .send(newNotion)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                    })
+                
+                expect(postResponse.status).to.eql(400)
+                expect(postResponse.error.text).to.eql(`{"error":{"message":"Missing '${field}' in request body"}}`)
             })
         })
 
-        beforeEach(() => db.into('brands').insert(malBrand))
-        beforeEach(() => db.into('fiber_and_material_types').insert(malFiberType))
-        beforeEach(() => db.into('factories').insert(malFactory))
-        beforeEach(() => db.into('notion_types').insert(malNotionType))
+        context('given a malicious notion', () => {
+            beforeEach(() => db.into('brands').insert(malBrandInsert))
+            beforeEach(() => db.into('fiber_and_material_types').insert(malFtInsert))
+            beforeEach(() => db.into('factories').insert(malFactInsert))
+            beforeEach(() => db.into('notion_types').insert(malNtInsert))
 
-        it('removes XSS attack content from the response', () => (
-            supertest(app)
-                .post('/api/notions')
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(malNotion)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.manufacturer_notes).to.eql(expectedNotion.manufacturer_notes)
-                    expect(res.body.material_notes).to.eql(expectedNotion.material_notes)
-                })
-        ))
+            it('removes the attack content from the response', async function () {
+                this.retries(3)
+
+                const postResponse = await supertest(app)
+                    .post('/api/notions')
+                    .set('Authorization', makeAuthHeader(user))
+                    .send(malNotionPost)
+                    
+                const getResponse = await supertest(app)
+                    .get(`/api/notions/${postResponse.body.id}`)
+
+                const expected = new Date().toLocaleString()
+                const created = new Date(postResponse.body.created_at).toLocaleString()
+                const updated = new Date(postResponse.body.updated_at).toLocaleString()
+    
+                const expectedPostBody = {
+                    id: postResponse.body.id,
+                    ...malNotionPost,
+                    manufacturer_notes: malNotionGet[0].manufacturer_notes,
+                    material_notes: malNotionGet[0].material_notes,
+                    approved_by_admin: false,
+                    created_at: postResponse.body.created_at,
+                    updated_at: postResponse.body.updated_at
+                }
+    
+                const expectedGet = {
+                    ...expectedPostBody,
+                    notion_type: malNotionGet[0].notion_type
+                }
+
+                expect(postResponse.status).to.eql(201)
+                expect(postResponse.headers.location).to.eql(`/api/notions/${postResponse.body.id}`)
+                expect(postResponse.body.approved_by_admin).to.eql(false)
+                expect(postResponse.body).to.eql(expectedPostBody)
+                expect(created).to.eql(expected)
+                expect(updated).to.eql(expected)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedGet)
+            })
+        })
     })
 
     describe('POST /api/notions/notion-types', () => {
-        it('creates a new notion type, responding with 201 and the new notion type', () => {
-            const newNotionType = {
-                english_name: 'zipper'
-            }
-
-            supertest(app)
+        it('creates a new notion type, responding with 201 and the new notion type', async function () {
+            this.retries(3)
+            
+            const postResponse = await supertest(app)
                 .post('/api/notions/notion-types')
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(newNotionType)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(newNotionType.english_name)
-                    expect(res.body.approved_by_admin).to.eql(false)
-                    expect(res.body).to.have.property('id')
-                    const expected = new Date().toLocaleString()
-                    const actual = new Date(res.body.date_published).toLocaleString()
-                    expect(actual).to.eql(expected)
-                })
-                .catch(error => {
-                    console.log(error)
-                })
+                .set('Authorization', makeAuthHeader(user))
+                .send(ntPost)
+
+            const getResponse = await supertest(app)
+                .get('/api/notions/notion-types')
+
+            const expected = new Date().toLocaleString()
+            const created = new Date(postResponse.body.created_at).toLocaleString()
+            const updated = new Date(postResponse.body.updated_at).toLocaleString()
+            const expectedGet = [
+                {
+                    id: postResponse.body.id,
+                    english_name: ntPost.english_name,
+                    approved_by_admin: false,
+                    created_at: postResponse.body.created_at,
+                    updated_at: postResponse.body.updated_at
+                }
+            ]
+
+            expect(postResponse.status).to.eql(201)
+            expect(postResponse.body.approved_by_admin).to.eql(false)
+            expect(created).to.eql(expected)
+            expect(updated).to.eql(expected)
+            expect(getResponse.status).to.eql(200)
+            expect(getResponse.body).to.eql(expectedGet)
+
         })
 
-        it(`responds with 400 and an error message when the 'english_name' field is missing`, () => {
-            supertest(app)
+        it(`responds with 400 and an error message when the 'english_name' field is missing`, async () => {
+            const postResponse = await supertest(app)
                 .post('/api/notions/notion-types')
-                .set('Authorization', makeAuthHeader(userArray[0]))
+                .set('Authorization', makeAuthHeader(user))
                 .send({})
-                .expect(400, {
-                    error: { message: `Missing 'english_name' in request body`}
-                })
-                .catch(error => {
-                    console.log(error)
-                })
+
+            expect(postResponse.status).to.eql(400)
+            expect(postResponse.error.text).to.eql(`{"error":{"message":"Missing 'english_name' in request body"}}`)
         })
 
-        it('removes XSS attack content from the response', () => {
-            const newMalNotionType = {
-                english_name: malNotionType.english_name,
-                approved_by_admin: malNotionType.approved_by_admin
-            }
+        context('given a malicious notion type', () => {
+            it('removes the attack content from the response', async function () {
+                this.retries(3)
+                
+                const postResponse = await supertest(app)
+                    .post('/api/notions/notion-types')
+                    .set('Authorization', makeAuthHeader(user))
+                    .send(malNtPost)
 
-            supertest(app)
-                .post('/api/notions/notion-types')
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(newMalNotionType)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(expectedNotionType.english_name)
-                    expect(res.body.approved_by_admin).to.eql(expectedNotionType.approved_by_admin)
-                })
-                .catch(error => {
-                    console.log(error)
-                })
+                const getResponse = await supertest(app)
+                    .get('/api/notions/notion-types') 
+
+                const expected = new Date().toLocaleString()
+                const created = new Date(postResponse.body.created_at).toLocaleString()
+                const updated = new Date(postResponse.body.updated_at).toLocaleString()
+                const expectedGet = [
+                    {
+                        id: postResponse.body.id,
+                        english_name: malNtGet[0].english_name,
+                        approved_by_admin: false,
+                        created_at: postResponse.body.created_at,
+                        updated_at: postResponse.body.updated_at
+                    }
+                ]
+
+                expect(postResponse.status).to.eql(201)
+                expect(postResponse.body.approved_by_admin).to.eql(false)
+                expect(created).to.eql(expected)
+                expect(updated).to.eql(expected)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedGet)
+            })
         })
     })
 
     describe('POST /api/notions/notion_id/certifications', () => {
-        before('clean the table', () => db.raw(`TRUNCATE table notion_types RESTART IDENTITY CASCADE`))
-        beforeEach(() => db.into('brands').insert(brands))
-        beforeEach(() => db.into('factories').insert(factories))
-        beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
-        beforeEach(() => db.into('notion_types').insert(notionTypes))
-        beforeEach(() => db.into('notions').insert(notionsPost))
-        beforeEach(() => db.into('certifications').insert(certifications))
-        beforeEach(() => db.into('certifications').insert(malCertification))
+        // before('clean the table', () => db.raw(`TRUNCATE table notion_types RESTART IDENTITY CASCADE`))
+        beforeEach(insertNotion)
+        beforeEach(() => db.into('certifications').insert(certArrayInsert))
 
-        it('creates a notion-certification pair, responding with 201 and the notion-certification pair', () => {
+        it('creates a notion-certification pair, responding with 201 and the notion-certification pair', async function () {
+            this.retries(3)
+            
             const notionId = 1
             const notCert = {
                 certification_id: 1
             }
 
-            return supertest(app)
+            const postResponse = await supertest(app)
                 .post(`/api/notions/${notionId}/certifications`)
-                .set('Authorization', makeAuthHeader(userArray[0]))
+                .set('Authorization', makeAuthHeader(user))
                 .send(notCert)
-                .expect(201)
+
+            const getResponse = await supertest(app)
+                .get(`/api/notions/${notionId}/certifications`)
+
+            const expected = new Date().toLocaleString()
+            const created = new Date(postResponse.body.created_at).toLocaleString()
+            const updated = new Date(postResponse.body.updated_at).toLocaleString()
+            const makeCert = () => certArrayGet.find(cert => cert.id === notCert.certification_id)
+            const cert1Get = makeCert()
+            const expectedGet = [
+                {
+                    id: notCert.certification_id,
+                    english_name: cert1Get.english_name,
+                    website: cert1Get.website,
+                    approved_by_admin: cert1Get.approved_by_admin,
+                    created_at: cert1Get.created_at,
+                    updated_at: cert1Get.updated_at
+                }
+            ]
+
+            expect(postResponse.status).to.eql(201)
+            expect(postResponse.body.notion_id).to.eql(notionId)
+            expect(postResponse.body.certification_id).to.eql(notCert.certification_id)
+            expect(postResponse.body.approved_by_admin).to.eql(false)
+            expect(created).to.eql(expected)
+            expect(updated).to.eql(expected)
+            expect(getResponse.body).to.eql(expectedGet)
         })
 
-        it(`responds with 400 and an error message when 'certification_id' is missing`, () => {
+        it(`responds with 400 and an error message when 'certification_id' is missing`, async () => {
             const notionId = 1
 
-            return supertest(app)
+            const postResponse = await supertest(app)
                 .post(`/api/notions/${notionId}/certifications`)
-                .set('Authorization', makeAuthHeader(userArray[0]))
+                .set('Authorization', makeAuthHeader(user))
                 .send({})
-                .expect(400, {
-                    error: { message: `Missing 'certification_id' in request body`}
-                })
+                
+                expect(postResponse.status).to.eql(400)
+                expect(postResponse.error.text).to.eql(`{"error":{"message":"Missing 'certification_id' in request body"}}`)
         })
     })
 
     describe('PATCH /api/notions/:notion_id', () => {
-        const idToUpdate = notionsPost.id
-        const adminUser = adminArray[0]
+        const idToUpdate = 1
+        const fullUpdate = {
+            notion_type_id: 1,
+            brand_id: 1,
+            manufacturer_country: 2,
+            manufacturer_id: 1,
+            manufacturer_notes: 'New notes',
+            material_type_id: 1,
+            material_origin_id: 2,
+            material_producer_id: 1,
+            material_notes: 'New notes',
+            approved_by_admin: true
+        }
 
-        context(`when the notion with id notion_id' exists`, () => {
-            beforeEach(() => db.into('brands').insert(brands))
-            beforeEach(() => db.into('factories').insert(factories))
-            beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
-            beforeEach(() => db.into('notion_types').insert(notionTypes))
-            beforeEach(() => db.into('notions').insert(notionsPost))
+        context(`given the notion with id notion_id' exists`, () => {
+            beforeEach(insertNotion)
             beforeEach(() => db.into('users').insert(hashAdminArray))
 
-            it('updates the notion and responds with 204', () => {
-                const updateNotion = {
-                    manufacturer_notes: 'New notes.',
-                    material_notes: 'New new new.'
-                }
-
-                const newNotion = {
-                    ...notionsGet,
-                    ...updateNotion
-                }
-
-                return supertest(app)
+            it('updates the notion and responds with 204', async function () {
+                this.retries(3)
+                
+                const patchResponse = await supertest(app)
                     .patch(`/api/notions/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
-                    .send(updateNotion)
-                    .expect(204)
-                    .then(res => {
-                        supertest(app)
-                            .get(`/api/notions/${idToUpdate}`)
-                            .expect(newNotion)
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    })
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send(fullUpdate)
+
+                const getResponse = await supertest(app)
+                    .get(`/api/notions/${idToUpdate}`)
+                
+                const expectedNotion = {
+                    id: idToUpdate,
+                    ...fullUpdate,
+                    notion_type: ntGet[0].english_name,
+                    created_at: notionInsert.created_at,
+                    updated_at: notionInsert.updated_at
+                }
+
+                const created = new Date(getResponse.body.created_at).toLocaleString()
+                const updated = new Date(getResponse.body.updated_at).toLocaleString()
+                const expectedCreated = new Date(notionInsert.created_at).toLocaleString()
+                const expectedUpdated = new Date(notionInsert.updated_at).toLocaleString()
+
+                expect(patchResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedNotion)      
+                expect(created).to.eql(expectedCreated)
+                expect(updated).to.eql(expectedUpdated)
             })
 
-            it('responds with 400 and an error message when no required fields are supplied', () => {
-                return supertest(app)
+            it('responds with 400 and an error message when no required fields are supplied', async () => {
+                const patchResponse = await supertest(app)
                     .patch(`/api/notions/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
+                    .set('Authorization', makeAuthHeader(admin))
                     .send({})
-                    .expect(400, {
-                        error : { message : `Request body must contain 'notion_type_id', 'brand_id', 'manufacturer_country', 'manufacturer_id', 'manufacturer_notes', 'material_type_id', 'material_origin_id', 'material_producer_id','material_notes','approved_by_admin'`}
-                    })
-                    .catch(error => {
-                        console.log(error)
-                    })
+                
+                expect(patchResponse.status).to.eql(400)    
+                expect(patchResponse.error.text).to.eql(`{"error":{"message":"Request body must contain 'notion_type_id', 'brand_id', 'manufacturer_country', 'manufacturer_id', 'manufacturer_notes', 'material_type_id', 'material_origin_id', 'material_producer_id','material_notes','approved_by_admin', 'created_at', or 'updated_at'."}}`)
             })
 
-            it('responds with 204 when updating only a subset of fields', () => {
-                const updateNotion = {
-                    manufacturer_notes: 'New notes.',
-                    material_notes: 'New new new.'
+            it('responds with 204 when updating only a subset of fields', async function () {
+                this.retries(3)
+
+                const subsetUpdate = {
+                    manufacturer_notes: fullUpdate.manufacturer_notes,
+                    material_notes: fullUpdate.material_notes
                 }
-    
-                return supertest(app)
+
+                const patchResponse = await supertest(app)
                     .patch(`/api/notions/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
-                    .send(updateNotion)
-                    .expect(204)
-                    .then(res => {
-                        supertest(app)
-                            .get(`/api/notions/${idToUpdate}`)
-                            .expect(newRes => {
-                                expect(newRes.body.manufacturer_notes).to.eql(updateNotion.manufacturer_notes)
-                                expect(newRes.body.material_notes).to.eql(updateNotion.material_notes)
-                            })
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    })
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send(subsetUpdate)
+
+                const getResponse = await supertest(app)
+                    .get(`/api/notions/${idToUpdate}`)
+
+                const expectedNotion = {
+                    ...notionInsert,
+                    ...subsetUpdate,
+                    notion_type: ntGet[0].english_name,
+                }    
+
+                const created = new Date(getResponse.body.created_at).toLocaleString()
+                const updated = new Date(getResponse.body.updated_at).toLocaleString()
+                const expectedCreated = new Date(notionInsert.created_at).toLocaleString()
+                const expectedUpdated = new Date(notionInsert.updated_at).toLocaleString()
+
+                expect(patchResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedNotion)      
+                expect(created).to.eql(expectedCreated)
+                expect(updated).to.eql(expectedUpdated)
+                expect(getResponse.body.manufacturer_notes).to.eql(fullUpdate.manufacturer_notes)
+                expect(getResponse.body.material_notes).to.eql(fullUpdate.material_notes)
             })
         })
 
-        context(`when the notion with id notion_id does not exist`, () => {
-            beforeEach(() => db.into('brands').insert(brands))
-            beforeEach(() => db.into('factories').insert(factories))
-            beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
-            beforeEach(() => db.into('notion_types').insert(notionTypes))
+        context(`given the notion with id notion_id does not exist.`, () => {
+            beforeEach(insertNotReqs)
 
-            it('responds with 404', () => {
-                const updateNotion = {
-                    notion_type_id: 1,
-                    brand_id: 1,
-                    manufacturer_country: 1,
-                    manufacturer_id: 1,
-                    manufacturer_notes: 'New notes.',
-                    material_type_id: 1,
-                    material_origin_id: 1,
-                    material_producer_id: 1,
-                    material_notes: 'New new new.'
-                }
-
-                return supertest(app)
+            it('responds with 404 and an error message', async () => {
+                const patchResponse = await supertest(app)
                     .patch(`/api/notions/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
-                    .send(updateNotion)
-                    .expect(404, {
-                        error: { message: `Notion does not exist` }
-                    })
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send(fullUpdate)
+
+                expect(patchResponse.status).to.eql(404)
+                expect(patchResponse.error.text).to.eql(`{"error":{"message":"Notion does not exist."}}`)
             })
         })
     })
 
     describe('DELETE /api/notions/:notion_id', () => {
-        const idToDelete = 1
-        const expectedNotions = []
-        const adminUser = adminArray[0]
+        beforeEach(insertNotion)
+        beforeEach(() => db.into('users').insert(hashAdminArray))
+        const idToDelete = notionInsert.id
 
         context(`when the notion with id notion_id' exists`, () => {
-            beforeEach(() => db.into('brands').insert(brands))
-            beforeEach(() => db.into('factories').insert(factories))
-            beforeEach(() => db.into('fiber_and_material_types').insert(fiberTypes))
-            beforeEach(() => db.into('notion_types').insert(notionTypes))
-            beforeEach(() => db.into('notions').insert(notionsPost))
-            beforeEach(() => db.into('users').insert(hashAdminArray))
-
-            it('responds with 204 and removes the notion', () => {
-                return supertest(app)
+            it('responds with 204 and removes the notion', async () => {
+                const deleteResponse = await supertest(app)
                     .delete(`/api/notions/${idToDelete}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
-                    .expect(204)
-                    .then(res => {
-                        supertest(app)
-                            .get('/api/notions')
-                            .expect(expectedNotions)
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    })
+                    .set('Authorization', makeAuthHeader(admin))
+                    
+                const getResponse = await supertest(app)
+                    .get(`/api/notions/${idToDelete}`)
+
+                expect(deleteResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(404)
             })
         })
 
-        context(`when the notion with id notion_id does not exist`, () => {
-            it('responds with 404 and an error message', () => {
-                return supertest(app)
-                    .delete(`/api/notions/${idToDelete}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
-                    .expect(404, {
-                        error: { message: `Notion does not exist` }
-                    })
+        context(`when the notion with id notion_id does not exist.`, () => {
+            it('responds with 404 and an error message', async () => {
+                const nonexistantId = 123
+
+                const delResponse = await supertest(app)
+                    .delete(`/api/notions/${nonexistantId}`)
+                    .set('Authorization', makeAuthHeader(admin))
+
+                expect(delResponse.status).to.eql(404)
+                expect(delResponse.error.text).to.eql('{"error":{"message":"Notion does not exist."}}')
             })
         })
     })

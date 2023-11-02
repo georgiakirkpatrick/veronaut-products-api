@@ -1,47 +1,31 @@
-const knex = require('knex')
-const jwt = require('jsonwebtoken')
-const app = require('../src/app')
-
-const { makeBrandArray, makeMalBrand } = require('./brands.fixtures')
-const { makeCertificationArray, makeMalCertification } = require('./certifications.fixtures')
-const {
-    makeFabricArray, makeFabricsToCertifications, makeFabricsToFactories, makeFabricsToFibers,
-    makeFabricsTomalFibers, makeFabricsTomalCertifications, makeFabricsTomalFactories, makeFabricTypeArray,
-    makeFibersToFactories, makeNotionTypesArray, makeMalNotionType, makeMalFabric, makeMalFibersToFactories
-} = require('./fabrics.fixtures')
-const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
-const { makeFiberArray, makeFiberTypeArray, makeMalFiber, makeMalFiberType } = require('./fibers.fixtures')
-const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray } = require('./users.fixtures')
-
 describe('Fabrics Endpoints', () => {
-    const adminArray = makeAdminArray()
-    const fabricTypes = makeFabricTypeArray()
-    const fiberTypes = makeFiberTypeArray()
-    const notionTypes = makeNotionTypesArray()
-    const brands = makeBrandArray()
-    const { fabricArray, expectedFabricArray } = makeFabricArray()
-    const { fibersPost, fibersGet} = makeFiberArray()
-    const factories = makeFactoryArray()
-    const hashAdminArray = hashedAdminArray()
+    const app = require('../src/app')
+    const { expect } = require('chai')
+    const knex = require('knex')
+    const jwt = require('jsonwebtoken')
+    const supertest = require('supertest')
+    const { makeBrand, makeMalBrand } = require('./brands.fixtures')
+    const { makeCertArray, makeMalCert } = require('./certifications.fixtures')
+    const { makeFabric, makeFabToFib, makeFabToCert, makeFibToFact, makeFabToFact, makeMalFabric,
+        makeMalFibToFact, makeMalFabToMalFib, makeFabToMalCert, makeMalFabToMalFact } = require('./fabrics.fixtures')
+    const { makeFactory, makeMalFactory } = require('./factories.fixtures')
+    const { makeFiber, makeFiberType, makeMalFiber, makeMalFiberType } = require('./fibers.fixtures')
+    const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray } = require('./users.fixtures')
+    const { brandInsert } = makeBrand()
+    const { fabricPost, fabricInsert, fabricGetAll, fabricGetOne, fullFabUpdate } = makeFabric()
+    const { fiberInsert, fiberGet } = makeFiber()
+    const { certArrayInsert, certArrayGet} = makeCertArray()
+    const { malBrandInsert } = makeMalBrand()
+    const { malFabPost, malFabInsert, malFabGetAll, malFabGetOne } = makeMalFabric()
+    const { malFiberInsert, malFiberGet } = makeMalFiber()
+    const { malFtInsert } = makeMalFiberType()
+    const { malFactInsert, malFactGet } = makeMalFactory()
+    const { malCertGet, malCertInsert } = makeMalCert()
+    const { factoryInsert, factoryGet } = makeFactory()
+    const admin = makeAdminArray()[0]
     const hashUserArray = hashedUserArray()
-    const certifications = makeCertificationArray()
-    const fabricsToFibers = makeFabricsToFibers()
-    const fibersToFactories = makeFibersToFactories()
-    const fabricsToFactories = makeFabricsToFactories()
-    const { malBrand } = makeMalBrand()
-    const { malFabric, expectedFabric } = makeMalFabric()
-    const { malFiber, expectedFiber } = makeMalFiber()
-    const { malFiberType } = makeMalFiberType()
-    const { malNotionType, expectedNotionType } = makeMalNotionType()
-    const { malFactory, expectedFactory } = makeMalFactory()
-    const { malCertification, expectedCertification } = makeMalCertification()
-    const malFibersToFactories = makeMalFibersToFactories()
-    const fabricsTomalFibers = makeFabricsTomalFibers()
-    const fabricsToCertifications = makeFabricsToCertifications()
-    const fabricsTomalCertifications = makeFabricsTomalCertifications()
-    const fabricsTomalFactories = makeFabricsTomalFactories()
-    const userArray = makeUserArray()
-
+    const incompleteInfo = {}
+    const user = makeUserArray()[0]
     let db
 
     const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
@@ -51,6 +35,11 @@ describe('Fabrics Endpoints', () => {
         })
         return `Bearer ${token}`
     }
+
+    const insertFabric = () => (
+        db.into('brands').insert(brandInsert)
+        .then(() => db.into('fabrics').insert(fabricInsert))
+    )
 
     before('make knex instance', () => {
         db = knex({
@@ -63,46 +52,26 @@ describe('Fabrics Endpoints', () => {
     after('disconnect from db', () => db.destroy())
     
     before('clean the table', () => db.raw(
-        `TRUNCATE table fabric_types, brands, fabrics, factories, fiber_and_material_types, fibers_to_factories, fabrics_to_fibers_and_materials, 
-        notion_types, certifications, fabrics_to_certifications, users RESTART IDENTITY CASCADE`
+        `TRUNCATE table fabric_types, brands, fabrics, factories, fiber_and_material_types, fibers_to_factories,
+        fabrics_to_fibers_and_materials, certifications, fabrics_to_certifications, users 
+        RESTART IDENTITY CASCADE`
     ))
 
     afterEach('cleanup', () => db.raw(
-        `TRUNCATE table 
-        fabrics_to_certifications, 
-        fabrics_to_fibers_and_materials, 
-        fabrics, 
-        fabric_types, 
-        brands, 
-        factories, 
-        fiber_and_material_types,
-        fibers_to_factories, 
-        notion_types, 
-        certifications, 
-        users 
+        `TRUNCATE table fabrics_to_certifications, fabrics_to_fibers_and_materials, fabrics, fabric_types, 
+        brands, factories, fiber_and_material_types, fibers_to_factories, certifications, users 
         RESTART IDENTITY CASCADE`
     ))
 
     describe('GET /api/fabrics', () => {
-        context('when there are fabrics in the database', () => {
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
+        context('given there are fabrics in the database', () => {
+            beforeEach(insertFabric)
             
             it('returns all the fabrics', () => {
                 return supertest(app)
                     .get('/api/fabrics')
                     .expect(200)
-                    .expect(res => {
-                        expect(res.body.brand_id).to.eql(fabricArray.brand_id)
-                        expect(res.body.fabric_type).to.eql(fabricTypes.english_name)
-                        expect(res.body.fabric_mill_id).to.eql(fabricArray.fabric_mill_id)
-                        expect(res.body.fabric_mill_country).to.eql(fabricArray.fabric_mill_country)
-                        expect(res.body.fabric_mill_notes).to.eql(fabricArray.fabric_mill_notes)
-                        expect(res.body.dye_print_finish_id).to.eql(fabricArray.dye_print_finish_id)
-                        expect(res.body.dye_print_finish_country).to.eql(fabricArray.dye_print_finish_country)
-                        expect(res.body.dye_print_finish_notes).to.eql(fabricArray.dye_print_finish_notes)
-                        expect(res.body.approved_by_admin).to.eql(fabricArray.approved_by_admin)
-                    })
+                    .expect(fabricGetAll)
             })
         })
 
@@ -111,324 +80,211 @@ describe('Fabrics Endpoints', () => {
             
             return supertest(app)
                 .get('/api/fabrics')
-                .expect(200, [])
+                .expect(200)
+                .expect([])
             })
         })
 
         context('given a malicious fabric', () => {
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert( malFabric ))
+            beforeEach(() =>  db.into('brands').insert(malBrandInsert))
+            beforeEach(() =>  db.into('fabrics').insert( malFabInsert ))
 
             it('removes the attack content', () => {
                 return supertest(app)
                     .get('/api/fabrics')
                     .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].fabric_mill_notes).to.eql(expectedFabric.fabric_mill_notes)
-                        expect(res.body[0].dye_print_finish_notes).to.eql(expectedFabric.dye_print_finish_notes)
-                    })
-            })
-        })
-    })
-
-    describe('GET /api/fabrics/notion-types', () => {
-        context('when there are notion types in the database', () => {
-            beforeEach(() =>  db.into('notion_types').insert(notionTypes))
-
-            it('returns all the notion types', () => {
-                return supertest(app)
-                    .get('/api/fabrics/notion-types')
-                    .expect(200, notionTypes)
-            })
-        })
-
-        context('when there are no notion types in the database', () => {
-            it('returns 200 and an empty list', () => {
-                return supertest(app)
-                    .get('/api/fabrics/notion-types')
-                    .expect(200, [])
-            })
-        })
-
-        context('given a malicious notion type', () => {
-            beforeEach(() =>  db.into('notion_types').insert(malNotionType))
-
-            it('removes the attack content', () => {
-                return supertest(app)
-                    .get('/api/fabrics/notion-types')
-                    .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].english_name).to.eql(expectedNotionType.english_name)
-                    })
-                    
+                    .expect(malFabGetAll)
             })
         })
     })
 
     describe('GET /api/fabrics/:fabric_id', () => {
-        context('when the fabric with id fabric_id exists', () => {
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
+        beforeEach(insertFabric)
 
-            const fabricId = fabricArray[0].id
+        context('given the fabric with id fabric_id exists', () => {
+            const fabricId = fabricInsert.id
 
             it('returns the fabric with id fabric_id', () => {
                 return supertest(app)
                     .get(`/api/fabrics/${fabricId}`)
-                    .expect(200, expectedFabricArray[fabricId - 1])
+                    .expect(200)
+                    .expect(fabricGetOne)
             })
         })
 
         context('when the fabric with id fabric_id does not exist', () => {
-            const fabricId = 1
+            const fabricId = fabricInsert.id + 1
 
             it('responds with 404 and an error message', () => {
                 return supertest(app)
                     .get(`/api/fabrics/${fabricId}`)
-                    .expect(404, { error: { message: 'Fabric does not exist.' } })
+                    .expect(404)
+                    .expect({ error: { message: 'Fabric does not exist.' } })
             })
         })
 
         context('when the fabric with id fabric_id is a malicious fabric', () => {
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert(malFabric))
-
-            const fabricId = malFabric.id
+            beforeEach(() =>  db.into('brands').insert(malBrandInsert))
+            beforeEach(() =>  db.into('fabrics').insert(malFabInsert))
+            const fabricId = malFabInsert.id
 
             it('removes the attack content from the fabric with id fabric_id', () => {
                 return supertest(app)
                     .get(`/api/fabrics/${fabricId}`)
                     .expect(200)
-                    .expect(res => {
-                        expect(res.body.fabric_mill_notes).to.eql(expectedFabric.fabric_mill_notes)
-                        expect(res.body.dye_print_finish_notes).to.eql(expectedFabric.dye_print_finish_notes)
-                    })
+                    .expect(malFabGetOne)
             })
         })
     })
 
     describe('GET /api/fabrics/:fabric_id/certifications', () => {
-        context('when there are certifications in the database', () => {
-            beforeEach(() =>  db.into('certifications').insert(certifications))
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-            beforeEach(() =>  db.into('fabrics_to_certifications').insert(fabricsToCertifications))
+        beforeEach(insertFabric)
+        const fabricId = fabricInsert.id
 
-            const fabricId = 1
+        context('given there are certifications in the database', () => {
+            beforeEach(() =>  db.into('certifications').insert(certArrayInsert))
+            beforeEach(() =>  db.into('fabrics_to_certifications').insert(makeFabToCert()))
 
             it('returns all the certifications for the fabric with fabric_id', () => {
                 return supertest(app)
                     .get(`/api/fabrics/${fabricId}/certifications`)
                     .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].id).to.eql(certifications[0].id)
-                        expect(res.body[0].english_name).to.eql(certifications[0].english_name)
-                        expect(res.body[0].website).to.eql(certifications[0].website)
-                        expect(res.body[0].approved_by_admin).to.eql(certifications[0].approved_by_admin)
-                        expect(res.body[0].date_published).to.eql(certifications[0].date_published)
-                    })
+                    .expect(certArrayGet)
             })
         })
 
         context('when there are no certifications in the database', () => {
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-
-            const fabricId = 1
-
             it('responds with 200 and an empty array', () => {
-
-            return supertest(app)
+                return supertest(app)
                     .get(`/api/fabrics/${fabricId}/certifications`)
-                    .expect(200, [])
+                    .expect(200)
+                    .expect([])
             })        
         })
 
         context('given a malicious certification', () => {
-            beforeEach(() =>  db.into('certifications').insert(malCertification))
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-            beforeEach(() =>  db.into('fabrics_to_certifications').insert(fabricsTomalCertifications))
-
-            const fabricId = 1
+            beforeEach(() => db.into('brands').insert(malBrandInsert))
+            beforeEach(() => db.into('fabrics').insert(malFabInsert))
+            beforeEach(() =>  db.into('certifications').insert(malCertInsert))
+            beforeEach(() =>  db.into('fabrics_to_certifications').insert(makeFabToMalCert()))
+            const malFabId = malFabInsert.id
 
             it('returns all the certifications for the fabric with fabric_id', () => {
                 return supertest(app)
-                    .get(`/api/fabrics/${fabricId}/certifications`)
+                    .get(`/api/fabrics/${malFabId}/certifications`)
                     .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].id).to.eql(expectedCertification.id)
-                        expect(res.body[0].english_name).to.eql(expectedCertification.english_name)
-                        expect(res.body[0].website).to.eql(expectedCertification.website)
-                        expect(res.body[0].approved_by_admin).to.eql(expectedCertification.approved_by_admin)
-                    })
+                    .expect([malCertGet])
             })
         })
     })
 
-    describe('GET /api/fabrics/:fabric_id/factories', () => {        
-        context('when there are factories in the database', () => {
-            beforeEach(() =>  db.into('factories').insert(factories))
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-            beforeEach(() =>  db.into('fabrics_to_factories').insert(fabricsToFactories))
+    describe('GET /api/fabrics/:fabric_id/factories', () => {
+        beforeEach(insertFabric)
+        const fabricId = factoryInsert.id
 
-            const fabricId = 1
+        context('given there are factories in the database', () => {
+            beforeEach(() =>  db.into('factories').insert(factoryInsert))
+            beforeEach(() =>  db.into('fabrics_to_factories').insert(makeFabToFact()))
 
             it('returns all the factories for the fabric with fabric_id', () => {
                 return supertest(app)
                     .get(`/api/fabrics/${fabricId}/factories`)
                     .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].id).to.eql(factories[0].id)
-                        expect(res.body[0].english_name).to.eql(factories[0].english_name)
-                        expect(res.body[0].country).to.eql(factories[0].country)
-                        expect(res.body[0].website).to.eql(factories[0].website)
-                        expect(res.body[0].notes).to.eql(factories[0].notes)
-                        expect(res.body[0].approved_by_admin).to.eql(factories[0].approved_by_admin)
-                    })
+                    .expect(factoryGet)
             })
         })
 
         context('when there are no factories in the database', () => {
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-
-            const fabricId = 1
-
             it('responds with 200 and an empty array', () => {
-
                 return supertest(app)
                         .get(`/api/fabrics/${fabricId}/factories`)
-                        .expect(200, [])
+                        .expect(200)
+                        .expect([])
             })
         })
 
         context('given a malicious factory', () => {
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-            beforeEach(() =>  db.into('factories').insert(malFactory))
-            beforeEach(() =>  db.into('fabrics_to_factories').insert(fabricsTomalFactories))
-
-            const fabricId = 1
+            beforeEach(() => db.into('brands').insert(malBrandInsert))
+            beforeEach(() =>  db.into('factories').insert(malFactInsert))
+            beforeEach(() => db.into('fabrics').insert(malFabInsert))
+            beforeEach(() =>  db.into('fabrics_to_factories').insert(makeMalFabToMalFact()))
+            const malFabId = malFabInsert.id
 
             it('removes the attack content', () => {
                 return supertest(app)
-                    .get(`/api/fabrics/${fabricId}/factories`)
+                    .get(`/api/fabrics/${malFabId}/factories`)
                     .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].id).to.eql(expectedFactory.id)
-                        expect(res.body[0].english_name).to.eql(expectedFactory.english_name)
-                        expect(res.body[0].country).to.eql(expectedFactory.country)
-                        expect(res.body[0].website).to.eql(expectedFactory.website)
-                        expect(res.body[0].notes).to.eql(expectedFactory.notes)
-                        expect(res.body[0].approved_by_admin).to.eql(expectedFactory.approved_by_admin)
-                    })
-                })
+                    .expect(malFactGet)
+            })
         })
     })
 
     describe('GET /api/fabrics/:fabric_id/fibers', () => {
-        context('when there are fibers in the database', () => {
-            const fabricId = 1
-
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('factories').insert(factories)) 
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-            beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
-            beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
-            beforeEach(() =>  db.into('fabrics_to_fibers_and_materials').insert(fabricsToFibers))
-            beforeEach(() =>  db.into('fibers_to_factories').insert(fibersToFactories))
+        beforeEach(insertFabric)
+        const fabricId = fabricInsert.id
+        
+        context('given there are fibers in the database', () => {
+            beforeEach(() =>  db.into('fiber_and_material_types').insert(makeFiberType().ftInsert))
+            beforeEach(() => db.into('factories').insert(factoryInsert))
+            beforeEach(() =>  db.into('fibers_and_materials').insert(fiberInsert))
+            beforeEach(() =>  db.into('fabrics_to_fibers_and_materials').insert(makeFabToFib()))
+            beforeEach(() =>  db.into('fibers_to_factories').insert(makeFibToFact()))
+            const expectedFibArray = [
+                {
+                    ...fiberGet[0],
+                    percent_of_fabric: makeFabToFib()[0].percent_of_fabric
+                }
+            ]
 
             it('returns all the fibers for the fabric with fabric_id', () => {
                 return supertest(app)
                     .get(`/api/fabrics/${fabricId}/fibers`)
                     .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].id).to.eql(fibersGet[0].id)
-                        expect(res.body[0].brand_id).to.eql(fibersGet[0].brand_id),
-                        expect(res.body[0].fiber_or_material_id).to.eql(fibersGet[0].fiber_or_material_id)
-                        expect(res.body[0].fiber_type).to.eql(fibersGet[0].fiber_type)
-                        expect(res.body[0].class).to.eql(fibersGet[0].class)
-                        expect(res.body[0].producer_country).to.eql(fibersGet[0].producer_country)
-                        expect(res.body[0].producer_id).to.eql(fibersGet[0].producer_id)
-                        expect(res.body[0].producer).to.eql(fibersGet[0].producer)
-                        expect(res.body[0].producer_country).to.eql(fibersGet[0].producer_country)
-                        expect(res.body[0].producer_website).to.eql(fibersGet[0].producer_website)
-                        expect(res.body[0].production_notes).to.eql(fibersGet[0].production_notes)
-                        expect(res.body[0].approved_by_admin).to.eql(fibersGet[0].approved_by_admin)
-                    })
+                    .expect(expectedFibArray)
             })
         })
 
         context('when there are no fibers in the database', () => {
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('factories').insert(factories))
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-
-            const fabricId = 1
+            beforeEach(() =>  db.into('factories').insert(factoryInsert))
 
             it('returns 200 and an empty list', () => {
                 return supertest(app)
                     .get(`/api/fabrics/${fabricId}/fibers`)
-                    .expect(200, [])
+                    .expect(200)
+                    .expect([])
             })
         })
 
         context('given a malicious fiber', () => {
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('brands').insert(malBrand))
-            beforeEach(() =>  db.into('factories').insert(malFactory)) 
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-            beforeEach(() =>  db.into('fiber_and_material_types').insert(malFiberType))
-            beforeEach(() =>  db.into('fibers_and_materials').insert(malFiber))
-            beforeEach(() =>  db.into('fabrics_to_fibers_and_materials').insert(fabricsTomalFibers))
-            beforeEach(() =>  db.into('fibers_to_factories').insert(malFibersToFactories))
-            
-            const fabricId = 1
+            beforeEach(() =>  db.into('brands').insert(malBrandInsert))
+            beforeEach(() =>  db.into('factories').insert(malFactInsert)) 
+            beforeEach(() =>  db.into('fabrics').insert(malFabInsert))
+            beforeEach(() =>  db.into('fiber_and_material_types').insert(malFtInsert))
+            beforeEach(() =>  db.into('fibers_and_materials').insert(malFiberInsert))
+            beforeEach(() =>  db.into('fabrics_to_fibers_and_materials').insert(makeMalFabToMalFib()))
+            beforeEach(() =>  db.into('fibers_to_factories').insert(makeMalFibToFact()))
+            const fabricId = malFabInsert.id
+            const expectedFibArray = [
+                {
+                    ...malFiberGet[0],
+                    percent_of_fabric: makeMalFabToMalFib().percent_of_fabric
+                }
+            ]
 
-            it('removes the attack content from the fiber(s) for the fabric with id fabric_id', () => {
+            it('removes the attack content', () => {
                 return supertest(app)
                     .get(`/api/fabrics/${fabricId}/fibers`)
                     .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].producer_website).to.eql(expectedFiber.producer_website)
-                        expect(res.body[0].production_notes).to.eql(expectedFiber.production_notes)
-                    })
+                    .expect(expectedFibArray)
             })
         })
     })
 
     describe('Protected endpoints', () => {
-        const newFabric = {
-            brand_id: 1,
-            fabric_mill_country: 1,
-            fabric_mill_id: 1,
-            fabric_mill_notes: 'over 200 employees',
-            dye_print_finish_country: 1,
-            dye_print_finish_id: 1,
-            dye_print_finish_notes: '1000 employees',
-            approved_by_admin: true
-        }
-
         const protectedEndpoints = [
             {
                 name: 'POST /api/fabrics',
                 path: '/api/fabrics'
-            },
-            {
-                name: 'POST /api/fabrics/notion-types',
-                path: '/api/fabrics/notion-types'
             },
             {
                 name: 'POST /api/fabrics/:fabric_id/certifications',
@@ -446,182 +302,198 @@ describe('Fabrics Endpoints', () => {
 
         protectedEndpoints.forEach(endpoint => {
             describe(endpoint.name, () => {
-                beforeEach(() =>  db.into('brands').insert(brands))
-                beforeEach(() =>  db.into('certifications').insert(certifications))
-                beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-                beforeEach(() =>  db.into('notion_types').insert(notionTypes))
-                beforeEach(() =>  db.into('fabrics').insert(fabricArray))
+                beforeEach(insertFabric)
+                beforeEach(() =>  db.into('users').insert(hashUserArray))
+                const invalidSecret = 'bad-secret'
+                const invalidUser =  { email: 'not-a-user', password: 'password' }
+                const userNoCreds = { email: '', password: '' }
+                const validUser = user
 
-                it(`responds with 401 'Missing bearer token' when no basic token`, () => (
-                    supertest(app)
-                        .post(endpoint.path)
-                        .send(newFabric)
-                        .expect(401, { error: `Missing bearer token`})
-                ))
-    
-                it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                    const userNoCreds = { email: '', password: '' }
+                it(`responds with 401 and 'Missing bearer token' when no bearer token is provided`, () => {
                     return supertest(app)
                         .post(endpoint.path)
-                        .set('Authorization', makeAuthHeader(userNoCreds))
-                        .send(newFabric)
-                        .expect(401, { error: `Unauthorized request` })
+                        .send({})
+                        .expect(401)
+                        .expect({ error: 'Missing bearer token'})
                 })
-    
-                it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                    const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+
+                it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                     
                     return supertest(app)
                         .post(endpoint.path)
-                        .set('Authorization', makeAuthHeader(invalidUserCreds))
-                        .send(newFabric)
-                        .expect(401, { error: 'Unauthorized request' })
+                        .set('Authorization', makeAuthHeader(userNoCreds))
+                        .send({})
+                        .expect(401)
+                        .expect({ error: 'Unauthorized request' })
                 })
     
-                it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                    const incorrectPassword = { email: userArray[0].email, password: 'wrong' }
-    
+                it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {
                     return supertest(app)
                         .post(endpoint.path)
-                        .set('Authorization', makeAuthHeader(incorrectPassword))
-                        .send(newFabric)
-                        .expect(401, { error: 'Unauthorized request' })
+                        .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                        .send({})
+                        .expect(401)
+                        .expect({ error: 'Unauthorized request' })
+                })
+
+                it(`responds with 401 and 'Unauthorized request' when the user is invalid`, () => {                    
+                    return supertest(app)
+                        .post(endpoint.path)
+                        .set('Authorization', makeAuthHeader(invalidUser))
+                        .expect(401)
+                        .expect({ error: 'Unauthorized request' })
                 })
             })
         })
 
         describe('PATCH /api/fabrics/:fabric_id', () => {
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() => db.into('brands').insert(brands))
-            beforeEach(() => db.into('fabrics').insert(fabricArray))
+            beforeEach(insertFabric)
+            const idToUpdate = fabricInsert.id
+            const invalidSecret = 'bad-secret'
+            const invalidUser =  { email: 'not-a-user', password: 'password' }
+            const notAnAdmin = { email: user.email, password: user.password }
+            const userNoCreds = { email: '', password: '' }
+            const validUser = user
 
-            it(`responds with 401 'Missing bearer tokenn' when no basic token`, () => (
-                supertest(app)
-                    .patch('/api/fabrics/1')
-                    .send({ fabric_mill_country: newFabric.fabric_mill_country})
-                    .expect(401, { error: `Missing bearer token`})
-            ))
-
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
-
+            it(`responds with 401 'Missing bearer token' when no bearer token is provided`, () => {
                 return supertest(app)
-                    .patch('/api/fabrics/1')
-                    .set('Authorization', makeAuthHeader(userNoCreds))
-                    .send({ fabric_mill_country: newFabric.fabric_mill_country })
-                    .expect(401, { error: `Unauthorized request` })
+                    .patch(`/api/fabrics/${idToUpdate}`)
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Missing bearer token' })
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                 
+
                 return supertest(app)
-                    .patch(`/api/fabrics/1`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .send({ fabric_mill_country: newFabric.fabric_mill_country })
-                    .expect(401, { error: 'Unauthorized request' })
+                    .patch(`/api/fabrics/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: userArray[0].email, password: 'wrong' }
-
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {                
                 return supertest(app)
-                    .patch('/api/fabrics/1')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .send({ fabric_mill_country: newFabric.fabric_mill_country })
-                    .expect(401, { error: 'Unauthorized request' })
+                    .patch(`/api/fabrics/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, () => {                    
+                return supertest(app)
+                    .patch(`/api/fabrics/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(invalidUser))
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`, () => {
+                return supertest(app)
+                    .patch(`/api/fabrics/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(notAnAdmin))
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
             })
         })
 
         describe('DELETE /api/fabrics/:fabric_id', () => {
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() => db.into('brands').insert(brands))
-            beforeEach(() => db.into('fabrics').insert(fabricArray))
-                        
-            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
-                supertest(app)
-                    .delete('/api/fabrics/1')
-                    .expect(401, { error: `Missing bearer token`})
-            ))
-
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
+            beforeEach(insertFabric)
+            const idToUpdate = fabricInsert.id
+            const invalidSecret = 'bad-secret'
+            const invalidUser =  { email: 'not-a-user', password: 'password' }
+            const notAnAdmin = { email: user.email, password: user.password }
+            const userNoCreds = { email: '', password: '' }
+            const validUser = user
+            
+            it(`responds with 401 'Missing bearer token' when no bearer token is provided`, () => {
                 return supertest(app)
-                    .delete(`/api/fabrics/1`)
-                    .set('Authorization', makeAuthHeader(userNoCreds))
-                    .expect(401, { error: `Unauthorized request` })
+                    .delete(`/api/fabrics/${idToUpdate}`)
+                    .expect(401)
+                    .expect({ error: 'Missing bearer token' })
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                 
                 return supertest(app)
-                    .delete(`/api/fabrics/1`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .expect(401, { error: 'Unauthorized request' })
+                    .delete(`/api/fabrics/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: userArray[0].email, password: 'wrong' }
-
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {
                 return supertest(app)
-                    .delete('/api/fabrics/1')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .expect(401, { error: 'Unauthorized request' })
+                    .delete(`/api/fabrics/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, () => {                    
+                return supertest(app)
+                    .delete(`/api/fabrics/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(invalidUser))
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`,  () => {
+                return supertest(app)
+                    .delete(`/api/fabrics/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(notAnAdmin))
+                    .send({})
+                    .expect(401)
+                    .expect({ error: 'Unauthorized request' })
             })
         })
     })
 
     describe('POST /api/fabrics', () => {
-        beforeEach(() =>  db.into('brands').insert(brands))
-        beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
+        beforeEach(() =>  db.into('brands').insert(brandInsert))
         beforeEach(() =>  db.into('users').insert(hashUserArray))
 
-        it('creates a fabric, responding with 201 and the new fabric', () => {
-            const newFabric = {
-                brand_id: 1,
-                fabric_mill_country: 1,
-                fabric_mill_id: 1,
-                fabric_mill_notes: 'over 200 employees',
-                dye_print_finish_country: 1,
-                dye_print_finish_id: 1,
-                dye_print_finish_notes: '1000 employees',
-                approved_by_admin: true
-            }
-    
-            return supertest(app)
+        it('creates a fabric, responding with 201 and the new fabric', async () => {
+            const postResponse = await supertest(app)
                 .post('/api/fabrics')
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(newFabric)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.brand_id).to.eql(newFabric.brand_id)
-                    expect(res.body.fabric_mill_country).to.eql(newFabric.fabric_mill_country)
-                    expect(res.body.fabric_mill_id).to.eql(newFabric.fabric_mill_id)
-                    expect(res.body.fabric_mill_notes).to.eql(newFabric.fabric_mill_notes)
-                    expect(res.body.dye_print_finish_country).to.eql(newFabric.dye_print_finish_country)
-                    expect(res.body.dye_print_finish_id).to.eql(newFabric.dye_print_finish_id)
-                    expect(res.body.dye_print_finish_notes).to.eql(newFabric.dye_print_finish_notes)
-                    expect(res.body.approved_by_admin).to.eql(newFabric.approved_by_admin)
-                    const expected = new Date().toLocaleString()
-                    const actual = new Date(res.body.date_published).toLocaleString()
-                    expect(actual).to.eql(expected)
-                })
-                .then(async res => {
-                    const expectedFabric = {
-                        ...res.body,
-                        certification_ids: [],
-                        fibers: []
-                    }
+                .set('Authorization', makeAuthHeader(user))
+                .send(fabricPost)
 
-                    await supertest(app)
-                        .get(`/api/fabrics/${res.body.id}`)
-                        .expect(200)
-                        .expect(expectedFabric)
-                        .catch(error => {
-                            console.log(error)
-                        })
-                })
+            const getResponse = await supertest(app)
+                .get(`/api/fabrics/${postResponse.body.id}`)
+
+            const expected = new Date().toLocaleString()
+            const postCreated = new Date(postResponse.body.created_at).toLocaleString()
+            const postUpdated = new Date(postResponse.body.updated_at).toLocaleString()
+    
+            const expectedPostBody = {
+                id: postResponse.body.id,
+                ...fabricPost,
+                approved_by_admin: false,
+                created_at: postResponse.body.created_at,
+                updated_at: postResponse.body.updated_at
+            }
+
+            const expectedGetBody = {
+                ...fabricGetOne,
+                approved_by_admin: false,
+                created_at: postResponse.body.created_at,
+                updated_at: postResponse.body.updated_at
+            }
+
+            expect(postResponse.status).to.eql(201)
+            expect(postResponse.headers.location).to.eql(`/api/fabrics/${postResponse.body.id}`)
+            expect(postResponse.body.approved_by_admin).to.eql(false)
+            expect(postResponse.body).to.eql(expectedPostBody)
+            expect(postCreated).to.eql(expected)
+            expect(postUpdated).to.eql(expected)
+            expect(getResponse.status).to.eql(200)
+            expect(getResponse.body).to.eql(expectedGetBody)
         })
 
         const requiredFields = [
@@ -634,14 +506,7 @@ describe('Fabrics Endpoints', () => {
 
         requiredFields.forEach(field => {
             const newFabric = {
-                brand_id: 1,
-                fabric_mill_id: 1,
-                fabric_mill_country: 1,
-                fabric_mill_notes: 'over 200 employees',
-                dye_print_finish_id: 1,
-                dye_print_finish_country: 1,
-                dye_print_finish_notes: '1000 employees',
-                approved_by_admin: true
+                ...fabricPost
             }
 
             it(`responds with 400 and an error message when the '${field}' is missing`, () => {
@@ -649,376 +514,353 @@ describe('Fabrics Endpoints', () => {
 
                 return supertest(app)
                     .post('/api/fabrics')
-                    .set('Authorization', makeAuthHeader(userArray[0]))
+                    .set('Authorization', makeAuthHeader(user))
                     .send(newFabric)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                    })
+                    .expect(400)
+                    .expect({ error: { message: `Missing '${field}' in request body`} })
             })
         })
 
-        it('removes XSS attack content from the response', () => {
-            return supertest(app)
-                .post('/api/fabrics')
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(malFabric)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.fabric_mill_notes).to.eql(expectedFabric.fabric_mill_notes)
-                    expect(res.body.dye_print_finish_notes).to.eql(expectedFabric.dye_print_finish_notes)
-                })
-        })
-    })
+        context('given a malicious fabric', () => {
+            beforeEach(() =>  db.into('brands').insert(malBrandInsert))
+            it('removes the attack content from the response', async () => {
+                const postResponse = await supertest(app)
+                    .post('/api/fabrics')
+                    .set('Authorization', makeAuthHeader(user))
+                    .send(malFabPost)
 
-    describe('POST /api/fabrics/notion-types', () => {
-        beforeEach(() =>  db.into('users').insert(hashUserArray))
+                const getResponse = await supertest(app)
+                    .get(`/api/fabrics/${postResponse.body.id}`)
+
+                const expected = new Date().toLocaleString()
+                const postCreated = new Date(postResponse.body.created_at).toLocaleString()
+                const postUpdated = new Date(postResponse.body.updated_at).toLocaleString()
         
-        const newNotionType = {
-            english_name: 'button',
-            approved_by_admin: true
-        }
-
-        it('creates a notion-type, responding with 201 and the new fabric', () => {
-            return supertest(app)
-                .post('/api/fabrics/notion-types')
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(newNotionType)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(newNotionType.english_name)
-                    expect(res.body.approved_by_admin).to.eql(newNotionType.approved_by_admin)
-                    const expected = new Date().toLocaleString()
-                    const actual = new Date(res.body.date_published).toLocaleString()
-                    expect(actual).to.eql(expected)
-                })
-                .then(async res => {
-                    await supertest(app)
-                        .get(`/api/fabrics/notion-types`)
-                        .expect(200)
-                        .expect([res.body])
-                        .catch(error => {
-                            console.log(error)
-                        })
-                })
-        })
-
-        const requiredFields = [
-            'english_name'        ]
-
-        requiredFields.forEach(field => {
-            const newNotionType = {
-                english_name: 'button',
-                approved_by_admin: true
-            }
-
-            delete newNotionType[field]
-
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
-                return supertest(app)
-                    .post('/api/fabrics/notion-types')
-                    .set('Authorization', makeAuthHeader(userArray[0]))
-                    .send(newNotionType)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                    })
-            })
-        })
-
-        it('removes XSS attack content from the response', () => {
-            return supertest(app)
-                .post('/api/fabrics/notion-types')
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(malNotionType)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(expectedNotionType.english_name)
-                })
-        })
-    })
-
-    describe('POST /api/fabrics/:fabric_id/fibers', () => {
-        beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-        beforeEach(() =>  db.into('fiber_and_material_types').insert(fiberTypes))
-        beforeEach(() =>  db.into('brands').insert(brands))
-        beforeEach(() =>  db.into('factories').insert(factories)) 
-        beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-        beforeEach(() =>  db.into('fibers_and_materials').insert(fibersPost))
-        beforeEach(() => db.into('users').insert(hashUserArray))
-
-        const fabricFiberPair =  {
-            fabric_id: 1,
-            fiber_or_material_id: 1,
-            percent_of_fabric: 100
-        }
-
-        it('creates a fiber, responding with 201 and the new fabric', () => {
-            const fabricId = 1
-
-            return supertest(app)
-                .post(`/api/fabrics/${fabricId}/fibers`)
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(fabricFiberPair)
-                .expect(201, fabricFiberPair)
-        })
-
-        const requiredFields = [
-            'fiber_or_material_id'
-        ]
-
-        requiredFields.forEach(field => {
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
-                const fabricFiberPair =  {
-                    fiber_or_material_id: 1
+                const expectedPostBody = {
+                    ...malFabGetAll[0],
+                    id: postResponse.body.id,
+                    approved_by_admin: false,
+                    created_at: postResponse.body.created_at,
+                    updated_at: postResponse.body.updated_at
                 }
-                
-                delete fabricFiberPair[field]
 
-                const fabricId = 1
+                const expectedGetBody = {
+                    ...malFabGetOne,
+                    id: postResponse.body.id,
+                    approved_by_admin: false,
+                    created_at: postResponse.body.created_at,
+                    updated_at: postResponse.body.updated_at
+                }
 
-                return supertest(app)
-                    .post(`/api/fabrics/${fabricId}/fibers`)
-                    .set('Authorization', makeAuthHeader(userArray[0]))
-                    .send(fabricFiberPair)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                    })
-            })
+                expect(postResponse.status).to.eql(201)
+                expect(postResponse.headers.location).to.eql(`/api/fabrics/${postResponse.body.id}`)
+                expect(postResponse.body.approved_by_admin).to.eql(false)
+                expect(postResponse.body).to.eql(expectedPostBody)
+                expect(postCreated).to.eql(expected)
+                expect(postUpdated).to.eql(expected)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedGetBody)
+        })
         })
     })
 
     describe('POST /api/fabrics/:fabric_id/certifications', () => {
-        beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-        beforeEach(() =>  db.into('brands').insert(brands))
-        beforeEach(() =>  db.into('factories').insert(factories)) 
-        beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-        beforeEach(() =>  db.into('certifications').insert(certifications))
+        beforeEach(insertFabric)
+        beforeEach(() =>  db.into('factories').insert(factoryInsert)) 
+        beforeEach(() =>  db.into('certifications').insert(certArrayInsert))
         beforeEach(() =>  db.into('users').insert(hashUserArray))
         
-        const fabricId = 1
+        const fabricId = fabricInsert.id
+        const certId = certArrayInsert[0].id
+        const certGet = makeCertArray().certArrayGet[0]
 
-        it('creates a certification, responding with 201 and the new fabric', () => {
-            const newFabricCertificationPair = {
-                fabric_id: 1,
-                certification_id: 1
+        it('creates a fabric-certification pair, responding with 201 and the new fabric-certification pair', async () => {
+            const newFabCertPair = {
+                certification_id: certId
             }
 
-            return supertest(app)
+            const postResponse = await supertest(app)
                 .post(`/api/fabrics/${fabricId}/certifications`)
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(newFabricCertificationPair)
-                .expect(201, newFabricCertificationPair)
+                .set('Authorization', makeAuthHeader(user))
+                .send(newFabCertPair)
+
+            const getResponse = await supertest(app)
+                .get(`/api/fabrics/${fabricId}/certifications`)
+
+            const expected = new Date().toLocaleString()
+            const postCreated = new Date(postResponse.body.created_at).toLocaleString()
+            const postUpdated = new Date(postResponse.body.updated_at).toLocaleString()
+    
+            const expectedPostBody = {
+                fabric_id: fabricId,
+                certification_id: certId,
+                approved_by_admin: false,
+                created_at: postResponse.body.created_at,
+                updated_at: postResponse.body.updated_at
+            }
+
+            const expectedGetBody = [ certGet ]
+
+            expect(postResponse.status).to.eql(201)
+            expect(postResponse.headers.location).to.eql(`/api/fabrics/${fabricId}/certifications`)
+            expect(postResponse.body.approved_by_admin).to.eql(false)
+            expect(postResponse.body).to.eql(expectedPostBody)
+            expect(postCreated).to.eql(expected)
+            expect(postUpdated).to.eql(expected)
+            expect(getResponse.status).to.eql(200)
+            expect(getResponse.body).to.eql(expectedGetBody)
         })
 
-        const requiredFields = [
-            'certification_id'
-        ]
-
-        requiredFields.forEach(field => {
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
-                const newFabricCertificationPair = {
-                    certification_id: 1
-                }
-
-                delete newFabricCertificationPair[field]
-
-                return supertest(app)
-                    .post(`/api/fabrics/${fabricId}/certifications`)
-                    .set('Authorization', makeAuthHeader(userArray[0]))
-                    .send(newFabricCertificationPair)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                    })
-            })
+        it(`responds with 400 and an error message when 'certification_id' is missing`, () => {
+            return supertest(app)
+                .post(`/api/fabrics/${fabricId}/certifications`)
+                .set('Authorization', makeAuthHeader(user))
+                .send(incompleteInfo)
+                .expect(400)
+                .expect({ error: { message: `Missing 'certification_id' in request body`} })
         })
     })
 
     describe('POST /api/fabrics/:fabric_id/factories', () => {
-        beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-        beforeEach(() =>  db.into('brands').insert(brands))
-        beforeEach(() =>  db.into('factories').insert(factories)) 
-        beforeEach(() =>  db.into('fabrics').insert(fabricArray))
+        beforeEach(insertFabric)
+        beforeEach(() =>  db.into('factories').insert(factoryInsert)) 
         beforeEach(() =>  db.into('users').insert(hashUserArray))
+        const fabricId = fabricInsert.id
+        const factoryId = factoryInsert.id
 
-        const newFabricFactoryPair = {
-            fabric_id: 1,
-            factory_id: 1
-        }
-
-        const fabricId = 1
-
-        it('creates a factory, responding with 201 and the new fabric', () => {
-            return supertest(app)
-                .post(`/api/fabrics/${fabricId}/factories`)
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(newFabricFactoryPair)
-                .expect(201, newFabricFactoryPair)
-        })
-
-        const requiredFields = [
-            'factory_id'
-        ]
-
-        requiredFields.forEach(field => {
-            const newFabricFactoryPair = {
-                factory_id: 1
+        it('creates a fabric-factory pair, responding with 201 and the new fabric-factory pair', async () => {
+            const newFabFactPair = {
+                factory_id: factoryId
             }
 
-            delete newFabricFactoryPair[field]
-            
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
-                return supertest(app)
-                    .post(`/api/fabrics/${fabricId}/factories`)
-                    .set('Authorization', makeAuthHeader(userArray[0]))
-                    .send(newFabricFactoryPair)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                    })
-            })
+            const postResponse = await supertest(app)
+                .post(`/api/fabrics/${fabricId}/factories`)
+                .set('Authorization', makeAuthHeader(user))
+                .send(newFabFactPair)
+
+            const getResponse = await supertest(app)
+                .get(`/api/fabrics/${fabricId}/factories`)
+
+            const expected = new Date().toLocaleString()
+            const postCreated = new Date(postResponse.body.created_at).toLocaleString()
+            const postUpdated = new Date(postResponse.body.updated_at).toLocaleString()
+    
+            const expectedPostBody = {
+                fabric_id: fabricId,
+                factory_id: factoryId,
+                approved_by_admin: false,
+                created_at: postResponse.body.created_at,
+                updated_at: postResponse.body.updated_at
+            }
+
+            const expectedGetBody = factoryGet
+
+            expect(postResponse.status).to.eql(201)
+            expect(postResponse.headers.location).to.eql(`/api/fabrics/${fabricId}/factories`)
+            expect(postResponse.body.approved_by_admin).to.eql(false)
+            expect(postResponse.body).to.eql(expectedPostBody)
+            expect(postCreated).to.eql(expected)
+            expect(postUpdated).to.eql(expected)
+            expect(getResponse.status).to.eql(200)
+            expect(getResponse.body).to.eql(expectedGetBody)
+        })
+
+        it(`responds with 400 and an error message when the 'factory_id' is missing`, () => {
+            return supertest(app)
+                .post(`/api/fabrics/${fabricId}/factories`)
+                .set('Authorization', makeAuthHeader(user))
+                .send(incompleteInfo)
+                .expect(400)
+                .expect({ error: { message: `Missing 'factory_id' in request body`} })
+        })
+    })
+
+    describe('POST /api/fabrics/:fabric_id/fibers', () => {
+        beforeEach(insertFabric)
+        beforeEach(() =>  db.into('factories').insert(factoryInsert)) 
+        beforeEach(() =>  db.into('fiber_and_material_types').insert(makeFiberType().ftInsert))
+        beforeEach(() =>  db.into('fibers_and_materials').insert(fiberInsert))
+        beforeEach(() => db.into('users').insert(hashUserArray))
+        const fabricId = fabricInsert.id
+        const fiberId = fiberInsert.id
+
+        it('creates a fabric-fiber pair, responding with 201 and the new fabric-fiber pair', async () => {
+            const fabFibPair =  {
+                fabric_id: fabricId,
+                fiber_or_material_id: 1,
+                percent_of_fabric: 100
+            }
+
+            const postResponse = await supertest(app)
+                .post(`/api/fabrics/${fabricId}/fibers`)
+                .set('Authorization', makeAuthHeader(user))
+                .send(fabFibPair)
+
+            const getResponse = await supertest(app)
+                .get(`/api/fabrics/${fabricId}/fibers`)
+
+            const expected = new Date().toLocaleString()
+            const postCreated = new Date(postResponse.body.created_at).toLocaleString()
+            const postUpdated = new Date(postResponse.body.updated_at).toLocaleString()
+    
+            const expectedPostBody = {
+                fabric_id: fabricId,
+                fiber_or_material_id: fiberId,
+                percent_of_fabric: fabFibPair.percent_of_fabric,
+                approved_by_admin: false,
+                created_at: postResponse.body.created_at,
+                updated_at: postResponse.body.updated_at
+            }
+
+            const expectedGetBody = [
+                {
+                    ...fibersGet[0],
+                    percent_of_fabric: fabFibPair.percent_of_fabric
+                }    
+            ]
+
+            expect(postResponse.status).to.eql(201)
+            expect(postResponse.headers.location).to.eql(`/api/fabrics/${fabricId}/fibers`)
+            expect(postResponse.body.approved_by_admin).to.eql(false)
+            expect(postResponse.body).to.eql(expectedPostBody)
+            expect(postCreated).to.eql(expected)
+            expect(postUpdated).to.eql(expected)
+            expect(getResponse.status).to.eql(200)
+            expect(getResponse.body).to.eql(expectedGetBody)
+        })
+
+        it(`responds with 400 and an error message when the 'fiber_or_material_id' is missing`, () => {
+            return supertest(app)
+                .post(`/api/fabrics/${fabricId}/fibers`)
+                .set('Authorization', makeAuthHeader(user))
+                .send(incompleteInfo)
+                .expect(400)
+                .expect({ error: { message: `Missing 'fiber_or_material_id' in request body`} })
         })
     })
 
     describe('PATCH /api/fabrics/:fabric_id', () => {
-        beforeEach(() => db.into('users').insert(hashAdminArray))
+        const updateBrandInsert = {
+            ...brandInsert,
+            id: 2
+        }
 
-        const idToUpdate = 1
-        
+        beforeEach(insertFabric)
+        beforeEach(() => db.into('brands').insert(updateBrandInsert))
+        beforeEach(() => db.into('factories').insert(factoryInsert))
+        beforeEach(() => db.into('users').insert(hashedAdminArray()))
+        const idToUpdate = fabricInsert.id
+
         context('when the fabric with id fabric_id exists', () => {
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-
-            it('updates the fabric and responds 204', () => {
-                const updateFabric = {
-                    brand_id: 1,
-                    fabric_mill_country: 1,
-                    fabric_mill_notes: 'This is a fabric mill in Peru',
-                    dye_print_finish_country: 1,
-                    dye_print_finish_notes: 'This is a dye plant in Peru',
-                    approved_by_admin: true
-                }
-
-                const expectedFabric = {
-                    ...fabricArray[idToUpdate - 1],
-                    ...updateFabric,
-                    certification_ids: [],
-                    fibers: []
-                }
-    
-                return supertest(app)
+            it('updates the fabric and responds 204', async () => {
+                const patchResponse = await supertest(app)
                     .patch(`/api/fabrics/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
-                    .send(updateFabric)
-                    .expect(204)
-                    .then(async res => {
-                        await supertest(app)
-                            .get(`/api/fabrics/${idToUpdate}`)
-                            .expect(200)
-                            .expect(expectedFabric)
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    })
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send(fullFabUpdate)
+
+                const getResponse = await supertest(app)
+                    .get(`/api/fabrics/${idToUpdate}`)
+                
+                const expectedFabric = {
+                    ...fabricGetOne,
+                    ...fullFabUpdate
+                }
+
+                const created = new Date(getResponse.body.created_at).toLocaleString()
+                const updated = new Date(getResponse.body.updated_at).toLocaleString()
+                const expectedCreated = new Date(fabricGetOne.created_at).toLocaleString()
+                const expectedUpdated = new Date(fullFabUpdate.updated_at).toLocaleString()
+
+                expect(patchResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedFabric)      
+                expect(created).to.eql(expectedCreated)
+                expect(updated).to.eql(expectedUpdated)
             })
 
             it('responds with 400 when no required fields are supplied', () => {
-                    return supertest(app)
-                        .patch(`/api/fabrics/${idToUpdate}`)
-                        .set('Authorization', makeAuthHeader(adminArray[0]))
-                        .send({irrelevantField: 'bar'})
-                        .expect(400, {
-                            error: { message: `Request body must include 'brand_id', 'fabric_mill_country', 'fabric_mill_id', 'fabric_mill_notes', 'dye_print_finish_country', 'dye_print_finish_id', 'dye_print_finish_notes', or 'approved_by_admin'`}
-                        })
+                return supertest(app)
+                    .patch(`/api/fabrics/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send({irrelevantField: 'bar'})
+                    .expect(400)
+                    .expect({error: { message: `Request body must include 'brand_id', 'fabric_mill_country', 'fabric_mill_id', 'fabric_mill_notes', 'dye_print_finish_country', 'dye_print_finish_id', 'dye_print_finish_notes', 'approved_by_admin', or 'updated_at'`}
+})
             })
 
-            it('responds with 204 when updating only a subset of fields', () => {
-                    const updateFabric = {
-                        fabric_mill_notes: 'New note.'
-                    }
+            it('responds with 204 when updating only a subset of fields', async () => {
+                const subsetUpdate = {
+                    brand_id: fullFabUpdate.brand_id
+                }
 
-                    const expectedFabric = {
-                        ...fabricArray[idToUpdate - 1],
-                        ...updateFabric,
-                        certification_ids: [],
-                        fibers: []
-                    }
-        
-                    return supertest(app)
-                        .patch(`/api/fabrics/${idToUpdate}`)
-                        .set('Authorization', makeAuthHeader(adminArray[0]))
-                        .send(updateFabric)
-                        .expect(204)
-                        .then(async res => {
-                            await supertest(app)
-                                .get(`/api/fabrics/${idToUpdate}`)
-                                .expect(200)
-                                .expect(expectedFabric)
-                                .catch(error => {
-                                    console.log(error)
-                                })
-                        })
+                const patchResponse = await supertest(app)
+                    .patch(`/api/fabrics/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send(subsetUpdate)
+
+                const getResponse = await supertest(app)
+                    .get(`/api/fabrics/${idToUpdate}`)
+
+                const expectedFabric = {
+                    ...fabricGetOne,
+                    ...subsetUpdate
+                }
+
+                const created = new Date(getResponse.body.created_at).toLocaleString()
+                const updated = new Date(getResponse.body.updated_at).toLocaleString()
+                const expectedCreated = new Date(fabricGetOne.created_at).toLocaleString()
+                const expectedUpdated = new Date(fabricGetOne.updated_at).toLocaleString()
+
+                expect(patchResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedFabric)      
+                expect(created).to.eql(expectedCreated)
+                expect(updated).to.eql(expectedUpdated)
             })
         })
 
-        context('when the fabric with id fabric_id does not exist', () => {
-            const updateFabric = {
-                brand_id: 1,
-                fabric_mill_country: 'PE',
-                fabric_mill_notes: 'This is a fabric mill in Peru',
-                dye_print_finish_country: 'US',
-                dye_print_finish_notes: 'This is a dye plant in Peru',
-                approved_by_admin: true
-            }
+        context('when the fabric with id fabric_id does not exist.', () => {
+            const nonexistant = idToUpdate + 1
 
-            it('responds with 404', () => {
+            it('responds with 404 and an error message', () => {
                 return supertest(app)
-                    .patch(`/api/fabrics/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
-                    .send(updateFabric)
-                    .expect(404, {
-                        error: { message: `Fabric does not exist.`} } )
+                    .patch(`/api/fabrics/${nonexistant}`)
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send(fullFabUpdate)
+                    .expect(404)
+                    .expect({ error: { message: 'Fabric does not exist.'} })
             })
         })
     })
 
     describe('DELETE /api/fabrics/:fabric_id', () => {
-        beforeEach(() => db.into('users').insert(hashAdminArray))
+        beforeEach(insertFabric)
+        beforeEach(() => db.into('users').insert(hashedAdminArray()))
+        const idToDelete = fabricInsert.id
 
         context('when the fabric with id fabric_id exists', () => {
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
+            it('removes the fabric and responds 204', async () => {
+                const deleteResponse = await supertest(app)
+                    .delete(`/api/fabrics/${idToDelete}`)
+                    .set('Authorization', makeAuthHeader(admin))
+                    
+                const getResponse = await supertest(app)
+                    .get(`/api/fabrics/${idToDelete}`)
 
-            it('removes the fabric and responds 204', () => {
-                const idToRemove = 1
-                const expectedFabrics = fabricArray.filter(fabric => fabric.id !== idToRemove)
-
-                return supertest(app)
-                    .delete(`/api/fabrics/${idToRemove}`)
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
-                    .expect(204)
-                    .then(() => {
-                        supertest(app)
-                            .get('/api/fabrics')
-                            .expect(expectedFabrics)
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    })
+                expect(deleteResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(404)
             })
         })
 
-        context('when the fabric with id fabric_id does not exist', () => {
-            beforeEach(() =>  db.into('fabric_types').insert(fabricTypes))
-            beforeEach(() =>  db.into('brands').insert(brands))
-            beforeEach(() =>  db.into('fabrics').insert(fabricArray))
-
-            it('responds with 404', () => {
-                const idToRemove = 222
+        context('when the fabric with id fabric_id does not exist.', () => {
+            it('responds with 404 and an error message', () => {
+                const nonexistantId = idToDelete + 1
 
                 return supertest(app)
-                    .delete(`/api/fabrics/${idToRemove}`)
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
-                    .expect(404, {
-                        error: { message: `Fabric does not exist.`} } )
+                    .delete(`/api/fabrics/${nonexistantId}`)
+                    .set('Authorization', makeAuthHeader(admin))
+                    .expect(404)
+                    .expect({ error: { message: 'Fabric does not exist.'} })
             })
         })
     })

@@ -1,44 +1,32 @@
-const knex = require('knex')
-const jwt = require('jsonwebtoken')
-const app = require('../src/app')
-
-const { makeBrandArray, makeMalBrand, seedBrandTable } = require('./brands.fixtures')
-const { makeFactoryArray, makeMalFactory } = require('./factories.fixtures')
-const { makeFiberTypeArray, makeFiberArray, makeMalFiber, makeMalFiberType } = require('./fibers.fixtures')
-const { makeMalNotion, makeMalNotionType, makeNotionArray, makeNotionType } = require('./notions.fixtures')
-const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray, makeMalUser } = require('./users.fixtures')
- 
 describe('Brands Endpoints', () => {
-    const adminArray = makeAdminArray()
-    const brands = makeBrandArray()
-    const factories = makeFactoryArray()
+    const app = require('../src/app')
+    const { expect } = require('chai')
+    const knex = require('knex')
+    const jwt = require('jsonwebtoken')
+    const supertest = require('supertest')
+    const { makeBrand, makeMalBrand } = require('./brands.fixtures')
+    const { makeFactory, makeMalFactory } = require('./factories.fixtures')
+    const { makeFiberType, makeFiber, makeMalFiber, makeMalFiberType } = require('./fibers.fixtures')
+    const { makeMalNotion, makeMalNotionType, makeNotion, makeNotionType } = require('./notions.fixtures')
+    const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray } = require('./users.fixtures')
+    const { brandPost, brandInsert, brandGet } = makeBrand()
+    const { ntInsert} = makeNotionType()
+    const { fiberGet, fiberInsert } = makeFiber()
+    const { malBrandPost, malBrandInsert, malBrandGet } = makeMalBrand()
+    const { malFactory } = makeMalFactory()
+    const { malFiberInsert, malFiberGet } = makeMalFiber()
+    const { malFtInsert } = makeMalFiberType()
+    const { malNotionInsert, malNotionGet } = makeMalNotion()
+    const { malNtInsert } = makeMalNotionType()
+    const { notionInsert, notionGet } = makeNotion()
+    const admin = makeAdminArray()[0]
+    const { factoryGet, factoryInsert, factoryPost } = makeFactory()
+    const { ftInsert } = makeFiberType()
     const hashAdminArray = hashedAdminArray()
     const hashUserArray = hashedUserArray()
-    const notionTypes = makeNotionType()
-    const { fibersPost, fibersGet } = makeFiberArray()
-    const fiberTypes = makeFiberTypeArray()
-    const { malBrand, expectedBrand } = makeMalBrand()
-    const { malFactory } = makeMalFactory()
-    const { malFiber, expectedFiber } = makeMalFiber()
-    const { malFiberType } = makeMalFiberType()
-    const { malNotion, expectedNotion } = makeMalNotion()
-    const { malNotionType, expectedNotionType } = makeMalNotionType()
-    const { malUser, expectedUser } = makeMalUser()
-    const { notionsPost, notionsGet } = makeNotionArray()
-    const userArray = makeUserArray()
+    const user = makeUserArray()[0]
 
     let db
-    
-    const insertFixtures = () => (
-        Promise.all([
-            db.into('brands').insert(brands),
-            db.into('fiber_and_material_types').insert(fiberTypes),
-            db.into('factories').insert(factories)
-        ])
-        .then(
-            () => db.into('fibers_and_materials').insert(fibersPost)
-        )
-    )
 
     const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
         const token = jwt.sign({ user_id: user.id }, secret, {
@@ -46,6 +34,15 @@ describe('Brands Endpoints', () => {
             algorithm: 'HS256',
         })
         return `Bearer ${token}`
+    }
+    
+    const insertFiberArray = () => {
+        Promise.all([
+            beforeEach(() =>  db.into('brands').insert(brandInsert)),
+            beforeEach(() =>  db.into('factories').insert(factoryInsert)),
+            beforeEach(() =>  db.into('fiber_and_material_types').insert(ftInsert))
+        ])
+        .then(() => db.into('fibers_and_materials').insert(fiber))
     }
 
     before('make knex instance', () => {
@@ -59,340 +56,349 @@ describe('Brands Endpoints', () => {
     after('disconnect from db', () => db.destroy())
 
     before('clean the table', () => db.raw(
-        `TRUNCATE table fibers_and_materials, fiber_and_material_types, notions, notion_types, brands, users, factories, users RESTART IDENTITY CASCADE`
+        `TRUNCATE table fibers_and_materials, fiber_and_material_types, notions, notion_types, brands, users, factories RESTART IDENTITY CASCADE`
     ))
 
     afterEach('cleanup', () => db.raw(
-        `TRUNCATE table fibers_and_materials, fiber_and_material_types, notions, notion_types, brands, users, factories, users RESTART IDENTITY CASCADE`
+        `TRUNCATE table fibers_and_materials, fiber_and_material_types, notions, notion_types, brands, users, factories RESTART IDENTITY CASCADE`
     ))
 
     describe('GET /api/brands', () => {
-        context('Given there are brands in the database', () => {
-            beforeEach('insert brands', () => db.into('brands').insert(brands))
+        context('given there are brands in the database', () => {
+            beforeEach('insert brands', () => db.into('brands').insert(brandInsert))
 
             it('GET /api/brands responds with 200 and all of the brands', () => {
                 return supertest(app)
                     .get('/api/brands')
-                    .expect(200, brands)
+                    .expect(200, brandGet)
             })
         })
 
-        context('Given no brands', () => {
+        context('given no brands', () => {
             it('responds with 200 and an empty list', () => {
                 return supertest(app)
                     .get('/api/brands')
-                    .expect(200, [])
+                    .expect(200)
+                        .expect([])
             })
         })
     
-        context('Given an XSS attack brand', () => {
-            before(() => db.into('brands').insert(malBrand))
-    
-            it('removes XSS attack content', () => {
-                return supertest(app)
+
+        context('given a malicious brand', () => {
+            beforeEach(() => db.into('brands').insert(malBrandInsert))
+
+            it('removes the attack content', async () => {
+               const getResponse = await supertest(app)
                     .get('/api/brands')
-                    .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].english_name).to.eql(expectedBrand.english_name)
-                        expect(res.body[0].website).to.eql(expectedBrand.website)
-                    })
+                
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body[0]).to.eql(malBrandGet[0])
             })
         })
     })
     
     describe('GET /api/brands/:brand_id', () => {
-        context('Given brand with id brand_id exists', () => {
-            const brandId = brands[0].id
-            const expectedBrand = brands[0]
+        const brandId = brandInsert.id
 
-            beforeEach(() => db.into('brands').insert(brands))
-    
+        context('given brand with id brand_id exists', () => {
+            beforeEach(() => db.into('brands').insert(brandInsert))
+
             it('GET /api/brands responds with 200 and the specified brand', () => {
                 return supertest(app)
                     .get(`/api/brands/${brandId}`)
-                    .expect(200, expectedBrand)
+                    .expect(200, brandGet[0])
             })
         })
 
-        context('Given no brand with id brand_id exists', () => {
-            const brandId = 4
-
+        context('given no brand with id brand_id exists', () => {
             it('responds with 404', () => {
                 return supertest(app)
                     .get(`/api/brands/${brandId}`)
                     .expect(404)
+                    .expect(res => {
+                        expect(res.error.text).to.eql('{"error":{"message":"Brand does not exist."}}')
+                    })
             })
         })
 
-        context('Given an XSS attack brand', () => {
-            const brandId = 666
-            before(() => db.into('brands').insert(malBrand))
+        context('given a malicious brand', () => {
+            before(() => db.into('brands').insert(malBrandInsert))
+
+            const brandId = malBrandInsert.id
     
-            it('removes XSS attack content', () => {
+            it('removes the attack content', () => {
                 return supertest(app)
                     .get(`/api/brands/${brandId}`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body.english_name).to.eql(expectedBrand.english_name)
-                        expect(res.body.website).to.eql(expectedBrand.website)
+                        expect(res.body).to.eql(malBrandGet[0])
                     })
             })
         })
     })
 
     describe('GET /api/brands/:brand_id/fibers', () => {
-        context('Given there are fibers for the brand with id brand_id', () => {
-            beforeEach(insertFixtures)
+        const expectedFiber = fiber => {
+            eFiber = {
+                ...fiber,
+                fiber_type_class: fiber.class
+            }
+            
+            delete eFiber.class
+
+            return eFiber
+        }
+
+        context('given there are fibers for the brand with id brand_id', () => {
+            beforeEach(insertFiberArray)
 
             it('responds with 200 and all of the fibers for the brand', () => {
-                const brandId = 1
+                const brandId = brandInsert.id
 
                 return supertest(app)
                     .get(`/api/brands/${brandId}/fibers`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body[0].fiber_or_material_type_id).to.eql(fibersGet[0].fiber_or_material_type_id)
-                        expect(res.body[0].fiber_type).to.eql(fibersGet[0].fiber_type)
-                        expect(res.body[0].fiber_type_class).to.eql(fibersGet[0].class)
-                        expect(res.body[0].brand_id).to.eql(fibersGet[0].brand_id)
-                        expect(res.body[0].producer_country).to.eql(fibersGet[0].producer_country)
-                        expect(res.body[0].producer_id).to.eql(fibersGet[0].producer_id)
-                        expect(res.body[0].production_notes).to.eql(fibersGet[0].production_notes)
-                        expect(res.body[0].approved_by_admin).to.eql(fibersGet[0].approved_by_admin)
+                        for ( let i = 0; i < res.body.length; i++ ) {
+                            expect(res.body[i]).to.eql(expectedFiber(fiberGet[0]))
+                        }
                     })
             })
         })
 
-        context('Given there are no fibers for the brand with id brand_id', () => {
-            beforeEach('insert brands', () => ( db.into('brands').insert(brands)))
+        context('given there are no fibers for the brand with id brand_id', () => {
+            beforeEach('insert brands', () => ( db.into('brands').insert(brandInsert)))
     
             it('responds with 200 and an empty list', () => {
                 const brandId = 1
 
                 return supertest(app)
                     .get(`/api/brands/${brandId}/fibers`)
-                    .expect(200, [])
+                    .expect(200)
+                        .expect([])
             })
         })
 
-        context('Given an XSS attack fiber', () => {
-            beforeEach(() => db.into('brands').insert(malBrand))
-            beforeEach(() => db.into('factories').insert(malFactory))
-            beforeEach(() => db.into('fiber_and_material_types').insert(malFiberType))
-            beforeEach(() => db.into('fibers_and_materials').insert(malFiber))
+        context('given a malicious fiber', () => {
+            beforeEach(() => db.into('brands').insert(malBrandInsert))
+            beforeEach(() => db.into('factories').insert(malFactInsert))
+            beforeEach(() => db.into('fiber_and_material_types').insert(malFtInsert))
+            beforeEach(() => db.into('fibers_and_materials').insert(malFiberInsert))
             
-            const brandId = 666
+            const brandId = malBrandInsert.id
     
-            it('removes XSS attack content', () => {
+            it('removes the attack content', () => {
                 return supertest(app)
                     .get(`/api/brands/${brandId}/fibers`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body[0].production_notes).to.eql(expectedFiber.production_notes)
+                        expect(res.body[0]).to.eql(expectedFiber(malFiberGet))
                     })
             })
         })
     })
 
     describe('GET /api/brands/:brand_id/notions', () => {
-        context('Given there are notions for the brand with id brand_id', () => {
-            beforeEach(insertFixtures)
-            beforeEach(() => db.into('notion_types').insert(notionTypes))
-            beforeEach(() => db.into('notions').insert(notionsPost))
+        context('given there are notions for the brand with id brand_id', () => {
+            beforeEach(insertFiberArray)
+            beforeEach(() => db.into('notion_types').insert(ntInsert))
+            beforeEach(() => db.into('notions').insert(notionInsert))
 
             it('GET /api/brands/:brand_id/notions responds with 200 and all of the notions for the brand', () => {
                 const brandId = 1
 
                 return supertest(app)
                     .get(`/api/brands/${brandId}/notions`)
-                    .expect(200, [notionsGet])
+                    .expect(200)
+                    .expect(res => {
+                        expect(res.body).to.eql(notionGet)
+                    })
             })
         })
 
-        context('Given there are no notions for the brand with id brand_id', () => {
-            beforeEach('insert brands', () => ( db.into('brands').insert(brands)))
+        context('given there are no notions for the brand with id brand_id', () => {
+            beforeEach('insert brands', () => ( db.into('brands').insert(brandInsert)))
             const brandId = 1
 
             it('responds with 200 and an empty array', () => {
                 return supertest(app)
                     .get(`/api/brands/${brandId}/notions`)
-                    .expect(200, [])
+                    .expect(200)
+                        .expect([])
             })
         })
 
-        context('Given a malicious notion', () => {
+        context('given a malicious notion', () => {
             const brandId = 666
 
-            beforeEach(() => db.into('factories').insert(malFactory))
-            beforeEach(() => db.into('brands').insert(malBrand))
-            beforeEach(() => db.into('notion_types').insert(malNotionType))
-            beforeEach(() => db.into('fiber_and_material_types').insert(malFiberType))
-            beforeEach(() => db.into('notions').insert(malNotion))
+            beforeEach(() => db.into('factories').insert(malFactInsert))
+            beforeEach(() => db.into('brands').insert(malBrandInsert))
+            beforeEach(() => db.into('notion_types').insert(malNtInsert))
+            beforeEach(() => db.into('fiber_and_material_types').insert(malFtInsert))
+            beforeEach(() => db.into('notions').insert(malNotionInsert))
 
-            it('Returns 200 and and removes XSS attack content', () => {
+            it('removes the attack content', () => {
                 return supertest(app)
                     .get(`/api/brands/${brandId}/notions`)
                     .expect(200)
-                    .then(res => {
-                        expect(res => {
-                            expect(res.body[0].notion_factory_notes).to.eql(expectedNotion.notion_factory_notes)
-                            expect(res.body[0].material_notes).to.eql(expectedNotion.material_notes)
-                        })
+                    .expect(res => {
+                        expect(res.body).to.eql(malNotionGet)
                     })
             })
         })
     })
 
     describe('Protected endpoints', () => {
-        const newBrand = brands[0]
+        const invalidSecret = 'bad-secret'
+        const invalidUser =  { email: 'not-a-user', password: 'password' }
+        const notAnAdmin = { email: user.email, password: user.password }
+        const userNoCreds = { email: '', password: '' }
+        const validUser = user
+
         beforeEach(() => db.into('users').insert(hashUserArray)) 
 
         describe('POST /api/brands/', () => {
-            it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
+            it(`responds with 401 and 'Missing bearer token' when no bearer token is provided`, () => (
                 supertest(app)
                     .post('/api/brands')
-                    .send(newBrand)
-                    .expect(401, { error: `Missing bearer token`})
+                    .expect(401, { error: 'Missing bearer token'})
             ))
 
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                 return supertest(app)
-                    .post(`/api/brands`)
+                    .post('/api/brands')
                     .set('Authorization', makeAuthHeader(userNoCreds))
-                    .send(newBrand)
-                    .expect(401, { error: `Unauthorized request` })
+                    .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {                
                 return supertest(app)
-                    .post(`/api/brands`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .send(newBrand)
+                    .post('/api/brands')
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, () => {                    
+                return supertest(app)
+                    .post('/api/brands')
+                    .set('Authorization', makeAuthHeader(invalidUser))
                     .expect(401, { error: 'Unauthorized request' })
             })
         })
 
         describe('PATCH /api/brands/:brand_id', () => {
-            beforeEach(() => db.into('brands').insert(brands))
+            beforeEach(() => db.into('brands').insert(brandInsert))
 
-            it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
+            it(`responds with 401 and 'Missing bearer token' when no bearer token is provided`, () => {
                 supertest(app)
                     .patch('/api/brands/1')
-                    .send({ english_name: newBrand.english_name})
-                    .expect(401, { error: `Missing bearer token`})
-            ))
-
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
-
+                    .expect(401, { error: 'Missing bearer token'})
+            })
+                
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                 return supertest(app)
                     .patch('/api/brands/1')
                     .set('Authorization', makeAuthHeader(userNoCreds))
-                    .send({ english_name: newBrand.english_name })
-                    .expect(401, { error: `Unauthorized request` })
-            })
-
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                
-                return supertest(app)
-                    .patch(`/api/brands/1`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .send({ english_name: newBrand.english_name })
                     .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
-                const notAnAdmin = { email: adminArray[0].email, password: adminArray[0].password }
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {
+                return supertest(app)
+                    .patch('/api/brands/1')
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
 
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, () => {                
+                return supertest(app)
+                    .patch('/api/brands/1')
+                    .set('Authorization', makeAuthHeader(invalidUser))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`, () => {
                 return supertest(app)
                     .patch('/api/brands/1')
                     .set('Authorization', makeAuthHeader(notAnAdmin))
-                    .send({ english_name: newBrand.english_name })
                     .expect(401, { error: 'Unauthorized request' })
             })
         })
 
         describe('DELETE /api/brands/:brand_id', () => {
-            beforeEach(() => db.into('brands').insert(brands))       
+            beforeEach(() => db.into('brands').insert(brandInsert))       
             
-            it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
+            it(`responds with 401 and 'Missing bearer token' when no bearer token is provided`, () => {
                 supertest(app)
                     .delete('/api/brands/1')
-                    .expect(401, { error: `Missing bearer token`})
-            ))
-
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
-                return supertest(app)
-                    .delete(`/api/brands/1`)
-                    .set('Authorization', makeAuthHeader(userNoCreds))
-                    .expect(401, { error: `Unauthorized request` })
+                    .expect(401, { error: 'Missing bearer token'})
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                 return supertest(app)
-                    .delete(`/api/brands/1`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .delete('/api/brands/1')
+                    .set('Authorization', makeAuthHeader(userNoCreds))
                     .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
-                const notAnAdmin = { email: adminArray[0].email, password: adminArray[0].password }
-
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {
                 return supertest(app)
-                    .patch('/api/brands/1')
+                    .delete('/api/brands/1')
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, () => {                
+                return supertest(app)
+                    .delete('/api/brands/1')
+                    .set('Authorization', makeAuthHeader(invalidUser))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`, () => {
+                return supertest(app)
+                    .delete('/api/brands/1')
                     .set('Authorization', makeAuthHeader(notAnAdmin))
-                    .send({ english_name: newBrand.english_name })
                     .expect(401, { error: 'Unauthorized request' })
             })
         })
     })
 
-    describe('POST /api/brands', () => { 
-        beforeEach(() => db.into('users').insert(hashUserArray)) 
-     
-        it('Creates a brand, responding with 201 and the new brand', () => {
-            const newBrand = brands[0]
-            
-            return (
-                supertest(app)
-                    .post('/api/brands')
-                    .set('Authorization', makeAuthHeader(hashUserArray[0]))
-                    .send(newBrand)
-                    .expect(201)
-                    .expect(res => {
-                        expect(res.body.english_name).to.eql(newBrand.english_name)
-                        expect(res.body.website).to.eql(newBrand.website)
-                        expect(res.body.home_currency).to.eql(newBrand.home_currency)
-                        expect(res.body.approved_by_admin).to.eql(newBrand.approved_by_admin)
-                        expect(res.body).to.have.property('id')
-                        expect(res.headers.location).to.eql(`/api/brands/${res.body.id}`)
-                        const expected = new Date().toLocaleString()
-                        const actual = new Date(res.body.date_published).toLocaleString()
-                        expect(actual).to.eql(expected)
-                    })
-                    .then(res => {
-                        return supertest(app)
-                            .get(`/api/brands/${res.body.id}`)
-                            .expect(res => {
-                                expect(200)
-                                expect(res.body.english_name).to.eql(newBrand.english_name)
-                                expect(res.body.website).to.eql(newBrand.website)
-                                expect(res.body.home_currency).to.eql(newBrand.home_currency)
-                                expect(res.body.approved_by_admin).to.eql(newBrand.approved_by_admin)
-                            })
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    })
-            )    
+    describe('POST /api/brands', () => {
+        beforeEach(() => db.into('users').insert(hashUserArray))
 
+        it('creates a brand, responding with 201 and the new brand', async () => {
+            const postResponse = await supertest(app)
+                .post(`/api/brands`)
+                .set('Authorization', makeAuthHeader(user))
+                .send(brandPost)
+
+            const getResponse = await supertest(app)
+                .get(`/api/brands/${postResponse.body.id}`)
+
+            const expected = new Date().toLocaleString()
+            const created = new Date(postResponse.body.created_at).toLocaleString()
+            const updated = new Date(postResponse.body.updated_at).toLocaleString()
+
+            const expectedPostBody = {
+                id: postResponse.body.id,
+                ...brandPost,
+                approved_by_admin: false,
+                created_at: postResponse.body.created_at,
+                updated_at: postResponse.body.updated_at
+            }
+
+            const expectedGetBody = {
+                ...expectedPostBody
+            }
+
+            expect(postResponse.status).to.eql(201)
+            expect(postResponse.headers.location).to.eql(`/api/brands/${postResponse.body.id}`)
+            expect(postResponse.body.approved_by_admin).to.eql(false)
+            expect(postResponse.body).to.eql(expectedPostBody)
+            expect(created).to.eql(expected)
+            expect(updated).to.eql(expected)
+            expect(getResponse.status).to.eql(200)
+            expect(getResponse.body).to.eql(expectedGetBody)
         })
             
         const requiredFields = [
@@ -404,18 +410,14 @@ describe('Brands Endpoints', () => {
 
         requiredFields.forEach(field => {
             const newBrand = {
-                english_name: 'Zara',
-                website: 'www.zara.com',
-                home_currency: 1,
-                size_system: 1
+                ...brandPost
             }
-
             it(`responds with 400 and an error message when the '${field}' is missing`, () => {
                 delete newBrand[field]
 
                 return supertest(app)
                     .post('/api/brands')
-                    .set('Authorization', makeAuthHeader(userArray[0]))
+                    .set('Authorization', makeAuthHeader(user))
                     .send(newBrand)
                     .expect(400, {
                         error: { message: `Missing '${field}' in request body`}
@@ -423,99 +425,138 @@ describe('Brands Endpoints', () => {
             })
         })
 
-        it(`Removes XSS attack content from response`, () => {
-            const { malBrand, expectedBrand } = makeMalBrand()
+        context('given a malicious brand', () => {
+            it('removes the attack content from the response', async () => {
+                const postResponse = await supertest(app)
+                    .post('/api/brands')
+                    .set('Authorization', makeAuthHeader(user))
+                    .send(malBrandPost)
+                    
+                const getResponse = await supertest(app)
+                    .get(`/api/brands/${postResponse.body.id}`)
 
-            return supertest(app)
-                .post('/api/brands')
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(malBrand)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(expectedBrand.english_name)
-                    expect(res.body.website).to.eql(expectedBrand.website)
-                })
+                const expected = new Date().toLocaleString()
+                const created = new Date(postResponse.body.created_at).toLocaleString()
+                const updated = new Date(postResponse.body.updated_at).toLocaleString()
+    
+                const expectedPostBody = {
+                    ...malBrandGet[0],
+                    id: postResponse.body.id,
+                    approved_by_admin: false,
+                    created_at: postResponse.body.created_at,
+                    updated_at: postResponse.body.updated_at
+                }
+    
+                const expectedGet = {
+                    ...expectedPostBody
+                }
+
+                expect(postResponse.status).to.eql(201)
+                expect(postResponse.headers.location).to.eql(`/api/brands/${postResponse.body.id}`)
+                expect(postResponse.body.approved_by_admin).to.eql(false)
+                expect(postResponse.body).to.eql(expectedPostBody)
+                expect(created).to.eql(expected)
+                expect(updated).to.eql(expected)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedGet)
+            })       
         })
     })
 
     describe('PATCH /api/brands/:brand_id', () => {
         beforeEach(() => db.into('users').insert(hashAdminArray)) 
 
-        const adminUser = adminArray[0]
+        context('given there are brands in the database', () => {
+            beforeEach(() => db.into('brands').insert(brandInsert))
 
-        context('Given there are brands in the database', () => {
-            beforeEach(() => db.into('brands').insert(brands))
-
-            it('responds with 204 and updates the brand', () => {
-                const idToUpdate = 2
+            it('responds with 204 and updates the brand', async () => {
+                const idToUpdate = brandInsert.id
 
                 const updateBrand = {
                     english_name: 'Updated Brand Name',
                     website: 'www.updatedbrand.com',
-                    home_currency: 2,
-                    size_system: 2,
+                    home_currency: 1,
+                    size_system: 1,
                     approved_by_admin: false
                 }
 
-                const expectedBrand = {
-                    ...brands[idToUpdate - 1],
-                    ...updateBrand
-                }
-
-                return supertest(app)
+                const patchResponse = await supertest(app)
                     .patch(`/api/brands/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
+                    .set('Authorization', makeAuthHeader(admin))
                     .send(updateBrand)
-                    .expect(204)
-                    .then(res => supertest(app)
-                        .get(`/api/brands/${idToUpdate}`)
-                        .expect(expectedBrand)
-                    )
-            })
 
-            it('responds with 400 when no required fields are supplied', () => {
-                const idToUpdate = 1
-                return supertest(app)
-                    .patch(`/api/brands/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
-                    .send({irrelevantField: 'bar'})
-                    .expect(400, {
-                        error: { message: `Request body must include 'english_name', 'website', 'home_currency', 'size_system', and/or 'approved_by_admin'`}
-                    })
-            })
+                const getResponse = await supertest(app)
+                    .get(`/api/brands/${idToUpdate}`)
 
-            it(`responds with 204 when updating only a subset of fields`, () => {
-                const idToUpdate = 1
-                const updateBrand = {
-                    website: 'www.newbrandwebsite.com'
-                }
                 const expectedBrand = {
-                    ...brands[idToUpdate - 1],
+                    ...brandGet[idToUpdate - 1],
                     ...updateBrand
                 }
 
-                return supertest(app)
+                const created = new Date(getResponse.body.created_at).toLocaleString()
+                const updated = new Date(getResponse.body.updated_at).toLocaleString()
+                const expectedCreated = new Date(brandInsert.created_at).toLocaleString()
+                const expectedUpdated = new Date(brandInsert.updated_at).toLocaleString()
+
+                expect(patchResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedBrand)      
+                expect(created).to.eql(expectedCreated)
+                expect(updated).to.eql(expectedUpdated)
+            })
+
+            it('responds with 400 when no required fields are supplied', async () => {
+                const idToUpdate = brandInsert.id
+                
+                const patchResponse = await supertest(app)
                     .patch(`/api/brands/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
-                    .send({
-                        ...updateBrand,
-                        fieldToIgnore: 'should not be in the GET response'})
-                    .expect(204)
-                    .then(res => {
-                        return supertest(app)
-                            .get(`/api/brands/${idToUpdate}`)
-                            .expect(expectedBrand)
-                    })
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send({})
+
+                expect(patchResponse.status).to.eql(400)    
+                expect(patchResponse.error.text).to.eql(`{"error":{"message":"Request body must include 'english_name', 'website', 'home_currency', 'size_system', and/or 'approved_by_admin'"}}`)
+            })
+
+            it('responds with 204 when updating only a subset of fields', async () => {
+                const idToUpdate = brandInsert.id
+
+                const updateBrand = {
+                    english_name: 'Updated Brand Name'
+                }
+
+                const patchResponse = await supertest(app)
+                    .patch(`/api/brands/${idToUpdate}`)
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send(updateBrand)
+
+                const getResponse = await supertest(app)
+                    .get(`/api/brands/${idToUpdate}`)
+
+                const expectedBrand = {
+                    ...brandGet[idToUpdate - 1],
+                    ...updateBrand
+                }
+
+                const created = new Date(getResponse.body.created_at).toLocaleString()
+                const updated = new Date(getResponse.body.updated_at).toLocaleString()
+                const expectedCreated = new Date(brandInsert.created_at).toLocaleString()
+                const expectedUpdated = new Date(brandInsert.updated_at).toLocaleString()
+
+                expect(patchResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedBrand)      
+                expect(created).to.eql(expectedCreated)
+                expect(updated).to.eql(expectedUpdated)
             })
         })
 
-        context('Given nonexistant brand id', () => {
+        context('given nonexistant brand id', () => {
             it('responds with 404', () => {
                 const brandId = 654
                 return supertest(app)
                     .patch(`/api/brands/${brandId}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
-                    .expect(404, { error: { message: `Brand does not exist.` } })
+                    .set('Authorization', makeAuthHeader(admin))
+                    .expect(404, { error: { message: 'Brand does not exist.' } })
             })
         })
     })
@@ -523,36 +564,32 @@ describe('Brands Endpoints', () => {
     describe('DELETE /api/brands/:brand_id', () => {
         beforeEach(() => db.into('users').insert(hashAdminArray)) 
 
-        const adminUser = adminArray[0]
+        context('given there are products in the database', () => {
+            beforeEach(() => db.into('brands').insert(brandInsert))
 
-        context('Given there are products in the database', () => {
-            beforeEach(() => db.into('brands').insert(brands))
+            it('responds with 204 and removes the brand', async () => {
+                const idToRemove = brandInsert.id
+                const expectedBrands = brandGet.filter(brand => brand.id !== idToRemove)
 
-            it('responds with 204 and removes the brand', () => {
-                const idToRemove = 1
-                const expectedBrands = brands.filter(brand => brand.id !== idToRemove)
-
-                return supertest(app)
+                const deleteResponse = await supertest(app)
                     .delete(`/api/brands/${idToRemove}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
-                    .expect(204)
-                    .then(res => 
-                        supertest(app)
-                            .get('/api/brands')
-                            .expect(expectedBrands)
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    )
+                    .set('Authorization', makeAuthHeader(admin))
+
+                const getResponse = await supertest(app)
+                    .get(`/api/brands/${idToRemove}`)
+
+                expect(deleteResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(404)
+            
             })
         })
 
-        context('Given no brands', () => {
+        context('given no brands', () => {
             it('responds with 404', () => {
-                const brandId = 432
+                const nonexistantId = 123
                 return supertest(app)
-                    .delete(`/api/brands/${brandId}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
+                    .delete(`/api/brands/${nonexistantId}`)
+                    .set('Authorization', makeAuthHeader(admin))
                     .expect(404, { error: { message: 'Brand does not exist.' } })
             })
         })

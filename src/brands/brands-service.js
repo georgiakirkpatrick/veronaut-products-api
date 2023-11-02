@@ -31,6 +31,7 @@ const BrandsService = {
     getFibersForBrand(knex, brandId) {
         return knex('fibers_and_materials')
             .join('fiber_and_material_types', {'fibers_and_materials.fiber_or_material_type_id': 'fiber_and_material_types.id'})
+            .join('factories', {'fibers_and_materials.producer_id': 'factories.id'})
             .select(
                 'fibers_and_materials.id as id',
                 'fibers_and_materials.fiber_or_material_type_id',
@@ -39,9 +40,12 @@ const BrandsService = {
                 'fibers_and_materials.brand_id',
                 'fibers_and_materials.producer_country',
                 'fibers_and_materials.producer_id',
+                'factories.english_name as producer',
+                'factories.website as producer_website',
                 'fibers_and_materials.production_notes',
                 'fibers_and_materials.approved_by_admin',
-                'fibers_and_materials.date_published'
+                'fibers_and_materials.created_at',
+                'fibers_and_materials.updated_at'
             )
             .where('brand_id', brandId)
     },
@@ -53,8 +57,8 @@ const BrandsService = {
             .select(
                 'notions.id',
                 'notions.notion_type_id',
-                'notions.brand_id',
                 'notion_types.english_name as notion_type',
+                'notions.brand_id',
                 'notions.manufacturer_country',
                 'notions.manufacturer_id',
                 'notions.manufacturer_notes',
@@ -63,8 +67,8 @@ const BrandsService = {
                 'notions.material_producer_id',
                 'notions.material_notes',
                 'notions.approved_by_admin',
-                'notions.date_published'
-            )
+                'notions.created_at',
+                'notions.updated_at'            )
             .where('brand_id', brandId)
     },
 }

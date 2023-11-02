@@ -18,6 +18,7 @@ const AuthService = {
     },
 
     getUserByEmail(knex, email) {
+        console.log('email', email)
         return knex('users')
             .select('*')
             .where({ email })

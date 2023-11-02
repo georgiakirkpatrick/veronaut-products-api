@@ -42,7 +42,8 @@ const UsersService = {
                 'products.cmt_notes',
                 'products.featured',
                 'products.approved_by_admin',
-                'products.date_published',
+                'products.created_at',
+                'products.updated_at'
             )
             .where('users_to_products.user_id', userId)
     },
@@ -63,7 +64,8 @@ const UsersService = {
                 'users.editor',
                 'users.can_submit',
                 'users.org_affiliation',
-                'users.account_created'
+                'users.created_at',
+                'users.updated_at'
             )
             .where({ id })
             .first()

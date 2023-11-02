@@ -1,22 +1,28 @@
-const knex = require('knex')
-const jwt = require('jsonwebtoken')
-const app = require('../src/app')
-const { makeBrandArray } = require('./brands.fixtures')
-const { makeCategoryArray, makeMalCat } = require('./categories.fixtures')
-const { makeProductArray, makeDry, makeMalProduct, makeWash } = require('./products.fixtures')
-const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray, makeMalUser } = require('./users.fixtures')
+describe('categories endpoints', function() {
+    const app = require('../src/app')
+    const { expect } = require('chai')
+    const knex = require('knex')
+    const jwt = require('jsonwebtoken')
+    const supertest = require('supertest')
 
-describe('Categories Endpoints', function() {
-    const adminArray = makeAdminArray()
-    const categories = makeCategoryArray()
-    const brands = makeBrandArray()
+    const { makeBrand, makeMalBrand } = require('./brands.fixtures')
+    const { makeCategoryArray, makeMalCategory } = require('./categories.fixtures')
+    const { makeProduct, makeDry, makeMalProduct, makeWash } = require('./products.fixtures')
+    const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray, makeMalUser } = require('./users.fixtures')
+    
+    const { categoryPost, categoriesInsert, categoriesGet } = makeCategoryArray()
+    const { brandInsert } = makeBrand()
+    const { malBrandInsert } = makeMalBrand()
+    const { malCatInsert, malCatGet } = makeMalCategory()
+    const { productPost, prodExtGet } = makeProduct()
+    const { malProdGet, malProdInsert, malProdPost, extendedExpProduct } = makeMalProduct()
+    const admin = makeAdminArray()[0]
+    const dry = makeDry()
     const hashAdminArray = hashedAdminArray()
     const hashUserArray = hashedUserArray()
+    const user = makeUserArray()[0]
     const wash = makeWash()
-    const dry = makeDry()
-    const { productsPost, productsExtendedGet } = makeProductArray()
-    const userArray = makeUserArray()
-    
+
     let db
 
     const makeAuthHeader = (user, secret = process.env.JWT_SECRET) => {
@@ -40,323 +46,341 @@ describe('Categories Endpoints', function() {
     afterEach('cleanup', () => db.raw('TRUNCATE table categories, brands, wash_instructions, dry_instructions, products, users RESTART IDENTITY CASCADE'))
 
     describe('GET /api/categories', () => {
-        context('Given there are categories in the database', () => {
+        context('given there are categories in the database', () => {
             beforeEach('insert categories', () => {
-                return db.into('categories').insert(categories)
+                return db.into('categories').insert(categoriesInsert)
             })
     
-            it('GET /api/categories responds with 200 and all of the categories', () => {
+            it('returns 200 and all of the categories', () => {
                 return supertest(app)
                     .get('/api/categories')
-                    .expect(200, categories)
+                    .expect(200, categoriesGet)
             })
         })
-    
-        context('Given no categories', () => {
+
+        context('when there are no categories in the database', () => {
             it('responds with 200 and an empty list', () => {
                 return supertest(app)
                     .get('/api/categories')
-                    .expect(200, [])
+                    .expect(200)
+                    .expect([])
+            })
+        })
+
+        context('given a malicious category', () => {
+            before(() => db.into('categories').insert(malCatInsert))
+            it('removes the attack content', () => {
+                return supertest(app)
+                    .get('/api/categories')
+                    .expect(200)
+                    .expect(res => {
+                        expect(res.body).to.eql(malCatGet)
+                })    
             })
         })
     })
 
     describe('GET /api/categories/:category_id/products', () => {
-        context('Given there are products for the specified category', () => {
-            beforeEach(() => db.into('categories').insert(categories))
-            beforeEach(() => db.into('brands').insert(brands))
+            const categoryId = categoriesInsert[0].id
+            const malCatId = malCatInsert.id
+        context('given there are products for the specified category', () => {
+            beforeEach(() => db.into('categories').insert(categoriesInsert))
+            beforeEach(() => db.into('brands').insert(brandInsert))
             beforeEach(() => db.into('wash_instructions').insert(wash))
             beforeEach(() => db.into('dry_instructions').insert(dry))
-            beforeEach(() => db.into('products').insert(productsPost))
+            beforeEach(() => db.into('products').insert(productInsert))
 
             it('it responds with 200 and all the products for the specified category', () => {
-                const categoryId = 1
 
-                return supertest(app)
-                    .get(`/api/categories/${categoryId}/products`)
-                    .expect(200, productsExtendedGet)
-            })      
-        })
-
-        context('Given no products', () => {
-    
-            beforeEach(() => db.into('categories').insert(categories))
-            beforeEach(() => db.into('brands').insert(brands))
-            beforeEach(() => db.into('wash_instructions').insert(wash))
-            beforeEach(() => db.into('dry_instructions').insert(dry))
-
-            it('responds with 200 and an empty list', () => {
-                const categoryId = 1
-
-                return supertest(app)
-                    .get(`/api/categories/${categoryId}/products`)
-                    .expect(200, [])
-            })
-        })
-
-        context('Given an XSS attack product', () => {
-            const { malProduct, expectedProduct } = makeMalProduct()
-            
-            beforeEach(() => db.into('categories').insert(categories))
-            beforeEach(() => db.into('brands').insert(brands))
-            beforeEach(() => db.into('wash_instructions').insert(wash))
-            beforeEach(() => db.into('dry_instructions').insert(dry))
-            beforeEach(() => db.into('products').insert([malProduct]))
-
-            const categoryId = 1
-
-            it('removes XSS attack content', () => {
                 return supertest(app)
                     .get(`/api/categories/${categoryId}/products`)
                     .expect(200)
                     .expect(res => {
-                        expect(res.body[0].productObject.english_name).to.equal(expectedProduct.english_name)
-                        expect(res.body[0].productObject.product_url).to.equal(expectedProduct.product_url)
-                        expect(res.body[0].productObject.cmt_factory_notes).to.equal(expectedProduct.cmt_factory_notes)
+                        console.log('res.body', res.body)
+                        for (let i = 0; i < res.body.length; i++) {
+                            if (res.body[i].productObject.category_id === categoryId) {
+                                const expectedProduct = prodExtGet.find(product => res.body[i].productObject.id === product.productObject.id)
+                                expect(res.body[i].productObject).to.eql(expectedProduct.productObject)
+                            }
+                        }
+                    })
+            })      
+        })
+
+        context('given there are no products for the specified category', () => {
+            beforeEach(() => db.into('categories').insert(categoriesInsert))
+            beforeEach(() => db.into('brands').insert(brandInsert))
+            beforeEach(() => db.into('wash_instructions').insert(wash))
+            beforeEach(() => db.into('dry_instructions').insert(dry))
+            it('responds with 200 and an empty list', () => {
+
+                return supertest(app)
+                    .get(`/api/categories/${categoryId}/products`)
+                    .expect(200)
+                    .expect([])
+            })
+        })
+
+        context('given a malicious product', () => {            
+            beforeEach(() => db.into('categories').insert(malCatInsert))
+            beforeEach(() => db.into('brands').insert(malBrandInsert))
+            beforeEach(() => db.into('wash_instructions').insert(wash))
+            beforeEach(() => db.into('dry_instructions').insert(dry))
+            beforeEach(() => db.into('products').insert(malProdInsert))
+
+            it('removes the attack content', () => {
+                return supertest(app)
+                    .get(`/api/categories/${malCatId}/products`)
+                    .expect(200)
+                    .expect(res => {
+                        expect(res.body).to.eql(extendedExpProduct)
                     })
             })
         })
     })
 
     describe('Protected endpoints', () => {
-        beforeEach(() => db.into('users').insert(hashUserArray)) 
+        beforeEach(() => db.into('users').insert(hashUserArray))
 
-        const newCategory = categories[0]
+        const invalidSecret = 'bad-secret'
+        const invalidUser =  { email: 'not-a-user', password: 'password' }
+        const notAnAdmin = { email: user.email, password: user.password }
+        const userNoCreds = { email: '', password: '' }
+        const validUser = user
 
         describe('POST /api/categories/', () => {
-            it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
-                supertest(app)
+            it(`responds with 401 and 'Missing bearer token' when no bearer token is provided`, () => {
+                return supertest(app)
                     .post('/api/categories')
-                    .send(newCategory)
-                    .expect(401, { error: `Missing bearer token`})
-            ))
+                    .send({})
+                    .expect(401, { error: 'Missing bearer token'})
+            })
 
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                 return supertest(app)
                     .post(`/api/categories`)
                     .set('Authorization', makeAuthHeader(userNoCreds))
-                    .send(newCategory)
-                    .expect(401, { error: `Unauthorized request` })
+                    .send({})
+                    .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {                
                 return supertest(app)
                     .post(`/api/categories`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .send(newCategory)
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .send({})
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {
+                return supertest(app)
+                        .post(`/api/categories`)
+                        .set('Authorization', makeAuthHeader(invalidUser))
+                        .send({})
+                        .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`, () => {
+                return supertest(app)
+                    .post('/api/categories/')
+                    .set('Authorization', makeAuthHeader(notAnAdmin))
+                    .send({})
                     .expect(401, { error: 'Unauthorized request' })
             })
         })
 
         describe('PATCH /api/categories/:category_id', () => {
-            beforeEach(() => db.into('categories').insert(categories))
-    
+            beforeEach(() => db.into('categories').insert(categoriesInsert))
+
             it(`responds with 401 'Missing bearer token' when no bearer token`, () => (
                 supertest(app)
                     .patch('/api/categories/1')
                     .send({ english_name: "new category name"})
-                    .expect(401, { error: `Missing bearer token`})
+                    .expect(401, { error: 'Missing bearer token'})
             ))
     
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
-    
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {    
                 return supertest(app)
                     .patch('/api/categories/1')
                     .set('Authorization', makeAuthHeader(userNoCreds))
-                    .send({ english_name: "new category name" })
-                    .expect(401, { error: `Unauthorized request` })
-            })
-    
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                
-                return supertest(app)
-                    .patch(`/api/categories/1`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .send({ english_name: "new category name" })
+                    .send({})
                     .expect(401, { error: 'Unauthorized request' })
             })
     
-            // it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-            //     const incorrectPassword = { email: adminArray[0].email, password: 'wrong' }
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {                
+                return supertest(app)
+                    .patch(`/api/categories/1`)
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .send({})
+                    .expect(401, { error: 'Unauthorized request' })
+            })
     
-            //     return supertest(app)
-            //         .patch('/api/categories/1')
-            //         .set('Authorization', makeAuthHeader(incorrectPassword))
-            //         .send({ english_name: "new category name" })
-            //         .expect(401, { error: 'Unauthorized request' })
-            // })
-    
-            it(`responds 401 'Unauthorized request' when the user is not an admin`, () => {
-                const notAnAdmin = { email: adminArray[0].email, password: adminArray[0].password }
-    
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`, () => {
                 return supertest(app)
                     .patch('/api/categories/1')
                     .set('Authorization', makeAuthHeader(notAnAdmin))
-                    .send({ english_name: "new category name" })
+                    .send({})
                     .expect(401, { error: 'Unauthorized request' })
             })
         })    
     })
 
     describe('POST /api/categories', () => {
-        beforeEach(() => db.into('users').insert(hashUserArray)) 
+        beforeEach(() => db.into('users').insert(hashAdminArray))
 
-        it('creates a new category, returning 201 and the new category', () => {
-            const newCategory = {
-                english_name: categories[0].english_name,
-                category_class: categories[0].category_class,
-                feature_image: categories[0].feature_image
+        it('creates a new category, returning 201 and the new category', async () => {
+            const postResponse = await supertest(app)
+                .post('/api/categories')
+                .set('Authorization', makeAuthHeader(admin))
+                .send(categoryPost)
+
+            const getResponse = await supertest(app)
+                .get('/api/categories')
+
+            const expectedPostBody = {
+                id: postResponse.body.id,
+                ...categoryPost
             }
+
+            const expectedGetBody = [ expectedPostBody ]
+            
+
+            expect(postResponse.status).to.eql(201)
+            expect(postResponse.headers.location).to.eql(`/api/categories/${postResponse.body.id}`)
+            expect(postResponse.body).to.eql(expectedPostBody)
+            expect(getResponse.status).to.eql(200)
+            expect(getResponse.body).to.eql(expectedGetBody)
+        })
+
+        it(`responds with 400 and an error message when the 'english_name' field is missing`, () => {
+            const missingReqdField = {}
 
             return supertest(app)
                 .post('/api/categories')
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(newCategory)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(newCategory.english_name)
-                    expect(res.body.category_class).to.eql(newCategory.category_class)
-                    expect(res.body.feature_image).to.eql(newCategory.feature_image)
+                .set('Authorization', makeAuthHeader(admin))
+                .send(missingReqdField)
+                .expect(400, {
+                    error: { message: `Missing 'english_name' in request body.`}
                 })
         })
 
-        const requiredFields = [
-            'english_name'
-        ]
-
-        requiredFields.forEach(field => {
-            const newCategory = {
-                english_name: 'House slippers'
-            }
-
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
-                delete newCategory[field]
-
-                return supertest(app)
+        context('given a malicious category', () => {
+            it(`removes the attack content from the response`, async () => {
+                const postResponse = await supertest(app)
                     .post('/api/categories')
-                    .set('Authorization', makeAuthHeader(userArray[0]))
-                    .send(newCategory)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body.`}
-                    })
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send(categoryPost)
+
+                    const getResponse = await supertest(app)
+                        .get('/api/categories')
+
+                    const expectedPostBody = {
+                        id: postResponse.body.id,
+                        ...categoryPost
+                    }
+
+                    const expectedGetBody = [ expectedPostBody ]
+
+                    expect(postResponse.status).to.eql(201)
+                    expect(postResponse.headers.location).to.eql(`/api/categories/${postResponse.body.id}`)
+                    expect(postResponse.body).to.eql(expectedPostBody)
+                    expect(getResponse.status).to.eql(200)
+                    expect(getResponse.body).to.eql(expectedGetBody)
             })
-        })
+        }
 
-        it(`Removes XSS attack content from response`, () => {
-            const { malCategory, expectedCategory } = makeMalCat()
-
-            return supertest(app)
-                .post('/api/categories')
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(malCategory)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(expectedCategory.english_name)
-                    expect(res.body.category_class).to.eql(expectedCategory.category_class)
-                    expect(res.body.feature_image).to.eql(expectedCategory.feature_image)
-                })
-        })
+        )
+        
     })
 
     describe('PATCH /api/categories/:category_id', () => {
         beforeEach(() => db.into('users').insert(hashAdminArray))
 
-        const adminUser = adminArray[0]
+        const catToUpdate = categoriesInsert[0]
+        const idToUpdate = catToUpdate.id
+        const fullUpdate = {
+            english_name: 'umbrellas',
+            category_class: 'accessories',
+            feature_image: 'umbrella-pic.com'
+        }
+        const subsetUpdate = {
+            english_name: 'umbrellas'
+        }
 
-        context('Given the category is in the database', () => {
-            beforeEach(() => db.into('categories').insert(categories))
+        context('given the category is in the database', () => {
+            beforeEach(() => db.into('categories').insert(categoriesInsert))
 
-            it('responds with 204 and updates the category', () => {
-                const idToUpdate = 2
-
-                const updateCategory = {
-                    english_name: 'umbrellas',
-                    category_class: 'accessories',
-                    feature_image: 'umbrella-pic.com'
-                }
-
-                const expectedCategory = {
-                    ...categories[idToUpdate - 1],
-                    ...updateCategory
-                }
-
-                return supertest(app)
+            it('responds with 204 and updates the category', async () => {
+                const patchResponse = await supertest(app)
                     .patch(`/api/categories/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
-                    .send(updateCategory)
-                    .expect(204)
-                    .then(async res => {
-                        await supertest(app)
-                        .get(`/api/categories`)
-                        .expect(200)
-                        .expect(res => {
-                            const updatedCat = res.body.find(cat => cat.id === idToUpdate)
-                            const updateKeys = Object.keys(updateCategory)
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send(fullUpdate)
 
-                            updateKeys.forEach(key => {
-                                expect(updatedCat[key]).to.eql(expectedCategory[key])
-                            })
-                        })
-                        .catch(error => {
-                            console.log(error)
-                        })
-                    })
+                const getResponse = await supertest(app)
+                   .get(`/api/categories/`)
+
+                const expectedCatArray = () => {
+                    const updatedCat = {
+                        ...catToUpdate,
+                        ...fullUpdate
+                    }
+                    const newArray = [ ...categoriesInsert ]
+
+                    newArray.splice(0, 1) // update this to newArray.splice(0, 1, updatedCat) and delete following splice method once server sorts items by ID
+                    newArray.push(updatedCat)
+                    return newArray
+                }
+        
+                expect(patchResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedCatArray())
             })
 
             it('responds with 400 when no required fields are supplied', () => {
-                const idToUpdate = 1
                 return supertest(app)
                     .patch(`/api/categories/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
+                    .set('Authorization', makeAuthHeader(admin))
                     .send({irrelevantField: 'bar'})
                     .expect(400, {
                         error: { message: `Request body must include 'english_name', 'category_class', and/or 'feature_image'`}
                     })
             })
 
-            it(`responds with 204 when updating only a subset of fields`, () => {
-                const idToUpdate = 1
-                const updateCategory = {
-                    english_name: 'new category name'
-                }
-                const expectedCategory = {
-                    ...categories[idToUpdate - 1],
-                    ...updateCategory
-                }
-
-                return supertest(app)
+            it(`responds with 204 when updating only a subset of fields`, async () => {
+                const patchResponse = await supertest(app)
                     .patch(`/api/categories/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
-                    .send({
-                        ...updateCategory,
-                        fieldToIgnore: 'should not be in the GET response'})
-                    .expect(204)
-                    .then(res => {
-                        return supertest(app)
-                            .get(`/api/categories`)
-                            .expect(res => {
-                                const updatedCat = res.body.find(cat => cat.id === idToUpdate)
-                                const updateKeys = Object.keys(updateCategory)
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send(subsetUpdate)
 
-                                updateKeys.forEach(key => {
-                                    expect(updatedCat[key]).to.eql(expectedCategory[key])
-                                })
-                            })
-                    })
+
+                const getResponse = await supertest(app)
+                   .get(`/api/categories/`)
+
+                const expectedCatArray = () => {
+                    const updatedCat = {
+                        ...catToUpdate,
+                        ...subsetUpdate
+                    }
+
+                    const newArray = [ ...categoriesInsert ]
+
+                    newArray.splice(0, 1) // update this to newArray.splice(0, 1, updatedCat) and delete following splice method once server sorts items by ID
+                    newArray.push(updatedCat)
+                    return newArray
+                }
+        
+                expect(patchResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedCatArray())
             })
         })
 
-        context('Given nonexistant category id', () => {
+        context('given nonexistant category id', () => {
             it('responds with 404', () => {
                 const categoryId = 654
                 return supertest(app)
                     .patch(`/api/categories/${categoryId}`)
-                    .set('Authorization', makeAuthHeader(adminUser))
+                    .set('Authorization', makeAuthHeader(admin))
                     .expect(404, { error: { message: `Category does not exist.` } })
             })
         })

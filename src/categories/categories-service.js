@@ -46,7 +46,8 @@ const CategoriesService = {
                 'products.cmt_notes',
                 'products.featured',
                 'products.approved_by_admin',
-                'products.date_published'
+                'products.created_at',
+                'products.updated_at'
             )
             .where('products.category_id', categoryId)
             .then(response => {

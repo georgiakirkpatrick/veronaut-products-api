@@ -1,16 +1,19 @@
-const knex = require('knex')
-const jwt = require('jsonwebtoken')
-const app = require('../src/app')
-const { makeCertificationArray, makeMalCertification  } = require('./certifications.fixtures')
-const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray } = require('./users.fixtures')
-
 describe('Certifications Endpoints', function() {
-    const adminArray = makeAdminArray()
-    const certifications = makeCertificationArray()
+    const app = require('../src/app')
+    const { expect } = require('chai')
+    const knex = require('knex')
+    const jwt = require('jsonwebtoken')
+    const supertest = require('supertest')
+
+    const { makeCertArray, makeMalCert  } = require('./certifications.fixtures')
+    const { hashedAdminArray, hashedUserArray, makeAdminArray, makeUserArray } = require('./users.fixtures')
+
+    const { certPost, certArrayGet, certArrayInsert} = makeCertArray()
+    const { malCertGet, malCertInsert, malCertPost } = makeMalCert()
     const hashAdminArray = hashedAdminArray()
     const hashUserArray = hashedUserArray()
-    const { malCertification, expectedCertification } = makeMalCertification()
-    const userArray = makeUserArray()
+    const admin = makeAdminArray()[0]
+    const user = makeUserArray()[0]
 
     let db
 
@@ -35,13 +38,13 @@ describe('Certifications Endpoints', function() {
     afterEach('cleanup', () => db.raw('TRUNCATE table certifications, users RESTART IDENTITY CASCADE'))
 
     describe('GET /api/certifications', () => {
-        context('when there are certifications in the database', () => {
-            beforeEach(() => db.into('certifications').insert(certifications))
+        context('given there are certifications in the database', () => {
+            beforeEach(() => db.into('certifications').insert(certArrayInsert))
 
-            it('returns all the certifications', () => {
+            it('responds with 200 and all the certifications', () => {
                 return supertest(app)
                     .get('/api/certifications')
-                    .expect(200, certifications)
+                    .expect(200, certArrayGet)
             })
         })
 
@@ -49,179 +52,179 @@ describe('Certifications Endpoints', function() {
             it('responds with 200 and an empty list', () => {
                 return supertest(app)
                     .get('/api/certifications')
-                    .expect(200, [])
+                    .expect(200)
+                    .expect([])
             })
         })
 
         context('given a malicious certification', () => {
-            beforeEach(() => db.into('certifications').insert(malCertification))
+            beforeEach(() => db.into('certifications').insert(malCertInsert))
             
             it('removes the attack content', () => {
                 return supertest(app)
                     .get('/api/certifications')
                     .expect(200)
-                    .expect(res => {
-                        expect(res.body[0].english_name).to.eql(expectedCertification.english_name)
-                        expect(res.body[0].website).to.eql(expectedCertification.website)
-                    })
+                    .expect([malCertGet])
             })
         })
     })
 
     describe('GET /api/certifications/:certification_id', () => {
-        context('when the certification with id certification_id exists', () => {
-            beforeEach(() => db.into('certifications').insert(certifications))
+        const certId = certArrayInsert[0].id
+        const malCertId = malCertInsert.id
 
-            it('responds with the certfication', () => {
-                const certificationId = 1
+        context('given the certification with id certification_id exists', () => {
+            beforeEach(() => db.into('certifications').insert(certArrayInsert))
+            it('responds with 200 and the certfication', () => {
+
 
                 return supertest(app)
-                    .get(`/api/certifications/${certificationId}`)
-                    .expect(200, certifications[certificationId - 1])
+                    .get(`/api/certifications/${certId}`)
+                    .expect(200)
+                    .expect(certArrayInsert[certId - 1])
             })
         })
 
-        context('when the certification with id certification_id does not exist', () => {
-            const certificationId = 1
-
+        context('when the certification with id certification_id does not exist.', () => {
             it('responds with 404 and an error message', () => {
                 return supertest(app)
-                    .get(`/api/certifications/${certificationId}`)
-                    .expect(404, { error: { message: 'Certification does not exist' } })
+                    .get(`/api/certifications/${certId}`)
+                    .expect(404, { error: { message: 'Certification does not exist.' } })
             })
         })
 
         context('when certification with certification_id is a malicious certification', () => {
-            beforeEach(() => db.into('certifications').insert(malCertification))
-            const certificationId = 666
-            it('removes the attack content in the response', () => {
+            beforeEach(() => db.into('certifications').insert(malCertInsert))
+            
+            it('removes the attack content from the response', () => {
                 return supertest(app)
-                    .get(`/api/certifications/${certificationId}`)
+                    .get(`/api/certifications/${malCertId}`)
                     .expect(200)
-                    .expect(res => {
-                        expect(res.body.english_name).to.eql(expectedCertification.english_name)
-                        expect(res.body.website).to.eql(expectedCertification.website)
-                    })
+                    .expect(malCertGet)
             })
         })
     })
 
     describe('Protected endpoints', () => {
-        const newCert = certifications[0]
+        beforeEach(() => db.into('users').insert(hashUserArray))
+        beforeEach(() => db.into('users').insert(hashAdminArray))
+
+        const invalidSecret = 'bad-secret'
+        const invalidUser =  { email: 'not-a-user', password: 'password' }
+        const notAnAdmin = { email: user.email, password: user.password }
+        const userNoCreds = { email: '', password: '' }
+        const validUser = user
 
         describe('POST /api/certifications/', () => {
-            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
-                supertest(app)
-                    .post('/api/certifications')
-                    .send(newCert)
-                    .expect(401, { error: `Missing bearer token`})
-            ))
-
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
+            it(`responds with 401 and 'Missing bearer token' when no bearer token is provided`, () => {
                 return supertest(app)
-                    .post(`/api/certifications`)
-                    .set('Authorization', makeAuthHeader(userNoCreds))
-                    .send(newCert)
-                    .expect(401, { error: `Unauthorized request` })
+                    .post('/api/certifications')
+                    .send({})
+                    .expect(401, { error: 'Missing bearer token'})
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                 return supertest(app)
-                    .post(`/api/certifications`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .send(newCert)
+                    .post('/api/certifications')
+                    .set('Authorization', makeAuthHeader(userNoCreds))
+                    .send({})
                     .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: userArray[0].email, password: 'wrong' }
-
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {
                 return supertest(app)
                     .post('/api/certifications')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .send(newCert)
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .send({})
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, () => {                    
+                return supertest(app)
+                    .post('/api/certifications')
+                    .set('Authorization', makeAuthHeader(invalidUser))
                     .expect(401, { error: 'Unauthorized request' })
             })
         })
 
         describe('PATCH /api/certifications/:certification_id', () => {
-            beforeEach(() => db.into('certifications').insert(certifications))
+            beforeEach(() => db.into('certifications').insert(certArrayInsert))
             afterEach('cleanup', () => db.raw('TRUNCATE table certifications RESTART IDENTITY CASCADE'))
 
-            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
-                supertest(app)
+            it(`responds with 401 'Missing bearer token' when no bearer token is provided`, () => {
+                return supertest(app)
                     .patch('/api/certifications/1')
-                    .send({ english_name: newCert.english_name})
-                    .expect(401, { error: `Missing bearer token`})
-            ))
+                    .send({})
+                    .expect(401, { error: 'Missing bearer token'})
+            })
 
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
-
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                 return supertest(app)
                     .patch('/api/certifications/1')
                     .set('Authorization', makeAuthHeader(userNoCreds))
-                    .send({ english_name: newCert.english_name })
-                    .expect(401, { error: `Unauthorized request` })
-            })
-
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                
-                return supertest(app)
-                    .patch(`/api/certifications/1`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
-                    .send({ english_name: newCert.english_name })
+                    .send({})
                     .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: userArray[0].email, password: 'wrong' }
-
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {
                 return supertest(app)
                     .patch('/api/certifications/1')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
-                    .send({ english_name: newCert.english_name })
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .send({})
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, () => {                    
+                return supertest(app)
+                    .post('/api/certifications')
+                    .set('Authorization', makeAuthHeader(invalidUser))
+                    .send({})
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`, () => {
+                return supertest(app)
+                    .patch('/api/certifications/1')
+                    .set('Authorization', makeAuthHeader(notAnAdmin))
+                    .send({})
                     .expect(401, { error: 'Unauthorized request' })
             })
         })
 
         describe('DELETE /api/certifications/:certification_id', () => {
-            beforeEach(() => db.into('certifications').insert(certifications))
-            afterEach('cleanup', () => db.raw('TRUNCATE table certifications RESTART IDENTITY CASCADE'))
+            beforeEach(() => db.into('certifications').insert(certArrayInsert))
 
-            it(`responds with 401 'Missing bearer token' when no basic token`, () => (
-                supertest(app)
-                    .delete('/api/certifications/1')
-                    .expect(401, { error: `Missing bearer token`})
-            ))
-
-            it(`responds 401 'Unauthorized request' when no credentials in token`, () => {
-                const userNoCreds = { email: '', password: '' }
+            it(`responds with 401 'Missing bearer token' when no bearer token is provided`, () => {
                 return supertest(app)
-                    .delete(`/api/certifications/1`)
-                    .set('Authorization', makeAuthHeader(userNoCreds))
-                    .expect(401, { error: `Unauthorized request` })
+                    .delete('/api/certifications/1')
+                    .expect(401, { error: 'Missing bearer token'})
             })
 
-            it(`responds 401 'Unatuhorized request' when invalid user`, () => {
-                const invalidUserCreds =  { email: 'not-a-user', password: 'incorrect-password' }
-                
+            it(`responds with 401 and 'Unauthorized request' when no credentials are in the token`, () => {
                 return supertest(app)
-                    .delete(`/api/certifications/1`)
-                    .set('Authorization', makeAuthHeader(invalidUserCreds))
+                    .delete('/api/certifications/1')
+                    .set('Authorization', makeAuthHeader(userNoCreds))
                     .expect(401, { error: 'Unauthorized request' })
             })
 
-            it(`responds 401 'Unauthorized request' when the password is wrong`, () => {
-                const incorrectPassword = { email: userArray[0].email, password: 'wrong' }
-
+            it(`responds with 401 and 'Unauthorized request' when the JWT secret is invalid`, () => {
                 return supertest(app)
                     .delete('/api/certifications/1')
-                    .set('Authorization', makeAuthHeader(incorrectPassword))
+                    .set('Authorization', makeAuthHeader(validUser, invalidSecret))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is invalid`, () => {                    
+                return supertest(app)
+                    .post('/api/certifications')
+                    .set('Authorization', makeAuthHeader(invalidUser))
+                    .expect(401, { error: 'Unauthorized request' })
+            })
+
+            it(`responds with 401 and 'Unauthorized request' when the user is not an admin`, () => {
+                return supertest(app)
+                    .delete('/api/certifications/1')
+                    .set('Authorization', makeAuthHeader(notAnAdmin))
                     .expect(401, { error: 'Unauthorized request' })
             })
         })
@@ -230,176 +233,211 @@ describe('Certifications Endpoints', function() {
     describe('POST /api/certifications', () => {
         beforeEach(() => db.into('users').insert(hashUserArray))
 
-        const newCertification = {
-            english_name: 'Organic',
-            website: 'www.organic.com',
-            approved_by_admin: true
-        }
+        it('creates a certification, responding with 201 and the new certification', async () => {
+            this.retries(3)
 
-        it('creates a certification, responding with 201 and the new certification', () => {
-            return supertest(app)
+            const postResponse = await supertest(app)
                 .post('/api/certifications')
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(newCertification)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(newCertification.english_name)
-                    expect(res.body.website).to.eql(newCertification.website)
-                    expect(res.body.approved_by_admin).to.eql(newCertification.approved_by_admin)
-                    const expected = new Date().toLocaleString()
-                    const actual = new Date(res.body.date_published).toLocaleString()
-                    expect(actual).to.eql(expected)
-                })
-                .then(async res => {
-                    await supertest(app)
-                        .get(`/api/certifications/${res.body.id}`)
-                        .expect(200)
-                        .catch(error => {
-                            console.log(error)
-                        })
-                })
-        })    
+                .set('Authorization', makeAuthHeader(user))
+                .send(certPost)
 
-        const requiredFields = [
-            'english_name'
-        ]
+            const getResponse = await supertest(app)
+                .get(`/api/certifications/${postResponse.body.id}`)
 
-        requiredFields.forEach(field => {
-            const newCertification = {
-                english_name: 'Zara',
-                website: 'www.zara.com'
+            const expected = new Date().toLocaleString()
+            const postCreated = new Date(postResponse.body.created_at).toLocaleString()
+            const postUpdated = new Date(postResponse.body.updated_at).toLocaleString()
+
+            const expectedPostBody = {
+                id: postResponse.body.id,
+                ...certPost,
+                approved_by_admin: false,
+                created_at: postResponse.body.created_at,
+                updated_at: postResponse.body.updated_at
             }
 
-            it(`responds with 400 and an error message when the '${field}' is missing`, () => {
-                delete newCertification[field]
+            const expectedGetBody = expectedPostBody
 
-                return supertest(app)
-                    .post('/api/certifications')
-                    .set('Authorization', makeAuthHeader(userArray[0]))
-                    .send(newCertification)
-                    .expect(400, {
-                        error: { message: `Missing '${field}' in request body`}
-                    })
-            })
-        })
+            expect(postResponse.status).to.eql(201)
+            expect(postResponse.headers.location).to.eql(`/api/certifications/${postResponse.body.id}`)
+            expect(postResponse.body.approved_by_admin).to.eql(false)
+            expect(postResponse.body).to.eql(expectedPostBody)
+            expect(postCreated).to.eql(expected)
+            expect(postUpdated).to.eql(expected)
+            expect(getResponse.status).to.eql(200)
+            expect(getResponse.body).to.eql(expectedGetBody)
+        })    
 
-        it('removes XSS attack content from the response', () => {
-            const { malCertification, expectedCertification } = makeMalCertification()
+        it(`responds with 400 and an error message when the 'english_name' is missing`, () => {
+            const newCert = certPost
+            delete newCert.english_name
 
             return supertest(app)
                 .post('/api/certifications')
-                .set('Authorization', makeAuthHeader(userArray[0]))
-                .send(malCertification)
-                .expect(201)
-                .expect(res => {
-                    expect(res.body.english_name).to.eql(expectedCertification.english_name)
-                    expect(res.body.website).to.eql(expectedCertification.website)
+                .set('Authorization', makeAuthHeader(user))
+                .send(newCert)
+                .expect(400, {
+                    error: { message: `Missing 'english_name' in request body`}
                 })
+        })
+
+        context('given a malicious example', () => {
+            it('removes the attack content from the response', async () => {
+                this.retries(3)
+
+                const postResponse = await supertest(app)
+                    .post('/api/certifications')
+                    .set('Authorization', makeAuthHeader(user))
+                    .send(malCertPost)
+
+                const getResponse = await supertest(app)
+                    .get(`/api/certifications/${postResponse.body.id}`)
+
+                const expected = new Date().toLocaleString()
+                const postCreated = new Date(postResponse.body.created_at).toLocaleString()
+                const postUpdated = new Date(postResponse.body.updated_at).toLocaleString()
+
+                const expectedPostBody = {
+                    ...malCertGet,
+                    id: postResponse.body.id,
+                    approved_by_admin: false,
+                    created_at: postResponse.body.created_at,
+                    updated_at: postResponse.body.updated_at
+                }
+
+                const expectedGetBody = expectedPostBody
+
+                expect(postResponse.status).to.eql(201)
+                expect(postResponse.headers.location).to.eql(`/api/certifications/${postResponse.body.id}`)
+                expect(postResponse.body.approved_by_admin).to.eql(false)
+                expect(postResponse.body).to.eql(expectedPostBody)
+                expect(postCreated).to.eql(expected)
+                expect(postUpdated).to.eql(expected)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedGetBody)    
+            })
         })
     })
 
     describe('PATCH /api/certifications/:certification_id', () => {
-        beforeEach(() => db.into('certifications').insert(certifications))
+        beforeEach(() => db.into('certifications').insert(certArrayInsert))
         beforeEach(() => db.into('users').insert(hashAdminArray))
+        const idToUpdate = certArrayInsert[0].id
+        const certToUpdate = certArrayInsert.find(cert => cert.id === idToUpdate)
+        const fullUpdate = {
+            english_name: 'New Name',
+            website: 'www.newsite.com',
+            approved_by_admin: true
+        }
 
-        context('given there the certification exists', () => {
-            const idToUpdate = 1
-            const updateCertification = {
-                english_name: 'Moganic',
-                website: 'www.Moganic.com',
-                approved_by_admin: false
-            }
+        const subsetUpdate = {
+            english_name: fullUpdate.english_name
+        }
 
-            it('updates the certification and responds 204', () => {
-                return supertest(app)
+        context('given the certification with id certification_id exists', () => {
+            it('updates the certification and responds with 204', async () => {
+                const patchResponse = await supertest(app)
                     .patch(`/api/certifications/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
-                    .send(updateCertification)
-                    .expect(204)
-                    .then(res => {
-                        supertest(app)
-                            .get(`/api/certifications/${idToUpdate}`)
-                            .expect(res => {
-                                expect(res.body.english_name).to.eql(updateCertification.english_name)
-                                expect(res.body.website).to.eql(updateCertification.website)
-                                expect(res.body.approved_by_admin).to.eql(updateCertification.approved_by_admin)
-                            })
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    })
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send(fullUpdate)
+
+                const getResponse = await supertest(app)
+                    .get(`/api/certifications/${idToUpdate}`)
+                
+                const expectedCert = {
+                    id: idToUpdate,
+                    ...certToUpdate,
+                    ...fullUpdate
+                }
+
+                const created = new Date(getResponse.body.created_at).toLocaleString()
+                const updated = new Date(getResponse.body.updated_at).toLocaleString()
+                const expectedCreated = new Date(expectedCert.created_at).toLocaleString()
+                const expectedUpdated = new Date(expectedCert.updated_at).toLocaleString()
+
+                expect(patchResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedCert)      
+                expect(created).to.eql(expectedCreated)
+                expect(updated).to.eql(expectedUpdated)
             })
 
-            it('responds with 400 when no required fields are supplied', () => {
+            it('responds with 400 and an error message when no required fields are supplied', () => {
                 return supertest(app)
                     .patch(`/api/certifications/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
+                    .set('Authorization', makeAuthHeader(admin))
                     .send({ irreleventField: 'foo' })
-                    .expect(400, { error: { message: `Request body must contain 'english_name', 'website', and/or 'approved_by_admin'` } } )
+                    .expect(400, { error: { message: `Request body must contain 'english_name', 'website', 'approved_by_admin', 'created_at', and/or 'updated_at'` } } )
             })
 
-            it('responds with 204 when updating only a subset of fields', () => {
-                return supertest(app)    
+            it('responds with 204 when updating only a subset of fields', async () => {
+                const patchResponse = await supertest(app)
                     .patch(`/api/certifications/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
-                    .send({ english_name: 'Moganic' })
-                    .expect(204)
-                    .then(res => {
-                        supertest(app)
-                            .get(`/api/certifications/${idToUpdate}`)
-                            .expect(res => {
-                                expect(res.body.english_name).to.eql(updateCertification.english_name)
-                            })
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    })
+                    .set('Authorization', makeAuthHeader(admin))
+                    .send(subsetUpdate)
+
+                const getResponse = await supertest(app)
+                    .get(`/api/certifications/${idToUpdate}`)
+                
+                const expectedCert = {
+                    id: idToUpdate,
+                    ...certToUpdate,
+                    ...subsetUpdate
+                }
+
+                const created = new Date(getResponse.body.created_at).toLocaleString()
+                const updated = new Date(getResponse.body.updated_at).toLocaleString()
+                const expectedCreated = new Date(expectedCert.created_at).toLocaleString()
+                const expectedUpdated = new Date(expectedCert.updated_at).toLocaleString()
+
+                expect(patchResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(200)
+                expect(getResponse.body).to.eql(expectedCert)      
+                expect(created).to.eql(expectedCreated)
+                expect(updated).to.eql(expectedUpdated)
             })
         })
 
-        context('given the certification does not exist', () => {
-            it('responds with 404', () => {
+        context('when the certification does not exist.', () => {
+            it('responds with 404 and an error message', () => {
                 const idToUpdate = 123456
                 return supertest(app)
                     .patch(`/api/certifications/${idToUpdate}`)
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
-                    .expect(404, { error: { message: 'Certification does not exist' } })
+                    .set('Authorization', makeAuthHeader(admin))
+                    .expect(404, { error: { message: 'Certification does not exist.' } })
             })
         })
     })
 
     describe('DELETE /api/certifications/:certification_id', () => {
-        beforeEach(() => db.into('certifications').insert(certifications))
-        beforeEach(() => db.into('users').insert(hashAdminArray[0]))
+        beforeEach(() => db.into('certifications').insert(certArrayInsert))
+        beforeEach(() => db.into('users').insert(hashAdminArray))
 
-        const idToDelete = 1
-        const expectedCertifications = certifications.filter(certification => certification.id !== idToDelete)
+        const idToDelete = certArrayInsert[0].id
+        const expCertArray = certArrayGet.filter(certification => certification.id !== idToDelete)
 
-        context('given the certification exists', () => {
-            it('removes the certification and responds 204', () => {
-                return supertest(app)
+        context('given the certification with id certification_id exists', () => {    
+            it('removes the certification and responds with 204', async () => {
+                const deleteResponse = await supertest(app)
                     .delete(`/api/certifications/${idToDelete}`)
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
-                    .expect(204)
-                    .then(async res => {
-                        await supertest(app)
-                            .get('/api/certifications')
-                            .expect(expectedCertifications)
-                            .catch(error => {
-                                console.log(error)
-                            })
-                    })
+                    .set('Authorization', makeAuthHeader(admin))
+                    
+                const getResponse = await supertest(app)
+                    .get(`/api/certifications/${idToDelete}`)
+
+                expect(deleteResponse.status).to.eql(204)
+                expect(getResponse.status).to.eql(404)
             })
         })
 
-        context('given the certification does not exist', () => {
-            it('responds with 404', () => {
-                const idToDelete = 123456
+        context('when the certification with id certification_id does not exist.', () => {
+            it('responds with 404 and an error message', () => {
+                const nonexistantId = 123
 
                 return supertest(app)
-                    .delete(`/api/certifications/${idToDelete}`)
-                    .set('Authorization', makeAuthHeader(adminArray[0]))
-                    .expect(404, { error: { message: `Certification does not exist` } })
+                    .delete(`/api/certifications/${nonexistantId}`)
+                    .set('Authorization', makeAuthHeader(admin))
+                    .expect(404, { error: { message: `Certification does not exist.` } })
             })
         })
     })

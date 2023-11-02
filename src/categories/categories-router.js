@@ -1,5 +1,5 @@
 const express = require('express')
-const { requireAuth, requireAdmin } = require('../middleware/jwt-auth')
+const { requireAdmin } = require('../middleware/jwt-auth')
 const categoriesRouter = express.Router()
 const CategoriesService = require('./categories-service')
 const jsonParser = express.json()
@@ -20,7 +20,9 @@ const serializeCertification = certification => ({
     english_name: xss(certification.english_name),
     website: xss(certification.website),
     approved_by_admin: certification.approved_by_admin,
-    date_published: certification.date_published
+    created_at: certification.created_at,
+    updated_at: certification.updated_at
+
 })
 
 const serializeColorsImages = colorImage => ({
@@ -41,7 +43,8 @@ const serializeFactories = factory => ({
     notes: factory.notes ? xss(factory.notes) : null,
     stage: factory.stage,
     approved_by_admin: factory.approved_by_admin,
-    date_published: factory.date_published
+    created_at: factory.created_at,
+    updated_at: certification.updated_at
 })
 
 const serializeNotions = notion => ({
@@ -58,10 +61,11 @@ const serializeNotions = notion => ({
     material_producer_id: notion.material_producer_id,
     material_notes: notion.material_notes ? xss(notion.material_notes) : null,
     approved_by_admin: notion.approved_by_admin,
-    date_published: notion.date_published
+    created_at: notion.created_at,
+    updated_at: certification.updated_at
 })
 
-const serializeProductGet = product => {
+const serializeProdOnlyGet = product => {
     return {
         id: product.id,
         english_name: xss(product.english_name),
@@ -80,7 +84,8 @@ const serializeProductGet = product => {
         cmt_notes: product.cmt_notes ? xss(product.cmt_notes) : null,
         featured: product.featured,
         approved_by_admin: product.approved_by_admin,
-        date_published: product.date_published
+        created_at: product.created_at,
+        updated_at: product.updated_at
     }
 }
 
@@ -96,7 +101,7 @@ categoriesRouter
             })
             .catch(next)
     })
-    .post(requireAuth, jsonParser, (req, res, next) => {
+    .post(requireAdmin, jsonParser, (req, res, next) => {
         const {
             english_name,
             category_class,
@@ -220,7 +225,7 @@ categoriesRouter
                 try {
                     const prodPromises = []
 
-                    const productCerts = await ProductsService.getCertificationsForProduct(
+                    const productCerts = await ProductsService.getProdCerts(
                         req.app.get('db'),
                         product.id
                     )
@@ -296,7 +301,7 @@ categoriesRouter
                     }
 
                     const productData = {
-                        productObject: serializeProductGet(product),
+                        productObject: serializeProdOnlyGet(product),
                         prodCertArray: productCerts,
                         prodColorArray: makeColorArray(),
                         cmtFactArray: cmtFactories,

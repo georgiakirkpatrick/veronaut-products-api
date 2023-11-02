@@ -16,7 +16,8 @@ const FibersService = {
                     'factories.website as producer_website',
                     'fibers_and_materials.production_notes',
                     'fibers_and_materials.approved_by_admin',
-                    'fibers_and_materials.date_published'
+                    'fibers_and_materials.created_at',
+                    'fibers_and_materials.updated_at'
                 )
         },
         
@@ -36,7 +37,8 @@ const FibersService = {
                     'factories.english_name as producer',
                     'factories.website as producer_website',
                     'fibers_and_materials.approved_by_admin',
-                    'fibers_and_materials.date_published'
+                    'fibers_and_materials.created_at',
+                    'fibers_and_materials.updated_at'
                 )
                 .where('fibers_and_materials.id', fiberId)
                 .first()
@@ -85,7 +87,8 @@ const FibersService = {
                     'certifications.english_name',
                     'certifications.website',
                     'certifications.approved_by_admin',
-                    'certifications.date_published'
+                    'certifications.created_at',
+                    'certifications.updated_at'
                 )
                 .where('fibers_to_certifications.fiber_or_material_id', fiber_id)
         },

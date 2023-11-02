@@ -13,20 +13,24 @@ const serializeBrands = brand => ({
     home_currency: brand.home_currency,
     size_system: brand.size_system,
     approved_by_admin: brand.approved_by_admin,
-    date_published: brand.date_published
+    created_at: brand.created_at,
+    updated_at: brand.updated_at
 })
 
 const serializeFibers = fiber => ({
     id: fiber.id,
     fiber_or_material_type_id: fiber.fiber_or_material_type_id,
-    fiber_type: fiber.fiber_type,
+    fiber_type: xss(fiber.fiber_type),
     fiber_type_class: fiber.fiber_type_class,
     brand_id: fiber.brand_id,
     producer_country: fiber.producer_country,
     producer_id: fiber.producer_id,
+    producer: xss(fiber.producer),
+    producer_website: xss(fiber.producer_website),
     production_notes: xss(fiber.production_notes),
     approved_by_admin: fiber.approved_by_admin,
-    date_published: fiber.date_published,
+    created_at: fiber.created_at,
+    updated_at: fiber.updated_at,
 })
 
 const serializeNotions = notion => ({
@@ -42,7 +46,8 @@ const serializeNotions = notion => ({
     material_producer_id: notion.material_producer_id,
     material_notes: notion.material_notes ? xss(notion.material_notes) : null,
     approved_by_admin: notion.approved_by_admin,
-    date_published: notion.date_published
+    created_at: notion.created_at,
+    updated_at: notion.updated_at
 })
 
 brandsRouter
@@ -122,7 +127,7 @@ brandsRouter
         .catch(next)
     })
     .get((req, res, next) => {
-        res.json(serializeBrands(res.brand)) 
+        res.json(serializeBrands(res.brand))
     })
     .patch(requireAdmin, jsonParser, (req, res, next) => {
         const {english_name, website, size_system, home_currency, approved_by_admin} = req.body
@@ -137,7 +142,10 @@ brandsRouter
         }
 
         BrandsService
-            .updateBrand(res.app.get('db'), req.params.brand_id, brandToUpdate)
+            .updateBrand(
+                res.app.get('db'), 
+                req.params.brand_id, 
+                brandToUpdate)
             .then(numRowsAffected => {
                 res.status(204).end()
             })
@@ -164,6 +172,8 @@ brandsRouter
         )
         .then(brand => {
             if (!brand) {
+                console.log('no brand')
+
                 return res.status(404).json({
                     error: { message: `Brand does not exist.`}
                 })
@@ -203,15 +213,14 @@ brandsRouter
         .catch(next)
     })
     .get((req, res, next) => {
-        BrandsService
-            .getNotionsForBrands(
-                req.app.get('db'),
-                req.params.brand_id
-            )
-            .then(notions => {
-                res.status(200).json(notions.map(serializeNotions))
-            })
-            .catch(next)
+        BrandsService.getNotionsForBrands(
+            req.app.get('db'),
+            req.params.brand_id
+        )
+        .then(notions => {
+            res.status(200).json(notions.map(serializeNotions))
+        })
+        .catch(next)
 
     })
 
